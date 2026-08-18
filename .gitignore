@@ -1,0 +1,6 @@
+# Las bases de datos, que son muy pesadas
+/datos
+
+# Archivos de credenciales y pruebas
+.dodsrc
+cmr.txt
