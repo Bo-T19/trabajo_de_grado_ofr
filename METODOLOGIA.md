@@ -373,6 +373,20 @@ costo, ya mencionado en 2.2, de que los últimos meses de la ventana pueden
 estar subestimados porque parte de sus eventos reales aún no se han
 confirmado.
 
+**Efecto de inicio de ventana (hallazgo empírico)**: por el mismo mecanismo,
+el **primer periodo** de cualquier corrida del pipeline tiende a verse
+anormalmente alto — en la corrida usada para este documento, cerca de 9 veces
+la mediana del resto de la serie (ver el notebook `eda_deforestacion.ipynb`,
+sección 5). La razón es que `C_t` arranca vacío (`C_0 = ∅`): todo píxel que
+ya estaba en estado confirmado en la primera instantánea descargada de cada
+tile entra de una sola vez a `C_1`, sin importar cuánto tiempo llevara
+acumulándose antes de que este pipeline empezara a monitorear. El primer
+periodo del panel mide entonces un **stock inicial** heredado del historial
+de DIST-ALERT hasta ese punto, no un **flujo mensual** comparable al resto de
+la serie. **Recomendación**: excluir el primer periodo de cualquier cálculo
+de tasas promedio, estacionalidad, o entrenamiento de un modelo — no es una
+observación de la misma naturaleza que las demás.
+
 ### 3.5 El problema de la doble contabilización espacial (tiles solapados)
 
 Los tiles MGRS de 100×100 km se traslapan levemente en sus bordes (por diseño
@@ -560,14 +574,29 @@ se decidió, por qué, y qué riesgo o costo se acepta a cambio.
   productos proviene de sus respectivas validaciones globales/regionales, no
   de un ejercicio de verificación específico para Colombia dentro de esta
   tesis.
-- **El desbalance de clases es extremo** (ver sección 7): más del 98% de las
-  celda-mes del panel tienen `evento = 0`; cualquier modelo posterior debe
-  tratar esto explícitamente (de ahí el diseño de `evento` como variable
-  separada, pensada para un enfoque de dos etapas).
+- **El desbalance de clases es marcado** (ver sección 7 y
+  `eda_deforestacion.ipynb`): en la corrida usada para este documento, cerca
+  del 77% de las celda-mes del panel tienen `evento = 0`; cualquier modelo
+  posterior debe tratar esto explícitamente (de ahí el diseño de `evento`
+  como variable separada, pensada para un enfoque de dos etapas). Esta
+  proporción puede variar entre corridas (más celdas o más meses cambian el
+  denominador) — el número exacto y actualizado está siempre en la sección
+  4 del notebook de EDA, no hay que tomar esta cifra como fija.
+- **Efecto de inicio de ventana** (ver sección 3.4): el primer periodo de
+  cualquier corrida sobreestima la deforestación "de ese mes" porque mide un
+  stock inicial acumulado, no un flujo mensual — excluirlo de promedios y
+  modelos.
 
 ---
 
 ## 7. Cómo se ve la unidad de observación final
+
+*(Los números de esta sección son de una corrida puntual, congelados como
+ejemplo. El pipeline se sigue corriendo y el panel crece con cada nueva
+descarga — la fuente viva y siempre actualizada de estas cifras, con
+gráficas, es
+[`eda_deforestacion.ipynb`](eda_deforestacion.ipynb); ver también su
+"efecto de inicio de ventana", documentado en la sección 3.4.)*
 
 El panel resultante (`datos/panel/panel_deforestacion_colombia.csv`) es una
 tabla de **1 914 790 filas × 17 columnas**: 44 530 celdas × 43 periodos

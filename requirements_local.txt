@@ -7,3 +7,5 @@ requests>=2.31
 pyarrow>=14.0
 earthengine-api>=1.0
 folium>=0.15
+matplotlib>=3.7          # graficas del notebook de EDA (eda_deforestacion.ipynb)
+jupyter>=1.0               # para abrir/correr eda_deforestacion.ipynb

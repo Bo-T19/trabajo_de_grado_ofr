@@ -25,10 +25,11 @@ es relevante.
 6. [Cómo funciona el cálculo zonal, en código](#6-cómo-funciona-el-cálculo-zonal-en-código)
 7. [Cómo se construye el panel, en código](#7-cómo-se-construye-el-panel-en-código)
 8. [El mapa interactivo (`mapa_folium.py`)](#8-el-mapa-interactivo-mapa_foliumpy)
-9. [Estructura de `datos/`](#9-estructura-de-datos)
-10. [Cómo adaptar el pipeline](#10-cómo-adaptar-el-pipeline)
-11. [Solución de problemas](#11-solución-de-problemas)
-12. [Glosario de código](#12-glosario-de-código)
+9. [El notebook de EDA (`eda_deforestacion.ipynb`)](#9-el-notebook-de-eda-eda_deforestacionipynb)
+10. [Estructura de `datos/`](#10-estructura-de-datos)
+11. [Cómo adaptar el pipeline](#11-cómo-adaptar-el-pipeline)
+12. [Solución de problemas](#12-solución-de-problemas)
+13. [Glosario de código](#13-glosario-de-código)
 
 ---
 
@@ -45,6 +46,7 @@ trabajo_de_grado/
 ├── diagnostico_cmr.py      herramienta puntual: valida el catálogo CMR
 ├── main_local.py           orquestador de línea de comandos
 ├── mapa_folium.py          mapa interactivo (Leaflet) del panel final
+├── eda_deforestacion.ipynb  EDA con graficas del panel final
 │
 ├── requirements_local.txt  dependencias Python (pip)
 ├── .dodsrc                 le dice a GDAL/rasterio dónde están las
@@ -55,7 +57,7 @@ trabajo_de_grado/
 ├── METODOLOGIA.md          ← el "qué y por qué" (léalo primero)
 ├── GUIA_CODIGO.md          ← este documento, el "cómo"
 │
-└── datos/                  TODO el output cae aquí (ver sección 9)
+└── datos/                  TODO el output cae aquí (ver sección 10)
     ├── grilla/   hansen/   dist/   cache/   crudo/   panel/   logs/
 ```
 
@@ -146,6 +148,8 @@ requests>=2.31
 pyarrow>=14.0              # motor de lectura/escritura de Parquet
 earthengine-api>=1.0       # solo lo usa exportar_grilla.py
 folium>=0.15                # mapa interactivo (mapa_folium.py)
+matplotlib>=3.7            # graficas de eda_deforestacion.ipynb
+jupyter>=1.0                 # para abrir/correr eda_deforestacion.ipynb
 ```
 
 `rasterio` en particular puede requerir GDAL como dependencia binaria del
@@ -409,6 +413,10 @@ como la original.
 ---
 
 ## Cómo se ve la base de datos final
+
+*(Números de una corrida puntual, como ejemplo — el pipeline sigue
+corriendo y el panel crece. Para las cifras y gráficas actualizadas, correr
+[`eda_deforestacion.ipynb`](eda_deforestacion.ipynb), sección 8.)*
 
 El panel resultante (`datos/panel/panel_deforestacion_colombia.csv`) es una
 tabla de **1 914 790 filas × 17 columnas**: 44 530 celdas × 43 periodos
@@ -715,7 +723,48 @@ se puede leer el `.parquet`.
 
 ---
 
-## 9. Estructura de `datos/`
+## 9. El notebook de EDA (`eda_deforestacion.ipynb`)
+
+Análisis exploratorio del panel final, con 13 secciones de gráficas
+(`matplotlib`, sin dependencias adicionales de visualización). Se abre con
+Jupyter:
+
+```bash
+jupyter notebook eda_deforestacion.ipynb
+```
+
+o desde VS Code / cualquier editor con soporte de notebooks. Reutiliza
+`cargar_panel()` de `mapa_folium.py` (mismo mecanismo de carga
+parquet→csv), así que no duplica esa lógica.
+
+**Qué cubre**: estructura y balance del panel, desbalance de la variable
+`evento`, evolución temporal nacional (con el acumulado), estacionalidad,
+distribución de `tasa_def`, ranking de departamentos, concentración espacial
+(curva estilo Lorenz), un mapa estático de la deforestación acumulada por
+celda, la relación entre bosque remanente y tasa de deforestación, y la
+autocorrelación entre `area_def_ha` y sus rezagos — cerrando con un resumen
+ejecutivo calculado en el momento (no copiado a mano), para que quede
+actualizado si se corre contra un panel más reciente.
+
+**Hallazgo a tener en cuenta al leerlo**: la sección 5 del notebook detecta y
+explica que el **primer periodo del panel sobreestima sistemáticamente la
+deforestación** de ese mes — no es un evento real concentrado ahí, es el
+"stock" de todo lo que DIST-ALERT ya tenía confirmado en la primera
+instantánea descargada de cada tile (ver METODOLOGIA.md §3.4, "Efecto de
+inicio de ventana"). El notebook ya excluye ese periodo donde corresponde
+(estacionalidad, resumen ejecutivo); cualquier análisis posterior sobre el
+panel debería hacer lo mismo.
+
+**Para regenerarlo con datos nuevos**: basta con reabrirlo y correr todas las
+celdas (`Run All`), o desde la terminal:
+
+```bash
+jupyter nbconvert --to notebook --execute --inplace eda_deforestacion.ipynb
+```
+
+---
+
+## 10. Estructura de `datos/`
 
 | Carpeta | Contenido | La genera |
 |---|---|---|
@@ -737,7 +786,7 @@ cambio de parámetros.
 
 ---
 
-## 10. Cómo adaptar el pipeline
+## 11. Cómo adaptar el pipeline
 
 Situaciones típicas en que el director de tesis (o quien continúe el
 trabajo) querría modificar el pipeline en vez de solo reproducirlo:
@@ -793,7 +842,7 @@ transforma el panel balanceado en el panel final.
 
 ---
 
-## 11. Solución de problemas
+## 12. Solución de problemas
 
 | Síntoma | Causa probable | Qué hacer |
 |---|---|---|
@@ -809,7 +858,7 @@ transforma el panel balanceado en el panel final.
 
 ---
 
-## 12. Glosario de código
+## 13. Glosario de código
 
 | Término | Significado |
 |---|---|

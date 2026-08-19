@@ -4,3 +4,6 @@
 # Archivos de credenciales y pruebas
 .dodsrc
 cmr.txt
+
+# Caché
+/__pycache__/
