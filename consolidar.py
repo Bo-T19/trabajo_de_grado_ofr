@@ -1,84 +1,60 @@
 """
 consolidar.py
 ======================================================================
-Convierte el CSV ANCHO que produce zonal_local.py en el panel
+Convierte el CSV ANCHO que produce descargar_gfw.py en el panel
 espacio-temporal final (formato LARGO) listo para modelar.
 
-    ANCHO (como sale de zonal_local.py)
-    cell_id | departamento | bosque_ha | d_2023_01 | d_2023_02 | ...
+    ANCHO (como sale de descargar_gfw.py)
+    cell_id | departamento | bosque_ha | d_2020_01 | d_2020_02 | ...
     A1      | Caqueta      | 2100      | 0.0       | 3.6       | ...
 
     LARGO (lo que necesita el modelo)
     cell_id | periodo    | area_def_ha | bosque_remanente_ha | ...
-    A1      | 2023-01-01 | 0.0         | 2100.0              | ...
-    A1      | 2023-02-01 | 3.6         | 2100.0              | ...
+    A1      | 2020-01-01 | 0.0         | 2100.0              | ...
+    A1      | 2020-02-01 | 3.6         | 2100.0              | ...
 
 Calcula ademas las variables derivadas que requieren memoria temporal
 por celda: perdida acumulada, bosque remanente y rezagos.
-
-CAMBIO respecto a la version con Earth Engine: la columna
-'departamento' ya viene en el CSV (la trae la grilla), no se deduce
-del nombre del archivo.
-
-DOS FUENTES, NUNCA MEZCLADAS
------------------------------
-El pipeline produce dos archivos crudos completamente independientes
-en datos/crudo/: nacional.csv (fuente_dist_alert/, 2023-presente) y
-nacional_gfw.csv (fuente_gfw/, 2020-presente). Este script NUNCA los
-lee juntos -- consolidar() exige el parametro 'fuente' explicito y lee
-solo el archivo correspondiente, para que sea imposible construir por
-accidente un panel que mezcle ambas metodologias de deteccion (ver
-METODOLOGIA.md decision 15). Cada fuente produce su propio panel final
-(panel_deforestacion_colombia_dist_alert.csv / _gfw.csv).
 ======================================================================
 """
 from __future__ import annotations
 
-import argparse
-from pathlib import Path
 from typing import Optional
 
 import pandas as pd
 
 from config_local import Config, DIR_CRUDO, DIR_PANEL, logger
 
-# Un archivo fijo por fuente -- no un glob -- precisamente para que no
-# exista ninguna ruta de codigo que pueda leer los dos a la vez.
-ARCHIVO_CRUDO = {
-    "dist_alert": DIR_CRUDO / "nacional.csv",
-    "gfw": DIR_CRUDO / "nacional_gfw.csv",
-}
+ARCHIVO_CRUDO = DIR_CRUDO / "nacional.csv"
 
 
 # =====================================================================
 # 1. LECTURA Y CAMBIO DE FORMA
 # =====================================================================
-def cargar_crudo(cfg: Config, fuente: str) -> pd.DataFrame:
-    """Lee el CSV crudo de UNA fuente (nunca las dos) y lo pasa de ancho a largo."""
-    archivo = ARCHIVO_CRUDO[fuente]
-    if not archivo.exists():
-        comando = ("python main_local.py zonal" if fuente == "dist_alert"
-                   else "python fuente_gfw/descargar_gfw.py")
+def cargar_crudo(cfg: Config) -> pd.DataFrame:
+    """Lee el CSV crudo y lo pasa de ancho a largo."""
+    if not ARCHIVO_CRUDO.exists():
         raise FileNotFoundError(
-            f"No existe {archivo}. Ejecute primero:\n  {comando}")
+            f"No existe {ARCHIVO_CRUDO}. Ejecute primero:\n"
+            f"  python main_local.py gfw")
 
-    logger.info("Leyendo %s (fuente=%s)...", archivo.name, fuente)
-    ancho = pd.read_csv(archivo)
+    logger.info("Leyendo %s...", ARCHIVO_CRUDO.name)
+    ancho = pd.read_csv(ARCHIVO_CRUDO)
     if "departamento" not in ancho.columns:
-        ancho["departamento"] = archivo.stem.replace("_", " ")
+        ancho["departamento"] = "Sin asignar"
     ancho["departamento"] = ancho["departamento"].fillna("Sin asignar")
     logger.info("Celdas leidas: %d", len(ancho))
 
-    # Columnas "d_2023_01", "d_2023_02", ... son las que traen la
+    # Columnas "d_2020_01", "d_2020_02", ... son las que traen la
     # deforestacion mes a mes en formato ancho.
     cols_periodo = [c for c in ancho.columns if c.startswith("d_")]
     if not cols_periodo:
-        raise ValueError("Ningun archivo tiene columnas de periodo (d_YYYY_MM).")
+        raise ValueError("El archivo no tiene columnas de periodo (d_YYYY_MM).")
 
     # pandas.melt: convierte cada columna de periodo en filas nuevas,
     # repitiendo los metadatos de la celda (id_vars) en cada una.
-    # Ejemplo: una fila con d_2023_01=0.0, d_2023_02=3.6 se vuelve dos
-    # filas: (periodo=2023-01, area_def_ha=0.0) y (periodo=2023-02,
+    # Ejemplo: una fila con d_2020_01=0.0, d_2020_02=3.6 se vuelve dos
+    # filas: (periodo=2020-01, area_def_ha=0.0) y (periodo=2020-02,
     # area_def_ha=3.6). Esta es la forma "larga" que necesita cualquier
     # modelo de panel (una observacion por fila).
     largo = ancho.melt(
@@ -86,7 +62,7 @@ def cargar_crudo(cfg: Config, fuente: str) -> pd.DataFrame:
         value_vars=cols_periodo,
         var_name="periodo", value_name="area_def_ha",
     )
-    # "d_2023_01" -> "2023_01" -> Timestamp(2023-01-01)
+    # "d_2020_01" -> "2020_01" -> Timestamp(2020-01-01)
     largo["periodo"] = pd.to_datetime(
         largo["periodo"].str.replace("d_", "", regex=False), format="%Y_%m")
     # errors="coerce": cualquier valor no numerico se vuelve NaN, y
@@ -260,31 +236,22 @@ def asignar_municipio(df: pd.DataFrame, ruta_shp: Optional[str]) -> pd.DataFrame
 # =====================================================================
 # 6. PIPELINE COMPLETO
 # =====================================================================
-def consolidar(cfg: Config, fuente: str,
-               ruta_shp_dane: Optional[str] = None) -> pd.DataFrame:
+def consolidar(cfg: Config, ruta_shp_dane: Optional[str] = None) -> pd.DataFrame:
     """Ejecuta las cinco etapas y guarda el panel en disco.
-
-    'fuente' ('dist_alert' o 'gfw') es obligatorio y no tiene default:
-    forzar al llamador a decidir explicitamente evita que se genere un
-    panel "por defecto" sin que quede claro de que fuente de evento
-    salio (ver docstring del modulo, DOS FUENTES, NUNCA MEZCLADAS).
 
     Orden importa: cada etapa depende de que la anterior ya se haya
     aplicado (cargar -> filtrar -> balancear -> derivar -> asignar
     municipio). Ver las secciones 1-5 de este archivo para el detalle
     de cada una.
     """
-    if fuente not in ARCHIVO_CRUDO:
-        raise ValueError(f"fuente debe ser {list(ARCHIVO_CRUDO)}, se recibio {fuente!r}")
-
-    df = cargar_crudo(cfg, fuente)
+    df = cargar_crudo(cfg)
     df = filtrar_dominio(df, cfg)
     df = balancear(df)
     df = derivar_variables(df)
     df = asignar_municipio(df, ruta_shp_dane)
 
-    csv = DIR_PANEL / f"panel_deforestacion_colombia_{fuente}.csv"
-    parquet = DIR_PANEL / f"panel_deforestacion_colombia_{fuente}.parquet"
+    csv = DIR_PANEL / "panel_deforestacion_colombia.csv"
+    parquet = DIR_PANEL / "panel_deforestacion_colombia.parquet"
     df.to_csv(csv, index=False)
     try:
         # Parquet es opcional (requiere pyarrow, que si esta en
@@ -309,23 +276,3 @@ def consolidar(cfg: Config, fuente: str,
     logger.info("  archivo        : %s", csv)
     logger.info("=" * 62)
     return df
-
-
-# =====================================================================
-# CLI (uso directo: python consolidar.py --fuente dist_alert|gfw)
-# =====================================================================
-def main() -> int:
-    p = argparse.ArgumentParser(
-        description="Construye el panel final a partir de UNA fuente cruda")
-    p.add_argument("--fuente", required=True, choices=list(ARCHIVO_CRUDO),
-                   help="dist_alert = 2023-presente (NASA DIST-ALERT). "
-                        "gfw = 2020-presente (Global Forest Watch).")
-    p.add_argument("--dane", default=None,
-                   help="Ruta al shapefile municipal del DANE (MGN), opcional")
-    a = p.parse_args()
-    consolidar(Config(), a.fuente, a.dane)
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

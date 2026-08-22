@@ -5,7 +5,6 @@
 /datos/*
 !/datos/grilla/
 !/datos/hansen/
-!/datos/dist/
 !/datos/gfw/
 !/datos/cache/
 !/datos/crudo/
@@ -16,8 +15,6 @@
 !/datos/grilla/.gitkeep
 /datos/hansen/*
 !/datos/hansen/.gitkeep
-/datos/dist/*
-!/datos/dist/.gitkeep
 /datos/gfw/*
 !/datos/gfw/.gitkeep
 /datos/cache/*
@@ -31,9 +28,7 @@
 
 # Archivos de credenciales y pruebas
 .dodsrc
-cmr.txt
 
-# Caché
+# Cache
 /__pycache__/
-/fuente_dist_alert/__pycache__/
-/fuente_gfw/__pycache__/
+/legacy/fuente_dist_alert/__pycache__/

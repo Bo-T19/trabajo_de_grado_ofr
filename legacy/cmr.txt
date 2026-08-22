@@ -1,0 +1,91 @@
+
+====================================================================
+0. AUTENTICACION
+====================================================================
+  autenticado: True
+
+====================================================================
+1. COLECCIONES QUE COINCIDEN CON EL NOMBRE
+====================================================================
+
+  short_name = OPERA_L3_DIST-ALERT-HLS_V1
+    colecciones halladas: 1
+      ShortName=OPERA_L3_DIST-ALERT-HLS_V1  Version=1  concept_id=C2746980408-LPCLOUD
+
+  short_name = OPERA_L3_DIST-ALERT-HLS
+    colecciones halladas: 0
+
+====================================================================
+2. BUSQUEDA DE GRANULOS: QUE COMBINACION FUNCIONA
+====================================================================
+     48 granulos  <-  OPERA_L3_DIST-ALERT-HLS_V1 | version=None
+      0 granulos  <-  OPERA_L3_DIST-ALERT-HLS_V1 | version=1.0
+     48 granulos  <-  OPERA_L3_DIST-ALERT-HLS_V1 | version=1
+      0 granulos  <-  OPERA_L3_DIST-ALERT-HLS_V1 | version=001
+      0 granulos  <-  OPERA_L3_DIST-ALERT-HLS_V1 | version=1.1
+      0 granulos  <-  OPERA_L3_DIST-ALERT-HLS | version=None
+      0 granulos  <-  OPERA_L3_DIST-ALERT-HLS | version=1.0
+      0 granulos  <-  OPERA_L3_DIST-ALERT-HLS | version=1
+      0 granulos  <-  OPERA_L3_DIST-ALERT-HLS | version=001
+      0 granulos  <-  OPERA_L3_DIST-ALERT-HLS | version=1.1
+
+====================================================================
+3. COMBINACION GANADORA
+====================================================================
+  short_name = OPERA_L3_DIST-ALERT-HLS_V1
+  version    = None
+  granulos   = 48
+
+  Ponga estos valores en config_local.py:
+    dist_short_name: str = "OPERA_L3_DIST-ALERT-HLS_V1"
+    dist_version: str = ""
+
+====================================================================
+4. ARCHIVOS DE UN GRANULO (para validar los nombres de capa)
+====================================================================
+  el granulo trae 19 enlaces:
+    OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1_VEG-DIST-STATUS.tif
+    OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1_VEG-IND.tif
+    OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1_VEG-ANOM.tif
+    OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1_VEG-HIST.tif
+    OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1_VEG-ANOM-MAX.tif
+    OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1_VEG-DIST-CONF.tif
+    OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1_VEG-DIST-DATE.tif
+    OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1_VEG-DIST-COUNT.tif
+    OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1_VEG-DIST-DUR.tif
+    OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1_VEG-LAST-DATE.tif
+    OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1_GEN-DIST-STATUS.tif
+    OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1_GEN-ANOM.tif
+    OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1_GEN-ANOM-MAX.tif
+    OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1_GEN-DIST-CONF.tif
+    OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1_GEN-DIST-DATE.tif
+    OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1_GEN-DIST-COUNT.tif
+    OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1_GEN-DIST-DUR.tif
+    OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1_GEN-LAST-DATE.tif
+    OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1_DATA-MASK.tif
+
+====================================================================
+5. LAS DOS CAPAS QUE NECESITAMOS
+====================================================================
+  VEG-DIST-STATUS      -> 1 coincidencia(s)
+      https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/OPERA_L3_DIST-ALERT-HLS_V1/OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1/OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1_VEG-DIST-STATUS.tif
+  VEG-DIST-DATE        -> 1 coincidencia(s)
+      https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/OPERA_L3_DIST-ALERT-HLS_V1/OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1/OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1_VEG-DIST-DATE.tif
+
+====================================================================
+6. EXTRACCION DE TILE Y SELLO DE TIEMPO
+====================================================================
+  nombre : OPERA_L3_DIST-ALERT-HLS_T18NWH_20240601T152659Z_20240603T111025Z_S2B_30_v1_VEG-DIST-STATUS.tif
+    [0] OPERA
+    [1] L3
+    [2] DIST-ALERT-HLS
+    [3] T18NWH
+    [4] 20240601T152659Z
+    [5] 20240603T111025Z
+    [6] S2B
+    [7] 30
+    [8] v1
+    [9] VEG-DIST-STATUS.tif
+
+  descargar_dist.py espera el tile en el patron _T##XXX_
+  y el sello de tiempo en la posicion [4]. Confirme arriba.

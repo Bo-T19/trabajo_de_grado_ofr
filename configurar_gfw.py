@@ -2,10 +2,8 @@
 configurar_gfw.py
 ======================================================================
 Registro de una sola vez en la API de Global Forest Watch (GFW) y
-obtencion de la API key necesaria para descargar gfw_integrated_dist_alerts
-(el producto integrado DIST-ALERT + GLAD-L + GLAD-S2 + RADD que se usara
-para extender el panel hasta 2020-01, cubriendo el tramo que OPERA
-DIST-ALERT no tiene).
+obtencion de la API key necesaria para consultar gfw_integrated_dist_alerts,
+la fuente de evento de todo el pipeline (ver descargar_gfw.py).
 
 Flujo (verificado contra el esquema real de data-api.globalforestwatch.org,
 no documentacion de terceros):
@@ -22,15 +20,15 @@ no documentacion de terceros):
 
 USO (desde la raiz del proyecto)
 ---------------------------------
-    python fuente_gfw/configurar_gfw.py signup --nombre "Su Nombre" --email correo@ejemplo.com
+    python configurar_gfw.py signup --nombre "Su Nombre" --email correo@ejemplo.com
         (una sola vez; revise su correo despues de correrlo)
 
-    python fuente_gfw/configurar_gfw.py apikey --email correo@ejemplo.com --password "la-de-su-correo"
+    python configurar_gfw.py apikey --email correo@ejemplo.com --password "la-de-su-correo"
         (guarda la API key en gfw_api_key.txt, NO se sube a ningun repositorio)
 
 La API key queda en datos/logs/gfw_api_key.txt (fuera del control de
-versiones si este proyecto usa git) y descargar_gfw.py la lee de ahi, o de
-la variable de entorno GFW_API_KEY si se prefiere no dejarla en disco.
+versiones) y descargar_gfw.py la lee de ahi, o de la variable de entorno
+GFW_API_KEY si se prefiere no dejarla en disco.
 ======================================================================
 """
 from __future__ import annotations
@@ -38,14 +36,9 @@ from __future__ import annotations
 import argparse
 import getpass
 import json
-import sys
-from pathlib import Path
 
 import requests
 
-# config_local.py vive en la raiz del proyecto, un nivel arriba de
-# fuente_gfw/.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from config_local import DIR_LOG, logger
 
 BASE = "https://data-api.globalforestwatch.org"
