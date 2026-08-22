@@ -6,8 +6,8 @@ Punto de entrada del pipeline local (DIST-ALERT via LP DAAC).
 USO — en este orden
 -------------------
     python main_local.py grilla
-        Exporta la grilla de 5 km desde Earth Engine. Unica vez que se
-        usa GEE, y solo con assets publicos. ~1 minuto.
+        Construye la grilla de 5 km localmente (limites del DANE, sin
+        Earth Engine ni ninguna cuenta de Google). ~1 minuto.
 
     python main_local.py hansen
         Baja los 12 granulos de Hansen sobre Colombia. ~5 GB.
@@ -25,12 +25,27 @@ USO — en este orden
 
     python main_local.py zonal
         Calculo zonal local. Reemplaza a reduceRegions de GEE.
+        Produce datos/crudo/nacional.csv (fuente DIST-ALERT, 2023-presente).
 
-    python main_local.py consolidar
-        Construye el panel final en datos/panel/.
+    python main_local.py consolidar --fuente dist_alert
+        Construye el panel final en datos/panel/ a partir de
+        nacional.csv (DIST-ALERT, 2023-presente).
 
-    python main_local.py consolidar --dane ruta/al/MGN_MPIO.shp
+    python main_local.py consolidar --fuente gfw
+        Igual, pero a partir de datos/crudo/nacional_gfw.csv (Global
+        Forest Watch, 2020-presente -- generado aparte con
+        "python fuente_gfw/descargar_gfw.py").
+
+    python main_local.py consolidar --fuente dist_alert --dane ruta/al/MGN_MPIO.shp
         Igual, mas el cruce con codigos DANE.
+
+    --fuente es obligatorio: DIST-ALERT y GFW son dos paneles
+    INDEPENDIENTES que nunca se mezclan (ver METODOLOGIA.md decision
+    15). Este main_local.py orquesta la rama DIST-ALERT de punta a
+    punta (grilla -> hansen -> descargar -> zonal); la rama GFW se
+    corre aparte con fuente_gfw/configurar_gfw.py y
+    fuente_gfw/descargar_gfw.py, y solo se une aqui en el paso final
+    de consolidar.
 
     python main_local.py estado
         Que hay en disco y que falta.
@@ -64,26 +79,39 @@ def _correr(script: str, *args: str) -> int:
 
 
 def cmd_estado(cfg: Config) -> int:
-    """Resume que hay en disco en cada etapa del pipeline, sin modificar nada."""
+    """Resume que hay en disco en cada etapa del pipeline, sin modificar nada.
+
+    Reporta cada fuente por separado (nunca un conteo combinado): las dos
+    ramas (DIST-ALERT y GFW) producen archivos independientes que nunca se
+    mezclan (ver METODOLOGIA.md decision 15), asi que agregar sus conteos
+    en una sola cifra escondería cual de las dos falta.
+    """
     grilla = DIR_GRILLA / "grilla_colombia_5km.csv"
     hansen = list(DIR_HANSEN.glob("*.tif"))
     tiles = [d for d in DIR_DIST.iterdir() if d.is_dir()] if DIR_DIST.exists() else []
     cogs = list(DIR_DIST.rglob("*.tif"))
-    crudo = list(DIR_CRUDO.glob("*.csv"))
-    panel = list(DIR_PANEL.glob("*.csv"))
+    crudo_dist = DIR_CRUDO / "nacional.csv"
+    crudo_gfw = DIR_CRUDO / "nacional_gfw.csv"
+    panel_dist = DIR_PANEL / "panel_deforestacion_colombia_dist_alert.csv"
+    panel_gfw = DIR_PANEL / "panel_deforestacion_colombia_gfw.csv"
 
     gb = sum(f.stat().st_size for f in cogs) / 1e9
     gb_h = sum(f.stat().st_size for f in hansen) / 1e9
 
+    def _ok(p: Path) -> str:
+        return "OK" if p.exists() else "falta"
+
     logger.info("=" * 62)
     logger.info("ESTADO DEL PIPELINE")
-    logger.info("  1. grilla      : %s",
+    logger.info("  1. grilla            : %s",
                 "OK" if grilla.exists() else "FALTA (python main_local.py grilla)")
-    logger.info("  2. hansen      : %d archivos, %.1f GB", len(hansen), gb_h)
-    logger.info("  3. dist-alert  : %d tiles, %d archivos, %.1f GB",
+    logger.info("  2. hansen (compartido): %d archivos, %.1f GB", len(hansen), gb_h)
+    logger.info("  3. dist-alert (tiles) : %d tiles, %d archivos, %.1f GB",
                 len(tiles), len(cogs), gb)
-    logger.info("  4. zonal       : %d CSV en crudo/", len(crudo))
-    logger.info("  5. panel       : %d CSV en panel/", len(panel))
+    logger.info("  4a. zonal  dist_alert : %s (%s)", _ok(crudo_dist), crudo_dist.name)
+    logger.info("  4b. zonal  gfw        : %s (%s)", _ok(crudo_gfw), crudo_gfw.name)
+    logger.info("  5a. panel  dist_alert : %s (%s)", _ok(panel_dist), panel_dist.name)
+    logger.info("  5b. panel  gfw        : %s (%s)", _ok(panel_gfw), panel_gfw.name)
     logger.info("=" * 62)
     return 0
 
@@ -92,9 +120,9 @@ def main() -> int:
     """Punto de entrada: python main_local.py <subcomando> [opciones].
 
     Ver el docstring del inicio del archivo para el orden recomendado
-    de subcomandos (grilla -> hansen -> inventario -> [filtrar_tiles.py
-    aparte] -> descargar -> zonal -> consolidar), y GUIA_PIPELINE.md
-    para la explicacion completa de cada paso.
+    de subcomandos (grilla -> hansen -> inventario ->
+    [fuente_dist_alert/filtrar_tiles.py aparte] -> descargar -> zonal ->
+    consolidar), y GUIA_CODIGO.md para la explicacion completa de cada paso.
     """
     p = argparse.ArgumentParser(
         description="Panel de deforestacion de Colombia (DIST-ALERT local)")
@@ -117,6 +145,9 @@ def main() -> int:
     pz.add_argument("--tile", default=None)
 
     pc = sub.add_parser("consolidar")
+    pc.add_argument("--fuente", required=True, choices=["dist_alert", "gfw"],
+                    help="dist_alert = 2023-presente. gfw = 2020-presente. "
+                         "Obligatorio: las dos fuentes nunca se mezclan.")
     pc.add_argument("--dane", default=None,
                     help="Ruta al shapefile municipal del DANE (MGN)")
 
@@ -130,26 +161,26 @@ def main() -> int:
         return _correr("exportar_grilla.py")
 
     if a.cmd == "hansen":
-        return _correr("descargar_dist.py", "hansen")
+        return _correr("fuente_dist_alert/descargar_dist.py", "hansen")
 
     if a.cmd == "inventario":
-        return _correr("descargar_dist.py", "inventario")
+        return _correr("fuente_dist_alert/descargar_dist.py", "inventario")
 
     if a.cmd == "descargar":
-        return _correr("descargar_dist.py", "dist")
+        return _correr("fuente_dist_alert/descargar_dist.py", "dist")
 
     if a.cmd == "piloto":
         # Encadena dos subprocesos: primero descarga solo ese tile,
         # y solo si la descarga fue exitosa (r == 0) corre el calculo
         # zonal sobre el mismo tile.
-        r = _correr("descargar_dist.py", "dist", "--tile", a.tile)
+        r = _correr("fuente_dist_alert/descargar_dist.py", "dist", "--tile", a.tile)
         if r != 0:
             return r
-        return _correr("zonal_local.py", "--tile", a.tile)
+        return _correr("fuente_dist_alert/zonal_local.py", "--tile", a.tile)
 
     if a.cmd == "zonal":
         args = ["--tile", a.tile] if a.tile else []
-        return _correr("zonal_local.py", *args)
+        return _correr("fuente_dist_alert/zonal_local.py", *args)
 
     if a.cmd == "consolidar":
         # A diferencia de los demas subcomandos, este SI importa la
@@ -157,7 +188,7 @@ def main() -> int:
         # una razon tecnica fuerte para la diferencia; simplemente asi
         # quedo implementado).
         from consolidar import consolidar
-        consolidar(cfg, a.dane)
+        consolidar(cfg, a.fuente, a.dane)
         return 0
 
     return 1

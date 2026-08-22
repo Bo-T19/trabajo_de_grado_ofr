@@ -1,5 +1,33 @@
-# Las bases de datos, que son muy pesadas
-/datos
+# Las bases de datos son muy pesadas: se ignora TODO el contenido de
+# datos/, pero se conserva la ESTRUCTURA de carpetas (cada una trae un
+# .gitkeep) para que un clon nuevo del repo ya tenga el arbol listo
+# antes de correr nada -- ver config_local.py y GUIA_CODIGO.md seccion 10.
+/datos/*
+!/datos/grilla/
+!/datos/hansen/
+!/datos/dist/
+!/datos/gfw/
+!/datos/cache/
+!/datos/crudo/
+!/datos/panel/
+!/datos/logs/
+
+/datos/grilla/*
+!/datos/grilla/.gitkeep
+/datos/hansen/*
+!/datos/hansen/.gitkeep
+/datos/dist/*
+!/datos/dist/.gitkeep
+/datos/gfw/*
+!/datos/gfw/.gitkeep
+/datos/cache/*
+!/datos/cache/.gitkeep
+/datos/crudo/*
+!/datos/crudo/.gitkeep
+/datos/panel/*
+!/datos/panel/.gitkeep
+/datos/logs/*
+!/datos/logs/.gitkeep
 
 # Archivos de credenciales y pruebas
 .dodsrc
@@ -7,3 +35,5 @@ cmr.txt
 
 # Caché
 /__pycache__/
+/fuente_dist_alert/__pycache__/
+/fuente_gfw/__pycache__/

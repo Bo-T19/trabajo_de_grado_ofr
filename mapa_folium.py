@@ -4,11 +4,16 @@ mapa_folium.py
 Mapa interactivo (Leaflet, via folium) para darle un vistazo rapido al
 panel final de deforestacion, sin abrir el CSV ni QGIS.
 
-    python mapa_folium.py
+    python mapa_folium.py --fuente dist_alert
+    python mapa_folium.py --fuente gfw
 
 Salida: datos/panel/mapa_deforestacion.html — se abre con doble click
 en cualquier navegador, no necesita servidor ni internet para verse
 (solo los tiles del mapa base piden internet la primera vez).
+
+--fuente selecciona cuál de los dos paneles independientes graficar
+(panel_deforestacion_colombia_dist_alert.* o _gfw.*, ver METODOLOGIA.md
+decision 15) -- nunca se mezclan.
 
 QUE MUESTRA
 -----------
@@ -42,8 +47,6 @@ from folium.plugins import Fullscreen, HeatMap, MarkerCluster, MiniMap
 
 from config_local import DIR_PANEL, logger
 
-PARQUET = DIR_PANEL / "panel_deforestacion_colombia.parquet"
-CSV = DIR_PANEL / "panel_deforestacion_colombia.csv"
 SALIDA = DIR_PANEL / "mapa_deforestacion.html"
 
 # Centro y zoom inicial: encuadran Colombia continental completa.
@@ -54,26 +57,28 @@ ZOOM_INICIAL = 6
 # =====================================================================
 # 1. CARGA Y AGREGACION
 # =====================================================================
-def cargar_panel() -> pd.DataFrame:
-    """Lee el panel largo (una fila por celda-mes). Prefiere Parquet
-    (mas rapido y con tipos correctos); cae a CSV si no existe."""
-    if PARQUET.exists():
+def cargar_panel(fuente: str) -> pd.DataFrame:
+    """Lee el panel largo (una fila por celda-mes) de UNA fuente. Prefiere
+    Parquet (mas rapido y con tipos correctos); cae a CSV si no existe."""
+    parquet = DIR_PANEL / f"panel_deforestacion_colombia_{fuente}.parquet"
+    csv = DIR_PANEL / f"panel_deforestacion_colombia_{fuente}.csv"
+    if parquet.exists():
         try:
-            logger.info("Leyendo %s", PARQUET)
-            return pd.read_parquet(PARQUET)
+            logger.info("Leyendo %s", parquet)
+            return pd.read_parquet(parquet)
         except ImportError:
             # Falta pyarrow/fastparquet en este entorno: se cae al CSV
             # en vez de obligar a instalar un motor de Parquet solo
             # para ver el mapa.
             logger.warning("pyarrow no disponible; se usa el CSV en su lugar.")
-    if CSV.exists():
-        logger.info("Leyendo %s", CSV)
-        df = pd.read_csv(CSV)
+    if csv.exists():
+        logger.info("Leyendo %s", csv)
+        df = pd.read_csv(csv)
         df["periodo"] = pd.to_datetime(df["periodo"])
         return df
     raise FileNotFoundError(
-        f"No hay panel en {DIR_PANEL}. Ejecute primero:\n"
-        f"  python main_local.py consolidar")
+        f"No hay panel para fuente={fuente!r} en {DIR_PANEL}. Ejecute primero:\n"
+        f"  python main_local.py consolidar --fuente {fuente}")
 
 
 def agregar_por_celda(df: pd.DataFrame) -> pd.DataFrame:
@@ -221,6 +226,9 @@ def construir_mapa(celdas: pd.DataFrame, umbral_ha: float, top_n: int) -> folium
 # =====================================================================
 def main() -> int:
     p = argparse.ArgumentParser(description="Mapa folium del panel de deforestacion")
+    p.add_argument("--fuente", default="dist_alert", choices=["dist_alert", "gfw"],
+                   help="Que panel graficar: dist_alert (2023-presente) o "
+                        "gfw (2020-presente). Default: dist_alert")
     p.add_argument("--umbral-ha", type=float, default=0.09,
                    help="Hectareas totales minimas para mostrar el marcador "
                         "de una celda (0.09 ha = 1 pixel DIST-ALERT). Default: 0.09")
@@ -232,7 +240,7 @@ def main() -> int:
                    help="Ruta del HTML de salida")
     a = p.parse_args()
 
-    df = cargar_panel()
+    df = cargar_panel(a.fuente)
     celdas = agregar_por_celda(df)
     mapa = construir_mapa(celdas, a.umbral_ha, a.top_n)
 

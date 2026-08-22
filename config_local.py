@@ -1,10 +1,9 @@
 """
 config_local.py
 ======================================================================
-Configuracion central del pipeline LOCAL (DIST-ALERT via LP DAAC).
-
-Reemplaza a config.py. Earth Engine solo se usa una vez, para exportar
-la grilla (exportar_grilla.py); todo lo demas corre en su PC.
+Configuracion central del pipeline LOCAL. Todo corre en su PC: no hay
+ninguna dependencia de Google Earth Engine (ver exportar_grilla.py para
+el porque).
 
 TODO parametro que afecte el resultado vive aqui.
 ======================================================================
@@ -12,7 +11,6 @@ TODO parametro que afecte el resultado vive aqui.
 from __future__ import annotations
 
 import logging
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Tuple
@@ -38,20 +36,21 @@ logger = logging.getLogger("pipeline")
 RAIZ = Path(__file__).resolve().parent
 DIR_DATOS = RAIZ / "datos"
 
-# Cada carpeta corresponde a UNA etapa del pipeline. Ver GUIA_PIPELINE.md
-# seccion 9 para el detalle de que genera cada script y que contiene cada una.
-DIR_GRILLA = DIR_DATOS / "grilla"      # CSV exportado de GEE (una vez)
-DIR_DIST = DIR_DATOS / "dist"          # COGs de DIST-ALERT, por tile
-DIR_HANSEN = DIR_DATOS / "hansen"      # granulos 10x10 de Hansen GFC
-DIR_CACHE = DIR_DATOS / "cache"        # indices celda y mascaras por tile
-DIR_CRUDO = DIR_DATOS / "crudo"        # salida ancha (la come consolidar.py)
+# Cada carpeta corresponde a UNA etapa del pipeline. Ver GUIA_CODIGO.md
+# seccion 10 para el detalle de que genera cada script y que contiene cada una.
+DIR_GRILLA = DIR_DATOS / "grilla"      # CSV de la grilla, generado localmente (una vez)
+DIR_DIST = DIR_DATOS / "dist"          # COGs de DIST-ALERT, por tile (fuente_dist_alert/)
+DIR_GFW = DIR_DATOS / "gfw"            # descargas del producto integrado GFW (fuente_gfw/)
+DIR_HANSEN = DIR_DATOS / "hansen"      # granulos 10x10 de Hansen GFC (compartida)
+DIR_CACHE = DIR_DATOS / "cache"        # indices celda y mascaras por tile (compartida)
+DIR_CRUDO = DIR_DATOS / "crudo"        # salida ancha de CADA fuente (consolidar.py las une)
 DIR_PANEL = DIR_DATOS / "panel"        # panel final
 DIR_LOG = DIR_DATOS / "logs"
 
 # Se crean automaticamente al importar este modulo (osea, la primera vez
 # que se corre CUALQUIER script del pipeline, porque todos hacen
 # "from config_local import ..."). exist_ok=True: si ya existen, no falla.
-for _d in (DIR_GRILLA, DIR_DIST, DIR_HANSEN, DIR_CACHE,
+for _d in (DIR_GRILLA, DIR_DIST, DIR_GFW, DIR_HANSEN, DIR_CACHE,
            DIR_CRUDO, DIR_PANEL, DIR_LOG):
     _d.mkdir(parents=True, exist_ok=True)
 
@@ -72,14 +71,13 @@ class Config:
     # =================================================================
     # 1. CREDENCIALES
     # =================================================================
-    # Earth Engine: solo para exportar_grilla.py (assets publicos).
-    # Se puede sobreescribir con la variable de entorno EE_PROJECT;
-    # si no esta definida, usa el proyecto de Cloud por defecto.
-    ee_project: str = os.environ.get("EE_PROJECT", "trabajodegrado-505814")
-
     # Earthdata Login: https://urs.earthdata.nasa.gov (gratis).
     # earthaccess lee ~/.netrc o pregunta interactivamente la primera vez.
     # No ponga la contrasena aqui.
+    #
+    # (Ya no hace falta credencial de Google Earth Engine: exportar_grilla.py
+    # construye la grilla localmente con geopandas + limites del DANE.
+    # Ver el docstring de ese archivo para el porque del cambio.)
 
     # =================================================================
     # 2. FUENTE UNICA DEL TARGET
@@ -137,9 +135,29 @@ class Config:
     # Ano de corte para la mascara de bosque remanente: un pixel que
     # tuvo bosque en 2000 pero lo perdio (lossyear) ANTES de este ano
     # ya no cuenta como bosque disponible al arrancar el analisis.
-    # Perdidas ocurridas EN o DESPUES de este ano son las que el
-    # pipeline intenta detectar via DIST-ALERT, no via Hansen.
-    anio_mascara: int = 2022                 # bosque remanente al inicio
+    # Perdidas ocurridas EN o DESPUES de este ano son las que la fuente
+    # de evento debe detectar -- no Hansen.
+    #
+    # IMPORTANTE: este pipeline produce DOS paneles independientes que
+    # NUNCA se mezclan (fuente_dist_alert/, solo 2023+; fuente_gfw/,
+    # solo 2020+ -- ver METODOLOGIA.md decision 15). Cada uno necesita
+    # su bosque base cortado justo ANTES de que arranque SU PROPIA
+    # ventana de eventos, no la del otro:
+    #   - Panel DIST-ALERT (arranca 2023-01): anio_mascara = 2022
+    #   - Panel GFW         (arranca 2020-01): anio_mascara = 2019
+    # Este valor por defecto (2022) es el que usa fuente_dist_alert/
+    # zonal_local.py. fuente_gfw/descargar_gfw.py NO usa este default:
+    # pide su propia mascara con anio_mascara=2019 explicito (ver
+    # ANIO_MASCARA_GFW mas abajo). mascara_bosque() en zonal_local.py
+    # incluye anio_mascara en el nombre de la cache precisamente para
+    # que las dos mascaras nunca se pisen entre si.
+    anio_mascara: int = 2022                 # bosque remanente al inicio de la ventana DIST-ALERT
+
+    # Corte de mascara para el panel GFW (ver nota arriba). Vive como
+    # constante aparte, no como default de la clase, para que sea
+    # imposible confundirlo con anio_mascara al llamar mascara_bosque()
+    # sin pasar el argumento explicito.
+    anio_mascara_gfw: int = 2019             # bosque remanente al inicio de la ventana GFW
 
     # =================================================================
     # 4. VENTANA TEMPORAL
@@ -186,6 +204,40 @@ class Config:
     # el bbox. Se usa para restringir el pipeline a un solo tile en modo
     # "piloto" (ver main_local.py) o para depurar un tile especifico.
     tiles: Tuple[str, ...] = field(default_factory=tuple)
+
+    # =================================================================
+    # 7. FUENTE GFW (evento 2020-presente, fuente_gfw/, panel INDEPENDIENTE)
+    # =================================================================
+    # DIST-ALERT no tiene datos antes de 2023-01 (verificado contra CMR,
+    # ver METODOLOGIA.md decision 1 y su nota de revision). Para tener
+    # un panel que arranque en 2020, fuente_gfw/descargar_gfw.py usa el
+    # producto integrado de Global Forest Watch (DIST-ALERT + GLAD-L +
+    # GLAD-S2 + RADD en una sola escala de confianza) para TODA la
+    # ventana 2020-presente, consultado via su API SQL -- no solo para
+    # rellenar 2020-2022. Este panel NUNCA se mezcla ni se concatena
+    # con el panel DIST-ALERT: son dos productos independientes que el
+    # usuario elige segun necesite (ver METODOLOGIA.md decision 15).
+    gfw_dataset: str = "gfw_integrated_dist_alerts"
+    gfw_version: str = "latest"
+
+    # Inicio de la ventana de este panel. El fin lo marca fecha_fin
+    # (arriba, seccion 4) -- el mismo limite que usa el panel DIST-ALERT,
+    # asi los dos llegan hasta el mismo mes mas reciente aunque nunca se
+    # combinen.
+    fecha_inicio_gfw: str = "2020-01-01"
+
+    # Confianza minima para contar como "evento", analogo a
+    # estados_evento=(6,8) de DIST-ALERT: se excluye 'nominal' (la
+    # deteccion menos confiable, equivalente a una alerta "provisional"
+    # sin confirmar) y se incluyen 'high' y 'highest'.
+    gfw_confianza_minima: Tuple[str, ...] = ("high", "highest")
+
+    # Cuantas celdas de la grilla se mandan por lote a la API de GFW.
+    # El limite duro del servicio es 256 KB por payload; 400 celdas
+    # (rectangulos de 5 km) quedan con margen de sobra y tardan del
+    # orden de 30-50 s por lote en la practica.
+    gfw_celdas_por_lote: int = 400
+    gfw_lotes_en_paralelo: int = 6
 
     @property
     def area_px_ha(self) -> float:

@@ -13,8 +13,11 @@ qué limitaciones trae (sección 2) —, después el aparato conceptual que cruz
 esas fuentes píxel a píxel hasta llegar al panel final, con las fórmulas
 exactas (sección 3), luego una bitácora explícita de decisiones de diseño con
 sus alternativas descartadas (sección 4), los supuestos del estudio (sección
-5), limitaciones conocidas (sección 6), un vistazo a la unidad de observación
-final (sección 7), glosario (sección 8) y referencias (sección 9).
+5), limitaciones conocidas (sección 6), **restricciones de licencia y uso
+comercial de cada fuente** (sección 7 — relevante porque este panel es
+insumo de consultorías comerciales, no solo un ejercicio académico), un
+vistazo a la unidad de observación final (sección 8), glosario (sección 9)
+y referencias (sección 10).
 
 ---
 
@@ -49,12 +52,12 @@ se hizo así, por dos razones que están relacionadas:
    deforestación ocurre en frentes, no dispersa uniformemente). Un panel a
    resolución de píxel sería un problema de clasificación extremadamente
    desbalanceado (más aún que el ya desbalanceado panel a 5 km, ver sección
-   7) y muy ruidoso: un solo píxel mal clasificado por el algoritmo fuente
+   8) y muy ruidoso: un solo píxel mal clasificado por el algoritmo fuente
    (nube, sombra, cuerpo de agua estacional) pesa igual que un evento real.
 
 Agregar a 5×5 km (2 500 ha por celda) resuelve ambos problemas: reduce el
 panel a un tamaño manejable (~44 500 celdas × 43 meses ≈ 1.9 millones de
-filas, ver sección 7) y cada celda acumula suficientes píxeles como para que
+filas, ver sección 8) y cada celda acumula suficientes píxeles como para que
 un error de clasificación aislado en uno de ellos no domine la señal. El
 costo es resolución espacial: dentro de una celda de 5 km no se puede ubicar
 dónde exactamente ocurrió el evento, solo que ocurrió en esa celda. Se
@@ -70,10 +73,19 @@ grilla regular da unidades de área comparable en todo el país.
 
 ### 1.3 Ventana temporal: por qué 2023-01 en adelante, y por qué mensual
 
-La ventana temporal del panel (`fecha_inicio = 2023-01-01`) está determinada
-por la disponibilidad real del producto DIST-ALERT sobre Colombia y por la
-necesidad de no solaparse con la fuente de la línea base (ver sección 3.4 y
-decisión 5 en la sección 4). La resolución mensual (`frecuencia = "MS"`) es un
+**Esta sección describe el panel DIST-ALERT** (`fuente_dist_alert/`). El
+pipeline produce, aparte, un segundo panel completamente independiente con
+la fuente GFW (`fuente_gfw/`), que cubre 2020-01 en adelante sobre la misma
+grilla y con la misma lógica de agregación — ver sección 2.4 y decisión 15
+(sección 4) para el porqué de mantener dos paneles separados en vez de
+fusionarlos en uno solo.
+
+La ventana temporal del panel DIST-ALERT (`fecha_inicio = 2023-01-01`) está
+determinada por la disponibilidad real del producto DIST-ALERT sobre
+Colombia — verificado empíricamente contra el catálogo real de NASA CMR:
+cero gránulos en cualquier parte del mundo antes de esa fecha (decisión 1).
+Quien necesite la ventana completa desde 2020 debe usar el panel GFW, no
+este. La resolución mensual (`frecuencia = "MS"`) es un
 punto medio entre:
 
 - **Resolución más fina** (p. ej. semanal): daría más granularidad temporal,
@@ -99,7 +111,7 @@ señal de cambio, solo estructura espacial y atributos administrativos.
 resolución, desarrollado por el Global Land Analysis and Discovery (GLAD) lab
 de la Universidad de Maryland en colaboración con Google, publicado
 originalmente en Hansen et al. (2013) y actualizado anualmente desde
-entonces (ver sección 9, referencias). Es probablemente el producto de
+entonces (ver sección 10, referencias). Es probablemente el producto de
 cobertura forestal más usado en la literatura de deforestación global —entre
 otras razones porque es gratuito, de cobertura mundial y homogéneo (mismo
 algoritmo aplicado a todo el planeta, lo que hace comparables los resultados
@@ -192,7 +204,7 @@ OPERA. Para la tesis, si se necesita describir el algoritmo con precisión
 técnica exacta (p. ej. qué índice espectral usa `VEG-IND`, o el umbral
 estadístico exacto de confirmación), se debe citar el *Algorithm Theoretical
 Basis Document* (ATBD) oficial del producto DIST-ALERT, disponible desde la
-página del producto en Earthdata (ver sección 9).
+página del producto en Earthdata (ver sección 10).
 
 **Las dos capas que usa este pipeline** (de 19 totales por gránulo):
 
@@ -267,12 +279,96 @@ con expectativa de continuidad operacional a mediano plazo.
 
 | Fuente | Uso | Por qué esta y no otra |
 |---|---|---|
-| `USDOS/LSIB_SIMPLE/2017` (Earth Engine, límites internacionales) | Recorta la grilla al territorio continental de Colombia | Asset público, ya integrado en Earth Engine, evita depender de un shapefile externo para el primer paso |
-| `FAO/GAUL_SIMPLIFIED_500m/2015/level1` (Earth Engine, división administrativa nivel 1) | Etiqueta cada celda con su departamento | Mismo motivo: público, ya en Earth Engine, nivel de detalle (departamento) suficiente para el análisis regional |
-| DANE — Marco Geoestadístico Nacional (MGN), municipal | Cruce **opcional** por centroide para obtener el código de municipio (`cod_dane`) | Es la fuente oficial para unir variables socioeconómicas o de crédito rural del Observatorio, pero requiere descargar el shapefile aparte y `geopandas`; por eso es opcional y no una dependencia obligatoria del pipeline |
+| DANE — Marco Geoestadístico Nacional (MGN) 2023, nivel departamento | Recorta la grilla al territorio continental de Colombia y etiqueta cada celda con su departamento | Fuente oficial colombiana, servida como *Feature Service* público de ArcGIS (sin autenticación), licencia **CC BY 4.0** (uso comercial permitido con atribución). Reemplazó a los assets de Earth Engine `USDOS/LSIB_SIMPLE/2017` y `FAO/GAUL_SIMPLIFIED_500m` — ver decisión 11 revisada en la sección 4: se abandonó Earth Engine porque su licencia gratuita prohíbe explícitamente el uso en trabajo remunerado para terceros, y este panel es insumo de consultorías comerciales del Observatorio |
+| DANE — Marco Geoestadístico Nacional (MGN), municipal | Cruce **opcional** por centroide para obtener el código de municipio (`cod_dane`) | Misma fuente, mismo motivo que la fila anterior; es la fuente oficial para unir variables socioeconómicas o de crédito rural del Observatorio. Opcional porque requiere descargar el shapefile municipal aparte |
 
-Ninguna de estas tres fuentes contribuye información temporal ni de cambio:
+Ninguna de estas dos fuentes contribuye información temporal ni de cambio:
 solo definen **dónde** está cada celda y **cómo se llama** administrativamente.
+Ahora ambas vienen de la misma institución (DANE), lo que además simplifica
+la atribución del panel final a una sola fuente cartográfica en vez de dos.
+
+### 2.4 GFW Integrated Disturbance Alerts — el evento del panel GFW (2020-presente)
+
+**Panel independiente, no un relleno.** Esta fuente no se usa para
+completar un tramo faltante del panel DIST-ALERT: alimenta un **segundo
+panel completo, separado, que nunca se combina con el de DIST-ALERT**
+(`fuente_gfw/descargar_gfw.py` → `datos/crudo/nacional_gfw.csv` →
+`panel_deforestacion_colombia_gfw.csv`). Quien necesite datos desde
+2020-01 usa este panel para **toda** la ventana temporal, no solo para
+2020-2022; quien solo necesite 2023 en adelante usa el panel DIST-ALERT,
+que sigue siendo la opción de referencia por depender de un solo sistema
+de detección en vez de cuatro integrados. Ver decisión 15 (sección 4)
+para el razonamiento completo de por qué se descartó fusionar las dos
+fuentes en un único panel híbrido.
+
+**Qué es.** Producto de Global Forest Watch / World Resources Institute
+(WRI) que combina, en una sola capa con una única escala de confianza,
+**cuatro** sistemas independientes de alerta de disturbio: DIST-ALERT
+(NASA OPERA), GLAD-L (Landsat, UMD), GLAD-S2 (Sentinel-2, UMD) y RADD
+(radar Sentinel-1, Wageningen University). Metodología publicada y
+revisada por pares: Pickens, Hansen, Song et al., *"Rapid monitoring of
+global land change"*, Nature Communications 16, 8948 (2025).
+
+**Por qué esta fuente para el panel 2020-presente.** DIST-ALERT no tiene
+datos antes de 2023-01 (verificado empíricamente contra el catálogo real
+de NASA CMR — cero gránulos en cualquier parte del mundo antes de esa
+fecha, ver decisión 1), así que no puede alimentar un panel que arranque
+en 2020. De las alternativas con más historia (GLAD-L, GLAD-S2, RADD por
+separado), se prefirió el producto **ya integrado** en vez de que este
+pipeline combinara las tres fuentes a mano: evita que la definición de
+"evento" sea una decisión artesanal de esta tesis en vez de una
+metodología ya publicada y validada por el equipo que produce los datos.
+
+**Cómo se accede.** A diferencia de DIST-ALERT (archivos GeoTIFF
+descargables por tile), este producto se consulta mediante una API SQL
+de solo lectura (`data-api.globalforestwatch.org`) que corre la consulta
+directamente sobre el dato raster, celda por celda de la grilla, y
+devuelve resultados ya agregados — no hace falta descargar ni reproyectar
+ningún ráster de evento para esta fuente (la línea base de bosque sí se
+sigue calculando localmente con Hansen, ver más abajo). El área en
+hectáreas la calcula la propia API (campo `area__ha`), no una constante
+fija como en DIST-ALERT: este producto usa una cuadrícula en grados
+(EPSG:4326), y el área real de un píxel de tamaño angular fijo varía con
+la latitud — sumar `area__ha` directamente delega esa corrección en la
+fuente, en vez de asumir un tamaño de píxel único para todo el país.
+
+**Definición de evento — analogía con DIST-ALERT.** El producto expone
+una escala de confianza de tres niveles (`nominal`, `high`, `highest`),
+conceptualmente equivalente a la distinción "provisional vs. confirmada"
+de DIST-ALERT. Siguiendo el mismo criterio que la decisión 2 (excluir
+detecciones sin confirmar), este pipeline cuenta como evento solo
+`high` y `highest`, descartando `nominal` — ver `gfw_confianza_minima`
+en `config_local.py` y la decisión 13 en la bitácora (sección 4).
+
+**Línea base de bosque propia (`anio_mascara_gfw = 2019`).** El panel GFW
+calcula su propio `bosque_ha` por celda reutilizando el mismo código que
+el panel DIST-ALERT (`indice_celdas()`/`mascara_bosque()` de
+`zonal_local.py`), pero con el corte de Hansen un año antes (2019 en vez
+de 2022), porque su ventana de eventos arranca en 2020-01, no en 2023-01
+— ver decisión 5 revisada (sección 4). Esto **no** es mezclar fuentes de
+evento: Hansen es, por diseño, una línea base estática compartida (sección
+2.1); lo único que se reutiliza del panel DIST-ALERT es la cuadrícula
+geométrica de los tiles ya descargados, nunca su contenido
+`VEG-DIST-STATUS`/`VEG-DIST-DATE`.
+
+**Limitaciones conocidas de esta fuente** (adicionales a las ya
+mencionadas para DIST-ALERT, que en gran medida heredan aquí porque
+DIST-ALERT es uno de los cuatro componentes integrados):
+
+- Al combinar cuatro sistemas con metodologías de detección distintas
+  (óptico de dos resoluciones + radar), la sensibilidad y el sesgo
+  geográfico pueden no ser perfectamente homogéneos a lo largo de toda la
+  ventana que cubre esta fuente — por ejemplo, RADD (radar) es menos
+  sensible a la nubosidad que los sistemas ópticos, lo que puede hacer
+  que la mezcla de fuentes que "gana" la detección varíe por región.
+- El panel GFW y el panel DIST-ALERT miden el mismo fenómeno con
+  metodologías distintas y **no son directamente comparables número a
+  número** para el tramo en que ambos existirían (2023 en adelante,
+  aunque el panel DIST-ALERT es el que se recomienda para ese tramo).
+  Esta es precisamente la razón por la que no se fusionan (decisión 15):
+  cualquier comparación entre los dos debe hacerse de forma explícita y
+  documentada (p. ej. en `eda_deforestacion.ipynb`), nunca como una
+  transición silenciosa dentro de un mismo panel.
 
 ---
 
@@ -305,13 +401,19 @@ solo si:
 bosque(p) = [ treecover2000(p) ≥ 30 ]  AND  NOT ( 0 < lossyear(p) ≤ (anio_mascara − 2000) )
 ```
 
-con `anio_mascara = 2022`. En palabras: tenía al menos 30% de cobertura de
-dosel en el año 2000, **y** si perdió esa cobertura según Hansen, la perdió
-**antes** de 2023 (es decir, ya estaba perdida antes de que arranque la
-ventana de observación de DIST-ALERT). Los píxeles con `lossyear` en 2023 o
-después **no** se descuentan aquí — esa pérdida es, por diseño, la que debe
-detectar DIST-ALERT, no Hansen (ver decisión 5 en la sección 4, sobre por qué
-no se solapan las dos fuentes).
+con `anio_mascara = 2022` para el panel DIST-ALERT. En palabras: tenía al
+menos 30% de cobertura de dosel en el año 2000, **y** si perdió esa
+cobertura según Hansen, la perdió **antes** de 2023 (es decir, ya estaba
+perdida antes de que arranque la ventana de observación de DIST-ALERT). Los
+píxeles con `lossyear` en 2023 o después **no** se descuentan aquí — esa
+pérdida es, por diseño, la que debe detectar DIST-ALERT, no Hansen (ver
+decisión 5 en la sección 4, sobre por qué no se solapan Hansen y la fuente
+de evento).
+
+El panel GFW aplica exactamente la misma fórmula pero con
+`anio_mascara_gfw = 2019`, un año antes de que arranque su propia ventana
+de eventos (2020-01) — mismo principio, corte distinto porque cada panel
+tiene su propia ventana (ver sección 2.4 y decisión 15).
 
 El umbral del 30% de cobertura de dosel es el umbral más usado en la
 literatura para operacionalizar "bosque" a partir de datos de cobertura
@@ -422,11 +524,15 @@ iy(p) = floor( y₃₁₁₆(p) / 5000 )
 donde `x₃₁₁₆(p)`, `y₃₁₁₆(p)` son las coordenadas del centro del píxel `p`,
 transformadas de la proyección UTM nativa del tile a `EPSG:3116` (la
 proyección de la grilla). El par `(ix, iy)` identifica unívocamente la celda,
-siempre que la grilla generada por Earth Engine esté alineada al origen de
-`EPSG:3116` — una condición que `exportar_grilla.py` verifica explícitamente
-antes de guardar la grilla (si no se cumpliera, este indexado aritmético
-asignaría píxeles a la celda equivocada, de forma silenciosa; por eso el
-script se detiene con error en ese caso en vez de continuar).
+siempre que la grilla esté alineada al origen de `EPSG:3116` —
+`exportar_grilla.py` construye cada celda directamente como múltiplo entero
+del lado (5000 m), así que esa alineación queda **garantizada por
+construcción**, no solo verificada después. El script igual corre la misma
+comprobación explícita antes de guardar la grilla, como prueba de regresión
+(si algún día cambiara la forma de construir la grilla y algo quedara mal
+alineado, este indexado aritmético asignaría píxeles a la celda equivocada
+de forma silenciosa; por eso el script se detiene con error en ese caso en
+vez de continuar).
 
 **Nota importante sobre el área**: aunque la asignación de píxeles a celdas
 usa la proyección `EPSG:3116` (que, como toda proyección cartográfica,
@@ -491,7 +597,7 @@ deforestarse más, así que la tasa observada es trivialmente cero).
 
 **Evento binario** — el target discreto, pensado para la primera etapa de un
 modelo de dos partes (tipo *hurdle* o cero-inflado, apropiado dado el fuerte
-desbalance hacia el cero que se documenta en la sección 7):
+desbalance hacia el cero que se documenta en la sección 8):
 
 ```
 evento(c, t) = 1 [ área_def_ha(c, t) > 0 ]
@@ -521,22 +627,40 @@ se decidió, por qué, y qué riesgo o costo se acepta a cambio.
 | 2 | Definición de evento: estados `(6, 8)` | `(4, 8)` (versión anterior del pipeline); incluir también `<50%` (estados 1-3, 7) | Excluye detecciones sin confirmar (código 4 = primera detección, alto riesgo de falso positivo por nube/sombra); incluye el 6 (confirmada, aún en curso) para no perder eventos activos al cierre de la ventana | Se descarta toda pérdida de vegetación con magnitud <50%, es decir se mide deforestación "severa" confirmada, no cualquier alteración de la vegetación — el panel subestima disturbios parciales o degradación leve |
 | 3 | Umbral de magnitud ≥50% de pérdida de señal | Incluir también <50% como "evento menor" | Mantener una única definición binaria simple, con la señal de mayor confianza del producto | Ya cubierto en la fila anterior: no se mide degradación parcial |
 | 4 | Atribución temporal por `VEG-DIST-DATE`, no por la fecha de la instantánea | Atribuir al mes de la instantánea en que se observó confirmado | Refleja cuándo ocurrió el evento en el terreno, no cuándo el algoritmo tuvo suficiente confianza para reportarlo | Los últimos 1-2 meses de la ventana temporal pueden estar subestimados (eventos reales aún no confirmados al momento de la descarga) |
-| 5 | Máscara de bosque con Hansen hasta 2022; DIST-ALERT cubre desde 2023 | Usar Hansen `lossyear` también para 2023 en adelante | Evita que un mismo evento de pérdida se cuente por dos fuentes distintas (Hansen anual y DIST-ALERT mensual) — se traza una línea clara: Hansen = línea base estática, DIST-ALERT = único registro del evento dentro de la ventana | El pipeline asume que el bosque es estático entre el corte de Hansen (2022) y el inicio de DIST-ALERT (2023-01); cualquier pérdida real en ese margen de un mes que Hansen no capturó a tiempo podría faltar en ambas fuentes |
+| 5 | Máscara de bosque con corte de Hansen **por panel**: `anio_mascara = 2022` para DIST-ALERT, `anio_mascara_gfw = 2019` para GFW — **decisión revisada dos veces**: primero para agregar GFW como relleno 2020-2022 (corte único 2019 compartido), y de nuevo al pasar a dos paneles independientes (decisión 15), donde cada panel necesita su propio corte porque ya no comparten una sola ventana de eventos | Un único `anio_mascara` global para ambos paneles (como en la revisión anterior) | Cada panel necesita su bosque base cortado justo antes de que arranque *su propia* ventana de eventos: 2022 para DIST-ALERT (arranca 2023-01), 2019 para GFW (arranca 2020-01). Usar el mismo corte para los dos sería incorrecto para el que no arranca ese año — p. ej. cortar en 2019 el panel DIST-ALERT le añadiría de vuelta al "bosque disponible" pérdidas de 2019-2022 que DIST-ALERT nunca observa, porque ese producto no cubre esos años. `mascara_bosque()` en `zonal_local.py` cachea por separado según `anio_mascara`, así que las dos máscaras nunca se pisan entre sí (ver su docstring) | Cada panel asume que el bosque es estático entre su propio corte de Hansen y el inicio de su propia ventana de eventos (un margen de días, no de años, en ambos casos) |
 | 6 | Grilla regular de 5×5 km como unidad de análisis | Píxel nativo (30 m); unidad administrativa (municipio) | Balance entre volumen computacional, señal estadística y resolución espacial útil (ver sección 1.2) | Se pierde la ubicación exacta del evento dentro de la celda; una celda de 2 500 ha puede mezclar zonas con presión de deforestación muy distinta |
 | 7 | Proyección `EPSG:3116` para el indexado de la grilla | UTM por zona (múltiples zonas para cubrir Colombia); una proyección de área equivalente (p. ej. Albers) | Proyección oficial colombiana (MAGNA-SIRGAS), de uso común en cartografía nacional; un único sistema de indexado simplifica el código frente a manejar varias zonas UTM | Alguna distorsión de forma/área lejos del meridiano central de la franja Bogotá — mitigado porque el área reportada no se calcula en esta proyección (ver 3.6) |
 | 8 | Cadencia de descarga mensual de instantáneas DIST-ALERT | Quincenal (`SMS`) | ~40 GB en vez de ~80 GB de descarga y almacenamiento; suficiente para la resolución mensual del panel final | Si el ciclo completo de una alerta (de primera detección a confirmada) ocurriera y se "reiniciara" por completo entre dos instantáneas separadas por un mes, podría perderse — riesgo mitigado en parte porque el estado 6 (confirmada, en curso) también se captura, no solo el 8 (finalizada) |
 | 9 | Combinar tiles solapados con `max()`, no con suma | Sumar y luego deduplicar por geometría exacta | Mucho más simple y rápido de calcular; correcto porque el traslape entre tiles MGRS es por diseño del sistema de cuadrícula, no señal real duplicada | Ninguno relevante: `max()` es la operación correcta para este caso, no un compromiso |
 | 10 | Remuestreo *nearest neighbor* al reproyectar Hansen a la grilla del tile | Remuestreo bilinear o cúbico | `treecover2000` y `lossyear` son, en el uso que se les da aquí, variables de clasificación (bosque/no bosque, año categórico) — interpolar valores continuos entre categorías produciría valores sin sentido físico | Cierto error posicional de sub-píxel en los bordes de manchas de bosque, inherente a cualquier remuestreo por vecino más cercano |
-| 11 | Grilla generada una única vez con Google Earth Engine | Reimplementar el *covering grid* + cruce administrativo localmente (p. ej. con `geopandas`) | Earth Engine ya expone `coveringGrid()` y los datasets públicos LSIB/GAUL listos para usar, evitando reescribir esa lógica geométrica | El pipeline depende de una cuenta de Earth Engine para este único paso — el resto corre sin ella |
+| 11 | Grilla construida localmente con `geopandas` y límites del DANE (MGN) — **decisión revisada**, ver nota abajo | (i) Google Earth Engine con `coveringGrid()` y los assets `USDOS/LSIB_SIMPLE`/`FAO/GAUL_SIMPLIFIED` — el diseño original; (ii) GADM como fuente de límites | Frente a (i): la edición gratuita/académica de Earth Engine **prohíbe explícitamente** su uso para "actividades de pago por servicio" o para "recibir compensación de una entidad comercial por aplicaciones o datos creados usando Earth Engine" — y este panel es insumo de consultorías comerciales del Observatorio, así que seguir con Earth Engine habría violado esos términos. Frente a (ii): GADM es de uso no comercial únicamente, el mismo problema que se está evitando. El DANE (MGN, CC BY 4.0) permite uso comercial con atribución y es además la fuente que el pipeline ya usaba opcionalmente para el cruce municipal — ahora es una sola fuente cartográfica, no dos | El MGN del DANE es de precisión catastral completa (no generalizada como GAUL_SIMPLIFIED), así que el polígono nacional sale con ~280 000 vértices; hubo que agregar una simplificación geométrica (tolerancia 100 m, irrelevante frente al lado de celda de 5000 m) para que el filtro espacial corriera en segundos y no en minutos |
 | 12 | Filtrado de tiles en dos pasos (`bbox` rectangular a CMR, luego recorte por MGRS real) | Enviar a CMR la geometría exacta de Colombia | La API de búsqueda de CMR admite un `bounding_box` simple de forma directa; construir y depurar una consulta con geometría compleja habría sido más frágil | Se consulta (y luego se descarta) un excedente de gránulos de países vecinos y océano durante el inventario — costo de tiempo de consulta, no de almacenamiento (el filtro ocurre antes de descargar los archivos reales) |
+| 13 | Panel GFW (2020-presente): confianza `high`+`highest` como evento, se descarta `nominal` | Incluir también `nominal`; usar un producto de un solo sistema (p. ej. solo RADD) en vez del integrado | Misma lógica que la decisión 2 para DIST-ALERT: `nominal` es la detección menos confiable (análoga a "primera detección, sin confirmar"), incluirla infla falsos positivos. El producto integrado se prefirió sobre un solo sistema porque ya es una metodología publicada (Pickens et al. 2025), no una combinación artesanal de esta tesis | La escala de confianza de GFW (3 niveles: nominal/high/highest) no es literalmente la misma variable que los 9 códigos de `VEG-DIST-STATUS` de DIST-ALERT — son dos productos distintos con dos definiciones de "confianza" no idénticas, aunque conceptualmente análogas. Esto es una limitación interna del panel GFW (mezcla de cuatro sistemas con sensibilidades distintas dentro de una sola escala de confianza), documentada en la sección 2.4 — no debe confundirse con el empalme entre los dos paneles (DIST-ALERT/GFW), que ya no existe porque no se fusionan (decisión 15) |
+| 14 | ~~Fusión de las dos fuentes en `datos/crudo/nacional.csv` por `merge`~~ — **SUPERADA por la decisión 15**: el pipeline ya no fusiona las fuentes en absoluto, ni por `merge` ni por `concat` | (histórico) Concatenar el CSV de GFW y el de DIST-ALERT, dejando que `consolidar.py` los una | (histórico) Se mantiene esta fila por trazabilidad del diseño, pero el diseño que describe ya no existe en el código — ver decisión 15 | — |
+| 15 | Dos paneles completamente independientes (`nacional.csv`/`panel_..._dist_alert.csv` y `nacional_gfw.csv`/`panel_..._gfw.csv`), **nunca fusionados ni concatenados**; el usuario elige explícitamente cuál construir (`consolidar.py --fuente {dist_alert,gfw}`, obligatorio, sin default) | Panel único e híbrido: GFW rellena 2020-2022, se fusiona por `merge` en `cell_id` con DIST-ALERT (2023-presente) en un solo archivo continuo — el diseño de la decisión 14, ya implementado y luego revertido | Un panel híbrido introduce, dentro de una sola serie temporal por celda, un cambio de metodología de detección no controlado en el límite 2022-12/2023-01 (de cuatro sistemas integrados a uno solo) sin ninguna señal en los datos que lo marque — cualquier salto real de la tasa de deforestación alrededor de ese mes sería indistinguible de un artefacto del empalme. Mantener los paneles separados traslada esa decisión al usuario del panel (¿necesito la serie larga y menos homogénea, o la corta y más homogénea?) en vez de resolverla en silencio dentro del pipeline. Requirió además separar el corte de Hansen por panel (decisión 5 revisada) y el nombre de cache de `mascara_bosque()` (`{tile}__bosque_am{anio_mascara}_ud{umbral}.npy`) para que las dos máscaras de bosque nunca se contaminen entre sí | Quien quiera una serie 2020-presente pierde la posibilidad de "aprovechar" DIST-ALERT (el sistema único, mejor documentado) para el tramo 2023 en adelante: el panel GFW usa el producto integrado para *toda* su ventana, no solo para 2020-2022, así que sacrifica algo de homogeneidad metodológica interna a cambio de nunca mezclar dos definiciones de "evento" dentro de un mismo panel |
+
+**Nota sobre la decisión 11**: es la única fila de esta bitácora que se
+revisó después de implementada. El diseño original (documentado en
+versiones previas de este documento) usaba Google Earth Engine porque, para
+una grilla generada una sola vez con datos públicos, parecía la opción más
+simple. Esa evaluación no consideró el uso comercial previsto del panel; al
+aparecer ese requisito, se verificaron los términos de servicio de Earth
+Engine y se encontró el conflicto directo descrito arriba, así que se
+reimplementó `exportar_grilla.py` localmente. El resultado (45 621 celdas,
+33 departamentos) es muy cercano al de la versión con Earth Engine (44 530
+celdas) — la diferencia es esperable y viene de usar un límite
+administrativo más preciso (DANE MGN) en vez de uno generalizado (GAUL
+simplificado a 500 m), no de un error de construcción.
 
 ---
 
 ## 5. Supuestos del estudio
 
-1. **El bosque es estático entre 2022 y el inicio de la ventana (2023-01)**:
-   no se contempla ganancia de bosque (regeneración) en ese margen, ni
-   pérdida no capturada por Hansen antes del corte.
+1. **El bosque es estático entre el corte de Hansen y el inicio de la
+   ventana de eventos de cada panel** (2022→2023-01 para DIST-ALERT,
+   2019→2020-01 para GFW): no se contempla ganancia de bosque
+   (regeneración) en ese margen, ni pérdida no capturada por Hansen antes
+   del corte.
 2. **DIST-ALERT confirmado + pérdida de señal ≥50% ⇒ deforestación real**: se
    confía en la calidad de detección reportada por el producto OPERA; el
    pipeline no incorpora una validación de campo local ni un cruce con otra
@@ -574,7 +698,7 @@ se decidió, por qué, y qué riesgo o costo se acepta a cambio.
   productos proviene de sus respectivas validaciones globales/regionales, no
   de un ejercicio de verificación específico para Colombia dentro de esta
   tesis.
-- **El desbalance de clases es marcado** (ver sección 7 y
+- **El desbalance de clases es marcado** (ver sección 8 y
   `eda_deforestacion.ipynb`): en la corrida usada para este documento, cerca
   del 77% de las celda-mes del panel tienen `evento = 0`; cualquier modelo
   posterior debe tratar esto explícitamente (de ahí el diseño de `evento`
@@ -585,22 +709,82 @@ se decidió, por qué, y qué riesgo o costo se acepta a cambio.
 - **Efecto de inicio de ventana** (ver sección 3.4): el primer periodo de
   cualquier corrida sobreestima la deforestación "de ese mes" porque mide un
   stock inicial acumulado, no un flujo mensual — excluirlo de promedios y
-  modelos.
+  modelos. Como ahora hay dos paneles con ventanas distintas, este efecto
+  aparece **dos veces por separado**: en 2023-01 para el panel DIST-ALERT y
+  en 2020-01 para el panel GFW — cada uno debe tratarse independientemente
+  al analizar o modelar ese panel.
+- **Los dos paneles no son comparables número a número** (ver sección 2.4 y
+  decisión 15): tienen metodologías de detección distintas y ventanas de
+  ambos empiezan en años distintos. No están pensados para promediarse,
+  restarse ni concatenarse fuera de este pipeline tampoco.
 
 ---
 
-## 7. Cómo se ve la unidad de observación final
+## 7. Restricciones de licencia y uso comercial
 
-*(Los números de esta sección son de una corrida puntual, congelados como
-ejemplo. El pipeline se sigue corriendo y el panel crece con cada nueva
-descarga — la fuente viva y siempre actualizada de estas cifras, con
-gráficas, es
+Esta sección existe porque el destino declarado de este panel va más allá de
+lo académico: es insumo de consultorías comerciales del Observatorio
+Financiero Rural de la Javeriana. Eso cambia qué licencias son aceptables
+para las fuentes de datos — una fuente "gratis para investigación" no
+necesariamente es gratis para vender un servicio con ella. Lo que sigue es
+un resumen, **no asesoría legal**, con fuente citada para cada afirmación,
+para que la oficina
+jurídica o de transferencia tecnológica de la universidad lo revise antes de
+comercializar cualquier producto derivado de este panel.
+
+| Fuente | Licencia | Uso comercial | Obligación práctica |
+|---|---|---|---|
+| NASA OPERA DIST-ALERT (LP DAAC) | Datos abiertos de la NASA, sin restricción declarada | Permitido explícitamente, sin costo | Ninguna obligatoria; se recomienda citar la fuente y no dar a entender que la NASA respalda el producto comercial |
+| Hansen Global Forest Change | CC BY 4.0 | Permitido, incluida la reventa/redistribución | Atribución: *"Source: Hansen/UMD/Google/USGS/NASA"* + cita del paper (Hansen et al. 2013, sección 10) |
+| DANE — Marco Geoestadístico Nacional | CC BY 4.0 | Permitido | Atribución, en las palabras del propio DANE: *"Departamento Administrativo Nacional de Estadística - DANE: www.dane.gov.co"* |
+| GFW / GLAD-L / GLAD-S2 / RADD (panel GFW, 2020-presente, independiente del panel DIST-ALERT — sección 2.4) | CC BY 4.0 (confirmado para GFW en general y para RADD directamente desde Wageningen University; GLAD-L es muy probablemente el mismo caso — mismo laboratorio que Hansen GFC — pero no se encontró una página que lo confirme en esas palabras exactas específicamente para GLAD-L) | Permitido | Atribución por dataset; GFW advierte que "cada dataset tiene su propia licencia", así que conviene guardar un archivo de atribuciones junto al panel GFW final |
+| ~~Google Earth Engine~~ (ya no se usa) | Edición gratuita/académica: uso no comercial únicamente | **Prohibido explícitamente** para este caso de uso | Se eliminó la dependencia (decisión 11 revisada, sección 4); ver cita textual abajo |
+
+**Por qué se eliminó Earth Engine** (cita textual de los términos de la
+edición no comercial, https://earthengine.google.com/noncommercial/):
+instituciones académicas que reciben Earth Engine gratis no pueden "usar
+Earth Engine para actividades de pago por servicio, incluyendo cumplir un
+entregable, resultado o tarea pagado por un acuerdo de pago-por-servicio con
+una entidad comercial, gubernamental u otra", ni "recibir compensación de
+una entidad comercial por aplicaciones o datos creados usando Earth Engine".
+Ese es exactamente el modelo de negocio del Observatorio. La alternativa
+habría sido una licencia comercial de Earth Engine (precio no público, bajo
+consulta con el equipo de ventas de Google Cloud) — se descartó porque
+Earth Engine solo se usaba para un paso trivial de reimplementar localmente
+(la grilla, ver decisión 11 revisada), sin ninguna razón para pagar por él.
+
+**Recomendación práctica**: cualquier reporte o entregable comercial que use
+uno de estos paneles debería incluir un bloque de atribución citando las
+fuentes que efectivamente entraron en ese entregable (siempre
+Hansen/UMD/Google/USGS/NASA y DANE; además NASA OPERA DIST-ALERT si el
+entregable usa el panel DIST-ALERT, o GFW/UMD/WUR si usa el panel GFW —
+nunca ambas listas de fuentes de evento a la vez para un mismo entregable,
+ya que los dos paneles no se combinan), y llevar este resumen —o uno
+actualizado, si las licencias cambian— a la revisión legal de la
+universidad antes de la primera venta.
+
+---
+
+## 8. Cómo se ve la unidad de observación final
+
+*(Los números de esta sección son de una corrida puntual del panel
+DIST-ALERT, congelados como ejemplo. El pipeline se sigue corriendo y el
+panel crece con cada nueva descarga — la fuente viva y siempre actualizada
+de estas cifras, con gráficas, es
 [`eda_deforestacion.ipynb`](eda_deforestacion.ipynb); ver también su
-"efecto de inicio de ventana", documentado en la sección 3.4.)*
+"efecto de inicio de ventana", documentado en la sección 3.4. El panel GFW
+(`panel_deforestacion_colombia_gfw.csv`) tiene exactamente la misma forma
+de columnas — es la misma función `consolidar()` la que produce los
+dos — pero su propio rango temporal y sus propios números: de la misma
+corrida puntual, **3 523 479 filas × 17 columnas** — 44 601 celdas × 79
+periodos mensuales (2020-01 a 2026-07), 32 departamentos, 6 444 367 ha de
+deforestación total (bosque base 77 468 340 ha). No son comparables número
+a número con el panel DIST-ALERT — ver sección 2.4.)*
 
-El panel resultante (`datos/panel/panel_deforestacion_colombia.csv`) es una
-tabla de **1 914 790 filas × 17 columnas**: 44 530 celdas × 43 periodos
-mensuales (2023-01 a 2026-05), cubriendo 31 departamentos. Cada fila es una
+El panel DIST-ALERT resultante
+(`datos/panel/panel_deforestacion_colombia_dist_alert.csv`) es una
+tabla de **1 917 585 filas × 17 columnas**: 44 595 celdas × 43 periodos
+mensuales (2023-01 a 2026-07), cubriendo 32 departamentos. Cada fila es una
 celda-mes. Dos ejemplos reales:
 
 **Una celda sin evento ese mes** (el caso ampliamente dominante):
@@ -627,7 +811,7 @@ metodológica, no solo de formato de archivo.
 
 ---
 
-## 8. Glosario técnico
+## 9. Glosario técnico
 
 | Término | Significado |
 |---|---|
@@ -646,7 +830,7 @@ metodológica, no solo de formato de archivo.
 
 ---
 
-## 9. Referencias
+## 10. Referencias
 
 - Hansen, M. C., Potapov, P. V., Moore, R., Hancher, M., Turubanova, S. A.,
   Tyukavina, A., Thau, D., Stehman, S. V., Goetz, S. J., Loveland, T. R.,
@@ -661,13 +845,18 @@ metodológica, no solo de formato de archivo.
   actualiza.
 - earthaccess (cliente Python para NASA CMR/Earthdata):
   https://earthaccess.readthedocs.io
-- USDOS LSIB Simple 2017 (límites internacionales), catálogo de Earth Engine:
-  `USDOS/LSIB_SIMPLE/2017`.
-- FAO GAUL Simplified 2015, nivel 1 (división administrativa), catálogo de
-  Earth Engine: `FAO/GAUL_SIMPLIFIED_500m/2015/level1`.
-- DANE — Marco Geoestadístico Nacional (MGN): https://www.dane.gov.co
+- DANE — Marco Geoestadístico Nacional (MGN) 2023, nivel departamento,
+  licencia CC BY 4.0: https://www.dane.gov.co (Feature Service público:
+  `MarcoGeoestadisticoNacional2023_NivelDepartamento`, servido vía ArcGIS).
+  Fuente de los límites del país y de la asignación de departamento a cada
+  celda de la grilla (ver METODOLOGIA §2.3 y decisión 11 revisada, §4).
 - IGAC — MAGNA-SIRGAS, marco de referencia geodésico de Colombia
   (`EPSG:3116` y franjas asociadas).
+- Google Earth Engine — Términos de servicio, edición no comercial:
+  https://earthengine.google.com/noncommercial/ — citada como justificación
+  de la decisión 11 revisada (§4): el pipeline dejó de depender de Earth
+  Engine porque esos términos prohíben su uso en trabajo remunerado para
+  terceros, y este panel es insumo de consultorías comerciales.
 
 ---
 

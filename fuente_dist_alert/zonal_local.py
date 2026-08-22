@@ -3,7 +3,7 @@ zonal_local.py
 ======================================================================
 El motor de calculo. Reemplaza a reduceRegions() de Earth Engine.
 
-    python zonal_local.py
+    python fuente_dist_alert/zonal_local.py
 
 Salida: datos/crudo/nacional.csv en formato ANCHO, la misma forma que
 producia GEE, para que consolidar.py lo consuma sin cambios.
@@ -38,6 +38,7 @@ de remuestreo.
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -47,6 +48,9 @@ import rasterio
 from pyproj import Transformer
 from rasterio.warp import Resampling, reproject
 
+# config_local.py vive en la raiz del proyecto, un nivel arriba de
+# fuente_dist_alert/.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from config_local import (Config, DIR_CACHE, DIR_CRUDO, DIR_DIST,
                           DIR_GRILLA, DIR_HANSEN, logger)
 
@@ -173,11 +177,20 @@ def mascara_bosque(cfg: Config, tile: str, ref: Path) -> np.ndarray:
     """
     Mascara booleana de bosque, reproyectada de Hansen a la grilla del
     tile. Se cachea porque reproyectar es lo caro y no cambia por mes.
+
+    El nombre de la cache incluye anio_mascara y umbral_dosel a
+    proposito: este pipeline calcula la mascara con DOS valores de
+    anio_mascara distintos segun la fuente de evento (2022 para el
+    panel DIST-ALERT, 2019 para el panel GFW -- ver config_local.py,
+    seccion 3). Si el nombre de archivo no incluyera el parametro, la
+    segunda fuente en correr encontraria la cache de la primera y la
+    reutilizaria en silencio, produciendo una mascara de bosque
+    incorrecta para esa fuente sin ningun error visible.
     """
     # Cacheado en disco: reproyectar Hansen es costoso y el resultado
-    # no cambia entre corridas (no depende del mes), asi que se hace
-    # una sola vez por tile.
-    cache = DIR_CACHE / f"{tile}__bosque.npy"
+    # no cambia entre corridas con los mismos parametros, asi que se
+    # hace una sola vez por tile y combinacion de parametros.
+    cache = DIR_CACHE / f"{tile}__bosque_am{cfg.anio_mascara}_ud{cfg.umbral_dosel}.npy"
     if cache.exists():
         return np.load(cache)
 

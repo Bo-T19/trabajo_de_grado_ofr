@@ -19,11 +19,22 @@ por celda: perdida acumulada, bosque remanente y rezagos.
 CAMBIO respecto a la version con Earth Engine: la columna
 'departamento' ya viene en el CSV (la trae la grilla), no se deduce
 del nombre del archivo.
+
+DOS FUENTES, NUNCA MEZCLADAS
+-----------------------------
+El pipeline produce dos archivos crudos completamente independientes
+en datos/crudo/: nacional.csv (fuente_dist_alert/, 2023-presente) y
+nacional_gfw.csv (fuente_gfw/, 2020-presente). Este script NUNCA los
+lee juntos -- consolidar() exige el parametro 'fuente' explicito y lee
+solo el archivo correspondiente, para que sea imposible construir por
+accidente un panel que mezcle ambas metodologias de deteccion (ver
+METODOLOGIA.md decision 15). Cada fuente produce su propio panel final
+(panel_deforestacion_colombia_dist_alert.csv / _gfw.csv).
 ======================================================================
 """
 from __future__ import annotations
 
-import glob
+import argparse
 from pathlib import Path
 from typing import Optional
 
@@ -31,37 +42,31 @@ import pandas as pd
 
 from config_local import Config, DIR_CRUDO, DIR_PANEL, logger
 
+# Un archivo fijo por fuente -- no un glob -- precisamente para que no
+# exista ninguna ruta de codigo que pueda leer los dos a la vez.
+ARCHIVO_CRUDO = {
+    "dist_alert": DIR_CRUDO / "nacional.csv",
+    "gfw": DIR_CRUDO / "nacional_gfw.csv",
+}
+
 
 # =====================================================================
 # 1. LECTURA Y CAMBIO DE FORMA
 # =====================================================================
-def cargar_crudo(cfg: Config) -> pd.DataFrame:
-    """Une los CSV de datos/crudo/ y los pasa de ancho a largo.
-
-    En principio solo hay un archivo (nacional.csv de zonal_local.py),
-    pero la funcion admite varios por si se procesaron tiles o regiones
-    por separado (de ahi el glob + concat). El filtro "__p" excluye
-    archivos de piezas/particiones intermedias, si las hubiera.
-    """
-    archivos = sorted(glob.glob(str(DIR_CRUDO / "*.csv")))
-    archivos = [a for a in archivos if "__p" not in Path(a).name]
-    if not archivos:
+def cargar_crudo(cfg: Config, fuente: str) -> pd.DataFrame:
+    """Lee el CSV crudo de UNA fuente (nunca las dos) y lo pasa de ancho a largo."""
+    archivo = ARCHIVO_CRUDO[fuente]
+    if not archivo.exists():
+        comando = ("python main_local.py zonal" if fuente == "dist_alert"
+                   else "python fuente_gfw/descargar_gfw.py")
         raise FileNotFoundError(
-            f"No hay CSV en {DIR_CRUDO}. Ejecute primero:\n"
-            f"  python main_local.py zonal")
+            f"No existe {archivo}. Ejecute primero:\n  {comando}")
 
-    logger.info("Leyendo %d archivo(s)...", len(archivos))
-    piezas = []
-    for a in archivos:
-        df = pd.read_csv(a)
-        # El pipeline local ya trae la columna; el antiguo la deducia
-        # del nombre del archivo. Se respeta la que exista.
-        if "departamento" not in df.columns:
-            df["departamento"] = Path(a).stem.replace("_", " ")
-        df["departamento"] = df["departamento"].fillna("Sin asignar")
-        piezas.append(df)
-
-    ancho = pd.concat(piezas, ignore_index=True)
+    logger.info("Leyendo %s (fuente=%s)...", archivo.name, fuente)
+    ancho = pd.read_csv(archivo)
+    if "departamento" not in ancho.columns:
+        ancho["departamento"] = archivo.stem.replace("_", " ")
+    ancho["departamento"] = ancho["departamento"].fillna("Sin asignar")
     logger.info("Celdas leidas: %d", len(ancho))
 
     # Columnas "d_2023_01", "d_2023_02", ... son las que traen la
@@ -255,22 +260,31 @@ def asignar_municipio(df: pd.DataFrame, ruta_shp: Optional[str]) -> pd.DataFrame
 # =====================================================================
 # 6. PIPELINE COMPLETO
 # =====================================================================
-def consolidar(cfg: Config, ruta_shp_dane: Optional[str] = None) -> pd.DataFrame:
+def consolidar(cfg: Config, fuente: str,
+               ruta_shp_dane: Optional[str] = None) -> pd.DataFrame:
     """Ejecuta las cinco etapas y guarda el panel en disco.
+
+    'fuente' ('dist_alert' o 'gfw') es obligatorio y no tiene default:
+    forzar al llamador a decidir explicitamente evita que se genere un
+    panel "por defecto" sin que quede claro de que fuente de evento
+    salio (ver docstring del modulo, DOS FUENTES, NUNCA MEZCLADAS).
 
     Orden importa: cada etapa depende de que la anterior ya se haya
     aplicado (cargar -> filtrar -> balancear -> derivar -> asignar
     municipio). Ver las secciones 1-5 de este archivo para el detalle
     de cada una.
     """
-    df = cargar_crudo(cfg)
+    if fuente not in ARCHIVO_CRUDO:
+        raise ValueError(f"fuente debe ser {list(ARCHIVO_CRUDO)}, se recibio {fuente!r}")
+
+    df = cargar_crudo(cfg, fuente)
     df = filtrar_dominio(df, cfg)
     df = balancear(df)
     df = derivar_variables(df)
     df = asignar_municipio(df, ruta_shp_dane)
 
-    csv = DIR_PANEL / "panel_deforestacion_colombia.csv"
-    parquet = DIR_PANEL / "panel_deforestacion_colombia.parquet"
+    csv = DIR_PANEL / f"panel_deforestacion_colombia_{fuente}.csv"
+    parquet = DIR_PANEL / f"panel_deforestacion_colombia_{fuente}.parquet"
     df.to_csv(csv, index=False)
     try:
         # Parquet es opcional (requiere pyarrow, que si esta en
@@ -295,3 +309,23 @@ def consolidar(cfg: Config, ruta_shp_dane: Optional[str] = None) -> pd.DataFrame
     logger.info("  archivo        : %s", csv)
     logger.info("=" * 62)
     return df
+
+
+# =====================================================================
+# CLI (uso directo: python consolidar.py --fuente dist_alert|gfw)
+# =====================================================================
+def main() -> int:
+    p = argparse.ArgumentParser(
+        description="Construye el panel final a partir de UNA fuente cruda")
+    p.add_argument("--fuente", required=True, choices=list(ARCHIVO_CRUDO),
+                   help="dist_alert = 2023-presente (NASA DIST-ALERT). "
+                        "gfw = 2020-presente (Global Forest Watch).")
+    p.add_argument("--dane", default=None,
+                   help="Ruta al shapefile municipal del DANE (MGN), opcional")
+    a = p.parse_args()
+    consolidar(Config(), a.fuente, a.dane)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

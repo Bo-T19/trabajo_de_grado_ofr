@@ -11,10 +11,10 @@ Trae a disco lo que hace falta para el calculo zonal local:
 
 USO
 ---
-    python descargar_dist.py hansen
-    python descargar_dist.py inventario     # que hay, sin descargar
-    python descargar_dist.py dist
-    python descargar_dist.py dist --tile T18NXG
+    python fuente_dist_alert/descargar_dist.py hansen
+    python fuente_dist_alert/descargar_dist.py inventario     # que hay, sin descargar
+    python fuente_dist_alert/descargar_dist.py dist
+    python fuente_dist_alert/descargar_dist.py dist --tile T18NXG
 
 REANUDABLE: si un archivo ya existe con tamano plausible, se salta.
 Puede interrumpir con Ctrl+C y relanzar.
@@ -30,6 +30,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -37,6 +38,10 @@ from typing import Dict, List, Tuple
 import pandas as pd
 import requests
 
+# config_local.py vive en la raiz del proyecto, un nivel arriba de
+# fuente_dist_alert/. Se agrega esa carpeta a sys.path para poder
+# importarlo aunque este script se corra directamente (no como paquete).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from config_local import (Config, DIR_DIST, DIR_HANSEN, DIR_LOG, logger)
 
 # URL base publica del producto Hansen Global Forest Change (GFC), alojado

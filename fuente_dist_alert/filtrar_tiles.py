@@ -11,7 +11,7 @@ identificador de tile que usan HLS y DIST-ALERT) y se queda solo con
 esos tiles.
 
     pip install mgrs
-    python filtrar_tiles.py
+    python fuente_dist_alert/filtrar_tiles.py
 
 Reescribe datos/logs/inventario_dist.json y guarda el original como
 inventario_dist.json.completo por si acaso.
@@ -21,10 +21,15 @@ from __future__ import annotations
 
 import json
 import shutil
+import sys
 from collections import Counter
+from pathlib import Path
 
 import pandas as pd
 
+# config_local.py vive en la raiz del proyecto, un nivel arriba de
+# fuente_dist_alert/.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from config_local import Config, DIR_GRILLA, DIR_LOG, logger
 
 GRILLA_CSV = DIR_GRILLA / "grilla_colombia_5km.csv"

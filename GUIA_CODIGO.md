@@ -1,9 +1,14 @@
-# Guía de código y reproducibilidad — Pipeline DIST-ALERT Colombia
+# Guía de código y reproducibilidad — Pipeline de deforestación Colombia
 
 Este documento explica **cómo está construido el software** y **cómo
 correrlo desde cero**, paso a paso, con suficiente detalle para que alguien
 que no participó en escribirlo —el director de tesis, un jurado, un
-colaborador futuro— pueda reproducir el panel final en su propio computador.
+colaborador futuro— pueda reproducir cualquiera de los dos paneles finales
+en su propio computador. El pipeline produce **dos paneles independientes,
+que nunca se mezclan**: uno con NASA OPERA DIST-ALERT (2023-presente,
+`fuente_dist_alert/`) y otro con el producto integrado de Global Forest
+Watch (2020-presente, `fuente_gfw/`) — ver METODOLOGIA.md §2.4 y decisión
+15 para el porqué.
 
 Este documento **no** explica por qué se tomaron las decisiones de diseño
 (qué fuentes de datos, qué umbrales, qué supuestos): eso está en
@@ -35,31 +40,63 @@ es relevante.
 
 ## 1. Mapa del repositorio
 
+El código está organizado por **rol**, no por orden cronológico de cuándo se
+escribió: lo compartido queda en la raíz, y cada **fuente del evento**
+(DIST-ALERT para 2023 en adelante, GFW integrado para 2020-presente, ver
+METODOLOGIA.md §2.4 y decisión 15) vive en su propia carpeta. Las dos
+fuentes producen **dos paneles finales completamente independientes**, que
+nunca se fusionan: `consolidar.py` exige elegir explícitamente cuál
+construir (`--fuente dist_alert` o `--fuente gfw`), nunca las dos a la vez.
+
 ```
 trabajo_de_grado/
-├── config_local.py        configuración central (parámetros, rutas, logger)
-├── exportar_grilla.py      [Earth Engine] genera la grilla de 5 km — 1 vez
-├── descargar_dist.py       descarga Hansen GFC y DIST-ALERT (3 subcomandos)
-├── filtrar_tiles.py        recorta el inventario a tiles reales de Colombia
-├── zonal_local.py          motor de cálculo: cruza DIST-ALERT con el bosque
-├── consolidar.py           arma el panel largo final con variables derivadas
-├── diagnostico_cmr.py      herramienta puntual: valida el catálogo CMR
-├── main_local.py           orquestador de línea de comandos
-├── mapa_folium.py          mapa interactivo (Leaflet) del panel final
-├── eda_deforestacion.ipynb  EDA con graficas del panel final
+├── config_local.py         configuración central — COMPARTIDA por las dos fuentes
+├── exportar_grilla.py       genera la grilla de 5 km — 1 vez, compartida (local, límites del DANE, sin Earth Engine)
+├── consolidar.py            arma el panel final de UNA fuente (--fuente obligatorio)
+├── main_local.py            orquestador de línea de comandos (rama DIST-ALERT + consolidar de ambas)
+├── mapa_folium.py           mapa interactivo (Leaflet) de un panel final
+├── eda_deforestacion.ipynb   EDA con graficas de un panel final
 │
-├── requirements_local.txt  dependencias Python (pip)
-├── .dodsrc                 le dice a GDAL/rasterio dónde están las
-│                            credenciales de Earthdata (netrc, cookies)
-├── cmr.txt                 salida guardada de una corrida de diagnostico_cmr.py
+├── fuente_dist_alert/        panel 2023-presente — NASA OPERA DIST-ALERT (un solo sistema)
+│   ├── descargar_dist.py     descarga Hansen GFC y DIST-ALERT (3 subcomandos)
+│   ├── filtrar_tiles.py      recorta el inventario a tiles reales de Colombia
+│   ├── zonal_local.py        motor de cálculo: cruza DIST-ALERT con el bosque; expone
+│   │                          indice_celdas()/mascara_bosque(), reutilizadas por fuente_gfw/
+│   └── diagnostico_cmr.py    herramienta puntual: valida el catálogo CMR
+│
+├── fuente_gfw/                panel 2020-presente — GFW integrated disturbance alerts (4 sistemas)
+│   ├── configurar_gfw.py     registro de una sola vez en la API de GFW
+│   └── descargar_gfw.py       consulta la API de GFW para TODA la ventana 2020-presente;
+│                                calcula su propio bosque_ha (anio_mascara_gfw); escribe
+│                                datos/crudo/nacional_gfw.csv -- nunca toca nacional.csv
+│
+├── requirements_local.txt   dependencias Python (pip)
+├── .dodsrc                  le dice a GDAL/rasterio dónde están las
+│                             credenciales de Earthdata (netrc, cookies)
+├── cmr.txt                  salida guardada de una corrida de diagnostico_cmr.py
 ├── inventario_dist.json.completo   respaldo de un inventario sin filtrar
 │
-├── METODOLOGIA.md          ← el "qué y por qué" (léalo primero)
-├── GUIA_CODIGO.md          ← este documento, el "cómo"
+├── METODOLOGIA.md           ← el "qué y por qué" (léalo primero)
+├── GUIA_CODIGO.md           ← este documento, el "cómo"
 │
-└── datos/                  TODO el output cae aquí (ver sección 10)
-    ├── grilla/   hansen/   dist/   cache/   crudo/   panel/   logs/
+└── datos/                   TODO el output cae aquí (ver sección 10)
+    ├── grilla/   hansen/   cache/   panel/   logs/     (compartidas)
+    ├── dist/                                            (solo fuente_dist_alert)
+    ├── gfw/                                              (solo fuente_gfw, cache de lotes API)
+    └── crudo/          ← cada fuente deja su PROPIO archivo, nunca compartido:
+                            nacional.csv (dist_alert) y nacional_gfw.csv (gfw).
+                            consolidar.py lee SOLO el que corresponda a --fuente
+                            (ver sección 7) -- jamás los dos juntos.
 ```
+
+**Por qué cada script movido sigue importando `config_local` sin problema**:
+los scripts dentro de `fuente_dist_alert/` y `fuente_gfw/` agregan la
+carpeta raíz a `sys.path` al arrancar (ver las primeras líneas de cualquiera
+de ellos), un truco liviano para no tener que invocarlos con `python -m`
+ni duplicar `config_local.py` — no requiere instalar nada como paquete
+Python. Se pueden seguir corriendo igual, sea directo (`python
+fuente_dist_alert/zonal_local.py --tile T18NXG`) o a través de
+`main_local.py`, que ya apunta a las rutas nuevas.
 
 **Regla general del repositorio**: todo parámetro que pueda cambiar el
 resultado vive en `config_local.py`, nunca hardcodeado dentro de otro script.
@@ -144,9 +181,9 @@ rasterio>=1.3             # lectura/escritura/reproyección de rasters (GeoTIFF/
 pyproj>=3.6                # transformación de coordenadas entre sistemas de referencia
 numpy>=1.24
 pandas>=2.0
-requests>=2.31
+requests>=2.31              # llamadas HTTP directas a la API SQL de GFW (descargar_gfw.py)
 pyarrow>=14.0              # motor de lectura/escritura de Parquet
-earthengine-api>=1.0       # solo lo usa exportar_grilla.py
+geopandas>=0.14             # exportar_grilla.py (grilla local), cruce DANE opcional de consolidar.py, y las geometrias de celda que descargar_gfw.py manda a la API de GFW
 folium>=0.15                # mapa interactivo (mapa_folium.py)
 matplotlib>=3.7            # graficas de eda_deforestacion.ipynb
 jupyter>=1.0                 # para abrir/correr eda_deforestacion.ipynb
@@ -163,24 +200,17 @@ libgdal-dev`) y después `pip install rasterio`.
 
 | Servicio | Para qué | Dónde crearla | Cuándo se pide |
 |---|---|---|---|
-| **Google Earth Engine** | Único uso: `exportar_grilla.py` (Paso 1) | https://code.earthengine.google.com — requiere asociar un *Cloud Project* de Google (gratuito) | La primera vez que se corre `python main_local.py grilla`; abre el navegador para autenticar |
 | **NASA Earthdata Login** | Toda descarga de DIST-ALERT (`earthaccess`) | https://urs.earthdata.nasa.gov — registro gratuito, sin aprobación manual | La primera vez que se corre cualquier subcomando de `descargar_dist.py` que use `earthaccess` (`inventario` o `dist`); pide usuario/clave por consola |
+| **GFW (Global Forest Watch)** | Panel GFW, 2020-presente (`fuente_gfw/`), independiente del panel DIST-ALERT | Self-service vía `python fuente_gfw/configurar_gfw.py signup` — ver §5.9 | Antes de correr cualquier descarga de `fuente_gfw/` |
 
-**Earth Engine — variable de entorno opcional**: el proyecto de Cloud a usar
-se puede fijar sin editar código, con la variable de entorno `EE_PROJECT`:
-
-```powershell
-$env:EE_PROJECT = "nombre-del-proyecto-gee"    # PowerShell
-```
-```bash
-export EE_PROJECT="nombre-del-proyecto-gee"    # bash
-```
-
-Si no se define, `config_local.py` usa un proyecto por defecto que puede no
-existir en la cuenta de quien reproduce el pipeline — **si el director de
-tesis va a correr `exportar_grilla.py` con su propia cuenta de Google, debe
-fijar esta variable** (o editar `ee_project` directamente en
-`config_local.py`) antes de correr el Paso 1.
+**`exportar_grilla.py` no requiere ninguna cuenta**: construye la grilla
+localmente con `geopandas`, consultando el servicio público (sin
+autenticación) del DANE. Esto es un cambio deliberado — la versión anterior
+de este pipeline usaba Google Earth Engine para este paso; se eliminó esa
+dependencia porque su licencia gratuita prohíbe el uso en trabajo remunerado
+para terceros, y este panel es insumo de consultorías comerciales del
+Observatorio (ver METODOLOGIA.md, decisión 11 revisada en la bitácora de
+la sección 4, con la cita textual de los términos de servicio).
 
 **Earthdata — persistencia de credenciales**: `earthaccess.login(persist=True)`
 guarda usuario/clave en `~/.netrc` (en Windows, según `.dodsrc`, en
@@ -201,8 +231,11 @@ también la sección 11 (solución de problemas).
 ### 2.6 Verificar la instalación (antes de lanzar nada largo)
 
 ```bash
-python -c "import earthaccess, rasterio, pyproj, numpy, pandas, ee, folium; print('OK')"
+python -c "import earthaccess, rasterio, pyproj, numpy, pandas, geopandas, requests, folium; print('OK')"
 ```
+
+(sin `ee`: este pipeline no depende de Google Earth Engine — ver decisión 11
+revisada, METODOLOGIA.md §4, y §5.2 más abajo.)
 
 Si esto imprime `OK` sin errores, el entorno está listo. Después, un chequeo
 más específico de credenciales:
@@ -226,7 +259,7 @@ para pasarle argumentos que `main_local.py` no expone).
 └──────────────┬────────────┘
                ▼
 ┌──────────────────────────┐
-│ 1. grilla  (Earth Engine)  │  ~1 min · requiere cuenta GEE
+│ 1. grilla  (local, DANE)   │  ~1 min · sin cuentas
 └──────────────┬────────────┘
                │
      ┌─────────┴─────────┐
@@ -251,11 +284,24 @@ para pasarle argumentos que `main_local.py` no expone).
                             ▼
                   ┌────────────────────┐
                   │ 7. zonal              │  ~20-60 min (todo el país)
+                  │    (panel DIST-ALERT) │
                   └───────┬────────────┘
                             ▼
                   ┌────────────────────┐
                   │ 8. consolidar         │  ~1-2 min
+                  │    --fuente dist_alert│
                   └────────────────────┘
+
+Rama GFW (opcional, independiente, ver Paso 7-GFW): no depende del paso 7
+(zonal DIST-ALERT) ni lo modifica, pero SÍ necesita que datos/dist/ tenga
+un archivo de referencia por CADA tile del país (153 en la corrida de
+referencia) -- eso solo lo deja el paso 6 (descarga nacional completa),
+no el paso 5 (piloto, que descarga un único tile y sirve solo para probar
+que descargar_gfw.py corre sin errores, no para el panel nacional real).
+
+        6 ──▶ 7-GFW. descargar_gfw.py  (~igual de largo que 6, vía API)
+                     ▼
+             8. consolidar --fuente gfw
 ```
 
 Los tiempos son orden de magnitud, dependientes de la velocidad de red y del
@@ -265,31 +311,37 @@ número de núcleos/disco del computador — no son una garantía.
 
 Ver sección 2.4.
 
-### Paso 1 — exportar la grilla (Earth Engine, una sola vez)
+### Paso 1 — construir la grilla (local, una sola vez)
 
 ```bash
 python main_local.py grilla
 # equivale a: python exportar_grilla.py
 ```
 
-Pide autenticación de Earth Engine la primera vez (abre el navegador).
-Produce `datos/grilla/grilla_colombia_5km.csv`. El script **verifica que la
-grilla quede alineada al origen de la proyección EPSG:3116** antes de
-guardar: si no lo estuviera, el indexado aritmético por píxel de
+Corre enteramente en el computador local, sin ninguna cuenta ni
+autenticación: descarga los límites departamentales del DANE (servicio
+público) y construye la malla de 5 km con `geopandas`. Produce
+`datos/grilla/grilla_colombia_5km.csv`. El script **verifica que la grilla
+quede alineada al origen de la proyección EPSG:3116** antes de guardar
+(garantizado por construcción, pero se comprueba igual como prueba de
+regresión): si no lo estuviera, el indexado aritmético por píxel de
 `zonal_local.py` (Paso 7) daría resultados incorrectos de forma silenciosa,
 así que el script se detiene con un error explícito en vez de continuar.
 
-**Verificación**: el archivo debe tener del orden de 45 000 filas y las
-columnas `cell_id, lon, lat, x3116, y3116, ix, iy, departamento`. El log
+**Verificación**: el archivo debe tener del orden de 45 000-46 000 filas y
+las columnas `cell_id, lon, lat, x3116, y3116, ix, iy, departamento`. El log
 imprime cuántas celdas y departamentos encontró — compárelo contra lo
-esperado (31 departamentos continentales de Colombia; si aparecen menos,
-puede haber fallado el cruce con GAUL para algún departamento pequeño).
+esperado (33 unidades: los 32 departamentos más Bogotá D.C., que el DANE
+trata como una unidad de nivel departamento propia; si aparecen menos,
+revise que el servicio del DANE haya respondido completo — el script avisa
+por consola cuántas celdas quedaron sin departamento asignado y las
+descarta, normalmente un puñado de celdas costeras).
 
 ### Paso 2 — descargar Hansen GFC (no requiere Earthdata)
 
 ```bash
 python main_local.py hansen
-# equivale a: python descargar_dist.py hansen
+# equivale a: python fuente_dist_alert/descargar_dist.py hansen
 ```
 
 Descarga HTTP directa, sin autenticación, ~5 GB en 12 archivos (6 gránulos ×
@@ -304,7 +356,7 @@ peso total.
 
 ```bash
 python main_local.py inventario
-# equivale a: python descargar_dist.py inventario
+# equivale a: python fuente_dist_alert/descargar_dist.py inventario
 ```
 
 Consulta a NASA CMR, mes por mes, dentro del `bbox` rectangular de Colombia
@@ -319,7 +371,7 @@ sección 11 (probablemente falta aceptar el EULA de DIST-ALERT).
 ### Paso 4 — recortar el inventario al territorio real
 
 ```bash
-python filtrar_tiles.py
+python fuente_dist_alert/filtrar_tiles.py
 ```
 
 **No** está expuesto en `main_local.py`; se corre directo. Requiere que ya
@@ -350,7 +402,7 @@ detecta eventos y no solo corre sin errores.
 
 ```bash
 python main_local.py descargar
-# equivale a: python descargar_dist.py dist
+# equivale a: python fuente_dist_alert/descargar_dist.py dist
 ```
 
 Descarga real de los `.tif` de `VEG-DIST-STATUS` y `VEG-DIST-DATE`, 6 hilos
@@ -367,7 +419,7 @@ Paso 3/4.
 
 ```bash
 python main_local.py zonal
-# equivale a: python zonal_local.py
+# equivale a: python fuente_dist_alert/zonal_local.py
 ```
 
 Ver la sección 6 para el detalle de implementación. Produce
@@ -382,22 +434,74 @@ algo está mal (revisar que `datos/dist/` sí tenga archivos y que
 `estados_evento` en `config_local.py` no se haya cambiado por error a algo
 vacío).
 
-### Paso 8 — consolidar el panel final
+### Paso 7-GFW — panel alternativo 2020-presente (independiente, opcional)
+
+**Solo si necesita datos desde 2020-01**. Este paso NO depende del Paso 7
+(zonal DIST-ALERT) ni lo modifica — produce un archivo crudo completamente
+aparte. Si el proyecto solo necesita 2023 en adelante, sáltese este paso y
+vaya directo al Paso 8 con `--fuente dist_alert`.
+
+**Requiere el Paso 6 completo (descarga nacional), no solo el Paso 5
+(piloto)**: `descargar_gfw.py` calcula su bosque base recorriendo
+`datos/dist/<tile>/` tile por tile, así que solo cubre el territorio de
+los tiles que ya tengan un archivo ahí. Con solo el tile del piloto
+(`T18NXG`) el script corre sin error, pero el panel resultante cubriría
+únicamente ese tile, no el país — no es el resultado documentado en este
+archivo (44 601 celdas). Para reproducir el mismo panel nacional que
+documenta esta guía, complete el Paso 6 antes de este paso.
 
 ```bash
-python main_local.py consolidar
-# opcionalmente, con el cruce de municipios del DANE:
-python main_local.py consolidar --dane ruta/al/MGN_MPIO.shp
+# una sola vez, si todavia no tiene la API key:
+python fuente_gfw/configurar_gfw.py signup --nombre "Su Nombre" --email correo@ejemplo.com
+python fuente_gfw/configurar_gfw.py apikey --email correo@ejemplo.com --password "la-del-correo"
+
+# la descarga en si (cubre TODA la ventana 2020-presente, no solo un tramo):
+python fuente_gfw/descargar_gfw.py
 ```
 
-Ver la sección 7 para el detalle. Produce
-`datos/panel/panel_deforestacion_colombia.csv` y `.parquet`.
+Ver la sección 5.10 para el detalle. Consulta la API de GFW (no descarga
+rásteres) para el evento, y calcula su propio `bosque_ha` reutilizando
+`indice_celdas()`/`mascara_bosque()` de `fuente_dist_alert/zonal_local.py`
+con `anio_mascara_gfw = 2019`, recorriendo **todos** los tiles que
+encuentre como subcarpeta de `datos/dist/` (necesita al menos un archivo
+de referencia por cada uno — ver la nota del Paso 6 arriba). Escribe
+`datos/crudo/nacional_gfw.csv`, un archivo **separado** de `nacional.csv`:
+nunca lee ni modifica el archivo del Paso 7.
+
+**Verificación**: el log final debe mostrar 153 tiles procesados (o el
+número de tiles que tenga `datos/dist/` en su corrida), el rango de
+columnas de periodo yendo de `d_2020_01` al mes más reciente disponible, y
+que `datos/crudo/nacional_gfw.csv` existe como archivo aparte de
+`datos/crudo/nacional.csv`. Si el log solo menciona 1 tile, el panel no
+va a ser el nacional completo — revise que el Paso 6 haya terminado.
+
+### Paso 8 — consolidar el panel final (elegir la fuente)
+
+`--fuente` es obligatorio: no hay panel "por defecto", precisamente para
+que sea imposible generar uno sin saber de qué fuente de evento salió.
+
+```bash
+# panel DIST-ALERT (2023-presente, del Paso 7):
+python main_local.py consolidar --fuente dist_alert
+
+# panel GFW (2020-presente, del Paso 7-GFW):
+python main_local.py consolidar --fuente gfw
+
+# opcionalmente, con el cruce de municipios del DANE (aplica a cualquiera de los dos):
+python main_local.py consolidar --fuente dist_alert --dane ruta/al/MGN_MPIO.shp
+```
+
+Ver la sección 7 para el detalle. Cada corrida produce un par de archivos
+propio: `datos/panel/panel_deforestacion_colombia_dist_alert.csv`/`.parquet`
+o `datos/panel/panel_deforestacion_colombia_gfw.csv`/`.parquet` — nunca se
+mezclan ni se sobrescriben entre sí.
 
 **Verificación**: el log final imprime filas, celdas, periodos, rango de
 fechas, % de celda-mes con evento y hectáreas totales. Compare contra la
 sección ["Cómo se ve la base de datos final"](#cómo-se-ve-la-base-de-datos-final)
 más abajo — si la corrida cubrió la misma ventana temporal, los números
-deberían ser muy parecidos a los documentados ahí.
+deberían ser muy parecidos a los documentados ahí (esos números son del
+panel DIST-ALERT).
 
 ### Comando de estado (en cualquier momento)
 
@@ -414,29 +518,38 @@ como la original.
 
 ## Cómo se ve la base de datos final
 
-*(Números de una corrida puntual, como ejemplo — el pipeline sigue
-corriendo y el panel crece. Para las cifras y gráficas actualizadas, correr
-[`eda_deforestacion.ipynb`](eda_deforestacion.ipynb), sección 8.)*
+*(Números de una corrida puntual de cada panel, como ejemplo — el pipeline
+sigue corriendo y ambos crecen. Para las cifras y gráficas actualizadas,
+correr [`eda_deforestacion.ipynb`](eda_deforestacion.ipynb), sección 8, con
+`FUENTE` en el valor que interese.)*
 
-El panel resultante (`datos/panel/panel_deforestacion_colombia.csv`) es una
-tabla de **1 914 790 filas × 17 columnas**: 44 530 celdas × 43 periodos
-mensuales (2023-01 a 2026-05), 31 departamentos. Cada fila es una celda-mes.
+El panel **DIST-ALERT** resultante
+(`datos/panel/panel_deforestacion_colombia_dist_alert.csv`) es una
+tabla de **1 917 585 filas × 17 columnas**: 44 595 celdas × 43 periodos
+mensuales (2023-01 a 2026-07), 32 departamentos. Cada fila es una celda-mes.
 
-`filas = celdas × periodos` exactamente (44 530 × 43 = 1 914 790) — es la
+`filas = celdas × periodos` exactamente (44 595 × 43 = 1 917 585) — es la
 huella de que `balancear()` (ver sección 7) hizo su trabajo: el panel es un
 rectángulo perfecto, sin huecos.
+
+El panel **GFW** (`datos/panel/panel_deforestacion_colombia_gfw.csv`)
+tiene exactamente las mismas 17 columnas (misma función `consolidar()`) —
+**3 523 479 filas**: 44 601 celdas × 79 periodos mensuales (2020-01 a
+2026-07), 32 departamentos (44 601 × 79 = 3 523 479, mismo chequeo de
+rectángulo perfecto). No es comparable número a número con el panel
+DIST-ALERT — ver METODOLOGIA.md §2.4 y decisión 15.
 
 **Las 17 columnas**, en el orden en que aparecen en el CSV:
 
 | # | Columna | Tipo | De dónde sale | Qué es |
 |---|---|---|---|---|
-| 1 | `cell_id` | texto | grilla (GEE) | id de la celda: `"{lon×1e4}_{lat×1e4}"` redondeado |
+| 1 | `cell_id` | texto | grilla (DANE) | id de la celda: `"{lon×1e4}_{lat×1e4}"` redondeado |
 | 2 | `periodo` | fecha | `cargar_crudo` | primer día del mes, p. ej. `2023-09-01` |
 | 3 | `area_def_ha` | float | `zonal_local.py` | hectáreas deforestadas **en ese mes**, en esa celda |
-| 4 | `lon` | float | grilla (GEE) | longitud del centroide, EPSG:4326 |
-| 5 | `lat` | float | grilla (GEE) | latitud del centroide, EPSG:4326 |
+| 4 | `lon` | float | grilla (DANE) | longitud del centroide, EPSG:4326 |
+| 5 | `lat` | float | grilla (DANE) | latitud del centroide, EPSG:4326 |
 | 6 | `bosque_base_ha` | float | Hansen (`zonal_local.py`) | bosque disponible al arrancar el pipeline (dosel ≥30 %, sin pérdida antes de 2022) |
-| 7 | `departamento` | texto | grilla (GEE, GAUL) | departamento del centroide |
+| 7 | `departamento` | texto | grilla (DANE) | departamento del centroide |
 | 8 | `def_acum_ha` | float | `derivar_variables` | pérdida acumulada de la celda hasta este periodo inclusive |
 | 9 | `bosque_remanente_ha` | float | `derivar_variables` | bosque que quedaba disponible **al inicio** de este periodo |
 | 10 | `tasa_def` | float | `derivar_variables` | `area_def_ha / bosque_remanente_ha`, acotada a [0, 1] — target continuo |
@@ -483,9 +596,11 @@ Para inspeccionarlo directamente en Python:
 
 ```python
 import pandas as pd
-df = pd.read_parquet("datos/panel/panel_deforestacion_colombia.parquet")
+df = pd.read_parquet("datos/panel/panel_deforestacion_colombia_dist_alert.parquet")
+# o, para el panel GFW:
+# df = pd.read_parquet("datos/panel/panel_deforestacion_colombia_gfw.parquet")
 # si pyarrow no esta instalado, usar en su lugar:
-# df = pd.read_csv("datos/panel/panel_deforestacion_colombia.csv", parse_dates=["periodo"])
+# df = pd.read_csv("datos/panel/panel_deforestacion_colombia_dist_alert.csv", parse_dates=["periodo"])
 
 df.head()
 df[df["evento"] == 1].sample(10)      # ejemplos con deforestacion real
@@ -510,22 +625,36 @@ importa cualquier script del pipeline.
 | `capa_estado`, `capa_fecha` | Nombres de las dos capas que se descargan de cada gránulo | METODOLOGIA §2.2 |
 | `estados_evento` | Qué códigos de `VEG-DIST-STATUS` cuentan como "evento" — `(6, 8)` | METODOLOGIA §3.3, decisión 2 |
 | `epoca_dist` | Fecha 0 para decodificar `VEG-DIST-DATE` | METODOLOGIA §3.4 |
-| `hansen_version`, `umbral_dosel`, `anio_mascara` | Definen la máscara de bosque base | METODOLOGIA §3.2 |
+| `hansen_version`, `umbral_dosel`, `anio_mascara` | Definen la máscara de bosque base **del panel DIST-ALERT** | METODOLOGIA §3.2 |
+| `anio_mascara_gfw` | Corte de Hansen para la máscara de bosque **del panel GFW** (2019, no 2022) | METODOLOGIA §3.2, decisión 5 revisada |
 | `fecha_inicio`, `fecha_fin`, `frecuencia` | Ventana temporal del panel y su resolución mensual | METODOLOGIA §1.3 |
 | `cadencia_snapshot` | Cada cuánto se descarga una instantánea DIST-ALERT | METODOLOGIA §4, decisión 8 |
 | `grid_scale_m`, `grid_crs` | Tamaño de celda (5000 m) y proyección de la grilla | METODOLOGIA §1.2, §3.6 |
 | `bosque_minimo_ha` | Umbral para descartar celdas sin bosque suficiente | sección 7 de este documento |
 | `bbox` | Rectángulo usado para consultar CMR y Hansen | METODOLOGIA §4, decisión 12 |
 | `tiles` | Si no está vacío, restringe el pipeline a esos tiles MGRS | usado por `--tile` en varios subcomandos |
+| `gfw_dataset`, `gfw_version` | Identificador del dataset GFW en la API SQL (`gfw_integrated_dist_alerts`, `latest`) | METODOLOGIA §2.4 |
+| `fecha_inicio_gfw` | Inicio de la ventana del panel GFW (2020-01-01); el fin lo comparte con `fecha_fin` | METODOLOGIA §2.4 |
+| `gfw_confianza_minima` | Niveles de confianza de GFW que cuentan como evento (`high`, `highest`) | METODOLOGIA §2.4, decisión 13 |
+| `gfw_celdas_por_lote`, `gfw_lotes_en_paralelo` | Tamaño de lote y paralelismo de las consultas a la API de GFW | sección 5.10 de este documento |
 
-### 5.2 `exportar_grilla.py` — grilla de 5 km (Earth Engine)
+### 5.2 `exportar_grilla.py` — grilla de 5 km (local, sin Earth Engine)
 
-Construye la grilla con `FeatureCollection.coveringGrid()` sobre el polígono
-de Colombia (`USDOS/LSIB_SIMPLE/2017`), calcula centroides en dos
-proyecciones (4326 para el cruce DANE posterior, 3116 para el indexado
-local), y asigna el departamento por intersección espacial con
-`FAO/GAUL_SIMPLIFIED_500m/2015/level1`. Verifica la alineación al origen de
-la proyección antes de guardar (ver Paso 1, sección 3).
+Descarga los polígonos de departamento del DANE (Marco Geoestadístico
+Nacional, servicio público de ArcGIS, sin autenticación), los une en un
+polígono nacional, y construye sobre él una malla de celdas cuadradas de
+5 km con `geopandas`/`shapely` — cada celda como múltiplo entero exacto del
+lado, así que queda alineada al origen de `EPSG:3116` por construcción, no
+por casualidad. Calcula centroides en dos proyecciones (4326 para el cruce
+DANE municipal posterior, 3116 para el indexado local) y asigna el
+departamento por intersección espacial del centroide con los mismos
+polígonos del DANE. Aun así corre la misma verificación de alineación que
+la versión anterior, como prueba de regresión (ver Paso 1, sección 3). El
+polígono nacional se simplifica con tolerancia de 100 m antes del filtro
+espacial — el MGN del DANE es de precisión catastral completa
+(~280 000 vértices sin simplificar), y sin este paso el filtro tardaba
+varios minutos en vez de segundos; 100 m es irrelevante frente al lado de
+celda de 5000 m, así que no cambia qué celdas quedan dentro o fuera.
 
 ### 5.3 `descargar_dist.py` — descargas (Hansen + DIST-ALERT)
 
@@ -553,7 +682,18 @@ colombiana. Guarda respaldo del inventario sin filtrar por seguridad.
 
 ### 5.5 `zonal_local.py` — el motor de cálculo (detalle en sección 6)
 
+Además de producir `nacional.csv`, expone dos funciones cacheadas por
+tile (`indice_celdas()`, `mascara_bosque()`) que `fuente_gfw/descargar_gfw.py`
+importa y reutiliza tal cual (ver 5.10) para calcular su propio bosque
+base sin reimplementar la reproyección de Hansen.
+
 ### 5.6 `consolidar.py` — panel final (detalle en sección 7)
+
+Requiere `--fuente {dist_alert,gfw}` explícito, sin default: lee
+únicamente el CSV crudo de esa fuente (`ARCHIVO_CRUDO` en el módulo mapea
+cada nombre de fuente a su archivo fijo) y nunca ambos a la vez. Se puede
+correr como subcomando de `main_local.py` o directo:
+`python consolidar.py --fuente gfw`.
 
 ### 5.7 `diagnostico_cmr.py` — herramienta de diagnóstico puntual
 
@@ -564,7 +704,7 @@ y confirmar el formato de nombre de archivo del que depende el parseo en
 `descargar_dist.py`:
 
 ```bash
-python diagnostico_cmr.py > cmr.txt
+python fuente_dist_alert/diagnostico_cmr.py > cmr.txt
 ```
 
 El archivo `cmr.txt` en la raíz del proyecto es la salida guardada de una
@@ -584,6 +724,104 @@ Cada subcomando (`grilla`, `hansen`, `inventario`, `descargar`, `piloto`,
 el script correspondiente como subproceso (`subprocess.call`), excepto
 `consolidar`, que importa la función directamente. `estado` es el único
 subcomando que no delega: lista lo que hay en disco en cada carpeta.
+`consolidar` exige `--fuente {dist_alert,gfw}`. Este orquestador cubre la
+rama DIST-ALERT de punta a punta; la rama GFW se corre aparte
+(`fuente_gfw/configurar_gfw.py`, `fuente_gfw/descargar_gfw.py` — mismo
+patrón que `filtrar_tiles.py`, sin subcomando propio en `main_local.py`) y
+solo converge aquí en el paso de `consolidar`.
+
+### 5.9 `fuente_gfw/configurar_gfw.py` — registro en la API de GFW
+
+No forma parte de la secuencia normal de ejecución; se corre una sola vez,
+antes de que `fuente_gfw/descargar_gfw.py` pueda funcionar. Automatiza el
+flujo de autenticación de la API de Global Forest Watch en tres llamadas
+(`/auth/sign-up` → `/auth/token` → `/auth/apikey`), guardando la API key
+resultante en `datos/logs/gfw_api_key.txt` (fuera de control de versiones,
+como cualquier credencial de este proyecto):
+
+```bash
+python fuente_gfw/configurar_gfw.py signup --nombre "Su Nombre" --email correo@ejemplo.com
+python fuente_gfw/configurar_gfw.py apikey --email correo@ejemplo.com --password "la-del-correo"
+```
+
+El esquema exacto de las respuestas de esos dos últimos pasos no está
+documentado públicamente por la API de GFW; el script imprime la respuesta
+cruda del servidor si no encuentra el campo esperado, en vez de fallar en
+silencio.
+
+### 5.10 `fuente_gfw/descargar_gfw.py` — panel GFW, 2020-presente (independiente)
+
+**No depende de `nacional.csv`.** Este script produce su propio archivo
+crudo, `datos/crudo/nacional_gfw.csv`, y nunca lee ni modifica el archivo
+que produce `zonal_local.py`. El prerrequisito real tiene dos partes
+distintas, que conviene no confundir:
+
+- **Por tile, basta un solo archivo** (no el histórico completo de 43
+  instantáneas), porque `bosque_ha_por_celda()` reutiliza `indice_celdas()`
+  y `mascara_bosque()` de `fuente_dist_alert/zonal_local.py` (vía
+  `sys.path.insert`) solo para tener la cuadrícula geométrica de ese tile
+  sobre la que reproyectar Hansen — nunca lee `VEG-DIST-STATUS`/
+  `VEG-DIST-DATE` de esos archivos.
+- **Pero tiene que haber un archivo para CADA tile del país** (los 153 de
+  la corrida de referencia), no solo para uno: el script recorre
+  `datos/dist/` y calcula bosque únicamente para los tiles que encuentre
+  como subcarpeta ahí. La descarga piloto del Paso 5 deja un solo tile
+  (`T18NXG`) — sirve para probar que el script corre sin errores, no para
+  producir el panel nacional. Para el panel completo hace falta haber
+  terminado el Paso 6 (descarga nacional) primero.
+
+La llamada usa `dataclasses.replace(cfg,
+anio_mascara=cfg.anio_mascara_gfw)` (2019, no 2022) para que el corte de
+bosque coincida con el inicio de la ventana de este panel (2020-01), y
+las cachés de `mascara_bosque()` en `datos/cache/` ya están separadas por
+`anio_mascara` (ver decisión 5 revisada, METODOLOGIA.md §4), así que
+convive sin conflicto con las cachés que use `zonal_local.py`.
+
+```bash
+python fuente_gfw/descargar_gfw.py
+```
+
+A diferencia de `descargar_dist.py` (descarga archivos GeoTIFF por tile),
+el evento de esta fuente se consulta vía SQL: `celdas_como_poligonos()`
+convierte cada celda de la grilla a un rectángulo de 5 km en WGS84, y
+`procesar_lote()` manda esas geometrías en lotes de `gfw_celdas_por_lote`
+(400 por defecto, límite real de payload de la API: 256 KB) al endpoint
+asíncrono `/dataset/gfw_integrated_dist_alerts/latest/query/batch`, con
+esta consulta corriendo una vez por celda, para **toda** la ventana
+2020-presente (no solo un tramo):
+
+```sql
+SELECT gfw_integrated_dist_alerts__confidence,
+       gfw_integrated_dist_alerts__date,
+       SUM(area__ha) AS ha
+FROM data
+WHERE gfw_integrated_dist_alerts__date >= '2020-01-01'
+  AND gfw_integrated_dist_alerts__date < '{fecha_fin}'
+  AND (gfw_integrated_dist_alerts__confidence = 'high'
+       OR gfw_integrated_dist_alerts__confidence = 'highest')
+GROUP BY gfw_integrated_dist_alerts__confidence, gfw_integrated_dist_alerts__date
+```
+
+(el operador SQL `IN` no está soportado por este endpoint — se confirmó
+empíricamente que devuelve `"Unsupported filter operator: in"` — por eso
+el filtro de confianza usa `OR` en vez de `IN (...)`.) Cada lote se
+cachea en `datos/gfw/lote_NNNN.json` apenas se descarga, así que el
+script es reanudable igual que `descargar_dist.py`.
+
+**Salida propia, sin fusión.** `agregar_a_mensual()` junta los resultados
+de todos los lotes en una tabla ancha (`cell_id`, `d_2020_01`, ...,
+hasta el mes más reciente), y se combina con `bosque_ha_por_celda()` en
+un único DataFrame que se escribe directo a `datos/crudo/nacional_gfw.csv`
+— no hay ningún `merge` ni `concat` con `nacional.csv` en ningún punto de
+este script (a diferencia de un diseño anterior, ya descartado — ver
+decisión 15, METODOLOGIA.md §4). Las dos fuentes conviven en
+`datos/crudo/` como dos archivos independientes; es `consolidar.py --fuente
+{...}` el que decide, explícitamente, cuál usar (nunca este script).
+
+**Verificación**: el log final imprime celdas con bosque, bosque total en
+hectáreas, deforestación total y el archivo de salida
+(`datos/crudo/nacional_gfw.csv`) — debería mostrar columnas de periodo
+yendo de `d_2020_01` al mes más reciente configurado en `fecha_fin`.
 
 ---
 
@@ -654,10 +892,15 @@ columnas `bosque_ha` y una columna `d_AAAA_MM` por cada mes del panel.
 [METODOLOGIA.md, sección 3.7](METODOLOGIA.md#37-del-bosque-base-a-las-variables-de-exposición-y-tasa);
 aquí, la implementación en `consolidar.py`.)*
 
-Cinco funciones, encadenadas por `consolidar()`:
+Cinco funciones, encadenadas por `consolidar(cfg, fuente, ...)`:
 
-1. **`cargar_crudo`**: lee `datos/crudo/*.csv` y pasa la tabla ANCHA (una
-   columna por mes) a LARGA (una fila por celda-mes) con `pandas.melt`.
+1. **`cargar_crudo`**: lee **un único** CSV crudo — `ARCHIVO_CRUDO[fuente]`
+   mapea `"dist_alert"` a `datos/crudo/nacional.csv` y `"gfw"` a
+   `datos/crudo/nacional_gfw.csv`, nunca los dos — y pasa la tabla ANCHA
+   (una columna por mes) a LARGA (una fila por celda-mes) con
+   `pandas.melt`. No hay ningún `glob`/`concat` de varios archivos: es
+   deliberado, para que sea imposible mezclar las dos fuentes por
+   accidente (ver decisión 15, METODOLOGIA.md §4).
 
 2. **`filtrar_dominio`**: descarta celdas con menos de `bosque_minimo_ha`
    (50 ha por defecto) de bosque base, con un filtro simple de `pandas`.
@@ -683,9 +926,12 @@ Cinco funciones, encadenadas por `consolidar()`:
    `geopandas` dentro de la función — si no está instalado, el resto del
    pipeline sigue funcionando sin esta columna.
 
-Salida: `datos/panel/panel_deforestacion_colombia.csv` y `.parquet` (este
-último requiere `pyarrow`; si no está instalado, se guarda solo el CSV y se
-imprime una advertencia, sin detener la ejecución).
+Salida: `datos/panel/panel_deforestacion_colombia_{fuente}.csv` y
+`.parquet` (este último requiere `pyarrow`; si no está instalado, se
+guarda solo el CSV y se imprime una advertencia, sin detener la
+ejecución). El sufijo `_dist_alert` o `_gfw` en el nombre de archivo es
+deliberado: hace imposible que una corrida sobrescriba en silencio el
+panel de la otra fuente.
 
 ---
 
@@ -714,6 +960,7 @@ cualquier navegador). Agrega el panel largo a una fila por celda (suma de
 - **Bosque base** (contexto), apagada por defecto.
 
 ```bash
+python mapa_folium.py --fuente gfw                  # mapa del panel GFW en vez del DIST-ALERT (default)
 python mapa_folium.py --umbral-ha 1 --top-n 5000   # ajustar el filtro de marcadores
 python mapa_folium.py --salida otro_nombre.html
 ```
@@ -725,9 +972,10 @@ se puede leer el `.parquet`.
 
 ## 9. El notebook de EDA (`eda_deforestacion.ipynb`)
 
-Análisis exploratorio del panel final, con 13 secciones de gráficas
-(`matplotlib`, sin dependencias adicionales de visualización). Se abre con
-Jupyter:
+Análisis exploratorio de **un** panel final (elegido con la variable
+`FUENTE = "dist_alert"` o `"gfw"` en la sección 1 del notebook), con 13
+secciones de gráficas (`matplotlib`, sin dependencias adicionales de
+visualización). Se abre con Jupyter:
 
 ```bash
 jupyter notebook eda_deforestacion.ipynb
@@ -748,9 +996,9 @@ actualizado si se corre contra un panel más reciente.
 
 **Hallazgo a tener en cuenta al leerlo**: la sección 5 del notebook detecta y
 explica que el **primer periodo del panel sobreestima sistemáticamente la
-deforestación** de ese mes — no es un evento real concentrado ahí, es el
-"stock" de todo lo que DIST-ALERT ya tenía confirmado en la primera
-instantánea descargada de cada tile (ver METODOLOGIA.md §3.4, "Efecto de
+deforestación** de ese mes: mide el "stock" de todo lo que DIST-ALERT ya
+tenía confirmado en la primera instantánea descargada de cada tile, no un
+evento real concentrado en ese mes (ver METODOLOGIA.md §3.4, "Efecto de
 inicio de ventana"). El notebook ya excluye ese periodo donde corresponde
 (estacionalidad, resumen ejecutivo); cualquier análisis posterior sobre el
 panel debería hacer lo mismo.
@@ -771,18 +1019,24 @@ jupyter nbconvert --to notebook --execute --inplace eda_deforestacion.ipynb
 | `datos/grilla/` | CSV de la grilla de 5 km | `exportar_grilla.py` |
 | `datos/hansen/` | Gránulos Hansen GFC (`.tif`) | `descargar_dist.py hansen` |
 | `datos/dist/<tile>/` | COGs de DIST-ALERT por tile y mes (`.tif`) | `descargar_dist.py dist` |
-| `datos/cache/` | `<tile>__idx.npy`, `<tile>__bosque.npy` (cachés por tile) | `zonal_local.py` |
-| `datos/crudo/` | `nacional.csv`, formato ancho | `zonal_local.py` |
-| `datos/panel/` | Panel final, formato largo, + `mapa_deforestacion.html` | `consolidar.py`, `mapa_folium.py` |
-| `datos/logs/` | `inventario_dist.json` (+ `.completo`), `tiles_colombia.txt`, `fallidos_dist.txt` | `descargar_dist.py`, `filtrar_tiles.py` |
+| `datos/gfw/` | `lote_NNNN.json` — resultados crudos por lote de celdas | `descargar_gfw.py` |
+| `datos/cache/` | `<tile>__idx.npy`, `<tile>__bosque_am{anio}_ud{umbral}.npy` (cachés por tile **y por combinación de parámetros** — el nombre incluye `anio_mascara`/`umbral_dosel` para que las cachés de los dos paneles nunca se pisen entre sí, ver METODOLOGIA.md decisión 5 revisada) | `zonal_local.py` (llamado directo o vía `descargar_gfw.py`) |
+| `datos/crudo/` | `nacional.csv` (DIST-ALERT, 2023-presente) y `nacional_gfw.csv` (GFW, 2020-presente) — **dos archivos independientes, nunca fusionados** | `zonal_local.py` y `descargar_gfw.py`, cada uno el suyo |
+| `datos/panel/` | `panel_deforestacion_colombia_dist_alert.*` y/o `panel_deforestacion_colombia_gfw.*` (formato largo), + `mapa_deforestacion.html` | `consolidar.py`, `mapa_folium.py` |
+| `datos/logs/` | `inventario_dist.json` (+ `.completo`), `tiles_colombia.txt`, `fallidos_dist.txt`, `gfw_api_key.txt` | `descargar_dist.py`, `filtrar_tiles.py`, `configurar_gfw.py` |
 
 Si algo se ve raro o hay que reconstruir desde cero, casi siempre basta con
 borrar la carpeta correspondiente y volver a correr el paso que la genera —
 **excepto** `datos/dist/` y `datos/hansen/`, que representan horas de
 descarga y conviene conservar. Borrar `datos/cache/` es seguro y barato de
-regenerar (se reconstruye solo en la siguiente corrida de `zonal_local.py`),
-útil si se sospecha que una caché quedó corrupta o desactualizada tras un
-cambio de parámetros.
+regenerar (se reconstruye solo en la siguiente corrida de `zonal_local.py`
+o `descargar_gfw.py`), útil si se sospecha que una caché quedó corrupta o
+desactualizada tras un cambio de parámetros — como el nombre de archivo ya
+incluye `anio_mascara`/`umbral_dosel`, no hace falta borrar toda la carpeta
+solo porque se corrió la otra fuente, basta con dejar que cada una use su
+propia caché. Borrar `datos/gfw/` es igual de seguro: son solo cachés de
+lotes ya descargados de la API de GFW, y `nacional_gfw.csv` es un archivo
+aparte que no depende de que esas cachés sigan ahí una vez generado.
 
 ---
 
@@ -824,9 +1078,12 @@ caché con el tamaño anterior sería silenciosamente incorrecta.
 ### Adaptar a otro país o región
 
 1. Cambiar `bbox` en `config_local.py` al rectángulo del nuevo país/región.
-2. Reescribir `construir()` en `exportar_grilla.py` para usar el filtro de
-   país correcto (`ee.Filter.eq("country_co", "XX")` con el código ISO
-   correspondiente, o una geometría propia si no se usa GAUL/LSIB).
+2. Cambiar `DANE_MGN_DEPARTAMENTOS` en `exportar_grilla.py` por la fuente de
+   límites administrativos del país nuevo, con la misma forma de salida
+   (polígonos con un campo de nombre de región) — verifique primero su
+   licencia con el mismo cuidado que se aplicó aquí (sección "Restricciones
+   de licencia" en METODOLOGIA.md, si el uso sigue siendo comercial: NASA y
+   CC BY sirven, GADM y Earth Engine gratuito no).
 3. `filtrar_tiles.py` no necesita cambios: ya deriva los tiles MGRS
    necesarios directamente de la grilla exportada, sea cual sea el país.
 4. Revisar si el nuevo país necesita gránulos Hansen distintos —
@@ -849,12 +1106,21 @@ transforma el panel balanceado en el panel final.
 | `descargar_dist.py inventario` reporta 0 tiles/gránulos | La cuenta Earthdata no ha aceptado el EULA de DIST-ALERT | Entrar a search.earthdata.nasa.gov, buscar "OPERA DIST-ALERT" y descargar un gránulo a mano una vez (sección 2.5) |
 | `earthaccess.login()` falla o pide credenciales cada vez | El archivo `_netrc` no se está guardando o `.dodsrc` apunta a otra ruta | Revisar que `.dodsrc` exista en la raíz del proyecto y que las rutas ahí (`HTTP.NETRC`, `HTTP.COOKIEJAR`) sean válidas en la máquina actual — son rutas absolutas, hay que ajustarlas si cambia el nombre de usuario del sistema |
 | `filtrar_tiles.py` dice que los conjuntos "no se cruzan en NADA" | Desajuste de formato entre el identificador de tile que produce `mgrs` y el que trae el inventario (con o sin prefijo `T`) | Revisar `_norm()` en `filtrar_tiles.py`; imprimir unos cuantos tiles de cada lado (`sorted(tiles_plan)[:5]` vs `sorted(necesarios)[:5]`) para comparar el formato a simple vista |
-| `exportar_grilla.py` se detiene con "GRILLA NO ALINEADA AL ORIGEN" | La grilla generada por Earth Engine no calzó exactamente con el origen de `EPSG:3116` (puede depender de la versión de la API de Earth Engine) | No ignorar este error — si se continúa de todas formas, el indexado de `zonal_local.py` asignaría píxeles a celdas incorrectas de forma silenciosa. Investigar por qué `coveringGrid()` no alineó antes de continuar |
+| `exportar_grilla.py` se detiene con "GRILLA NO ALINEADA AL ORIGEN" | No debería ocurrir con la versión actual (la alineación es por construcción, ver §5.2) — indicaría que alguien cambió `construir_grilla()` sin preservar esa propiedad | No ignorar este error — si se continúa de todas formas, el indexado de `zonal_local.py` asignaría píxeles a celdas incorrectas de forma silenciosa. Revisar que cada celda siga construyéndose como múltiplo entero exacto de `grid_scale_m` |
+| `exportar_grilla.py` falla al descargar del DANE (timeout o error HTTP) | El servicio de ArcGIS del DANE puede estar temporalmente caído, o cambió de URL/item id | Reintentar en unos minutos; si persiste, buscar "Marco Geoestadístico Nacional Departamento" en el geoportal del DANE (geoportal.dane.gov.co) o en su ArcGIS Hub para encontrar la URL vigente del *Feature Service* y actualizar `DANE_MGN_DEPARTAMENTOS` en el script |
 | `zonal_local.py` reporta "sin instantaneas; se salta" para muchos tiles | Ese tile no tiene ningún archivo en `datos/dist/<tile>/` | Verificar que el Paso 6 (descarga) terminó sin dejar ese tile en `fallidos_dist.txt`; si el tile nunca tuvo gránulos disponibles en CMR (nubosidad persistente), es esperado y no es un error |
 | `pd.read_parquet` falla con `ImportError` | Falta `pyarrow` (o `fastparquet`) en el entorno, aunque esté listado en `requirements_local.txt` | `pip install pyarrow`, o simplemente usar el `.csv` equivalente — todos los scripts de este repositorio (`mapa_folium.py` incluido) ya caen automáticamente al CSV si el Parquet no se puede leer |
 | La descarga nacional (Paso 6) es muy lenta | Límite de ancho de banda, o `hilos_descarga` muy bajo/alto para la red disponible | Ajustar `hilos_descarga` en `config_local.py` (más hilos no siempre es más rápido; LP DAAC puede limitar conexiones concurrentes por cuenta) |
 | El mapa de `mapa_folium.py` pesa demasiado / tarda en abrir | Demasiados marcadores individuales en la capa de "Celdas con deforestación" | Bajar `--top-n` o subir `--umbral-ha` |
-| Earth Engine (`exportar_grilla.py`) devuelve HTML en vez de CSV | Cuota temporal excedida, o el cálculo del lado del servidor tardó demasiado | Reintentar en unos minutos; si persiste, revisar que el `ee_project` configurado tenga la API de Earth Engine habilitada en Google Cloud |
+| `exportar_grilla.py` tarda varios minutos en el filtro espacial | Falta la simplificación del polígono nacional (ver §5.2) — el MGN del DANE sin simplificar tiene ~280 000 vértices | No debería pasar en la versión actual (ya incluye `pais.simplify(100, ...)`); si se quitó esa línea, restaurarla |
+| `descargar_gfw.py` falla con `"Unsupported filter operator: in"` | El endpoint `/query/batch` de GFW no soporta `IN (...)` en el SQL | No debería pasar en la versión actual (`sql_lote()` ya usa `OR` encadenados, confirmado empíricamente); si se editó esa función para usar `IN`, revertir |
+| `descargar_gfw.py` falla con `"extra fields not permitted"` en `feature_collection.features[i].id` | `geopandas`/`shapely` agregan un campo `"id"` a nivel de *feature* al exportar a GeoJSON, que la API de GFW rechaza | No debería pasar en la versión actual (`procesar_lote()` ya hace `feat.pop("id", None)` antes de enviar); si se quitó esa línea, restaurarla |
+| `descargar_gfw.py` falla con `SystemExit` pidiendo la API key | Falta `datos/logs/gfw_api_key.txt` o la variable de entorno `GFW_API_KEY` | Correr `fuente_gfw/configurar_gfw.py` (sección 5.9) primero |
+| `descargar_gfw.py` falla con `SystemExit` diciendo que no hay tiles de referencia | `datos/dist/` está vacío: nunca se corrió ni siquiera la descarga piloto de DIST-ALERT | Correr al menos el Paso 5 (piloto, `python main_local.py piloto --tile T18NXG`) antes de `descargar_gfw.py` para que el script deje de fallar — pero eso NO alcanza para el panel nacional completo, ver la fila siguiente |
+| `descargar_gfw.py` corre sin error pero el panel GFW sale con muy pocas celdas (no ~44 600) | `datos/dist/` solo tiene el tile del piloto (u otro subconjunto parcial), no los 153 tiles del país — el script no avisa de esto, simplemente calcula bosque solo donde encuentra tiles | Terminar el Paso 6 (descarga nacional completa) antes de correr `descargar_gfw.py`; revisar en el log cuántos tiles procesó ("Calculando bosque base... sobre N tiles") |
+| `main_local.py consolidar` falla con `argument --fuente is required` | `--fuente` no tiene default a propósito (ver sección 5.6) | Agregar `--fuente dist_alert` o `--fuente gfw` según cuál panel se quiera construir |
+| `consolidar.py` falla con `FileNotFoundError` sobre `nacional.csv` o `nacional_gfw.csv` | Todavía no se corrió el paso previo de esa fuente (Paso 7 o Paso 7-GFW) | Para `--fuente dist_alert`: `python main_local.py zonal`. Para `--fuente gfw`: `python fuente_gfw/descargar_gfw.py` |
+| Los dos paneles finales tienen números muy distintos para el mismo mes | Esperado: son dos metodologías de detección distintas (DIST-ALERT solo vs. cuatro sistemas integrados), no un error — ver METODOLOGIA.md §2.4 y decisión 15 | No promediarlos ni tratarlos como intercambiables; documentar cualquier comparación explícitamente si hace falta hacerla |
 
 ---
 
@@ -872,7 +1138,7 @@ transforma el panel balanceado en el panel final.
 
 Para términos conceptuales (qué es HLS, OPERA, MGRS, CMR, LP DAAC, etc.), ver
 el glosario más completo en
-[METODOLOGIA.md, sección 8](METODOLOGIA.md#8-glosario-técnico).
+[METODOLOGIA.md, sección 9](METODOLOGIA.md#9-glosario-técnico).
 
 ---
 

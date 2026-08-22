@@ -4,15 +4,19 @@ diagnostico_cmr.py
 Encuentra la combinacion exacta de short_name y version que CMR
 reconoce para DIST-ALERT, y confirma como se llaman los archivos.
 
-    python diagnostico_cmr.py > cmr.txt
+    python fuente_dist_alert/diagnostico_cmr.py > cmr.txt
 ======================================================================
 """
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import earthaccess
 
+# config_local.py vive en la raiz del proyecto, un nivel arriba de
+# fuente_dist_alert/.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from config_local import Config
 
 # Nombres candidatos de la coleccion: CMR es estricto con el nombre
