@@ -19,6 +19,7 @@ por celda: perdida acumulada, bosque remanente y rezagos.
 """
 from __future__ import annotations
 
+import json
 from typing import Optional
 
 import pandas as pd
@@ -192,27 +193,41 @@ def derivar_variables(df: pd.DataFrame, n_rezagos: int = 3) -> pd.DataFrame:
 
 
 # =====================================================================
-# 5. CRUCE CON LA CARTOGRAFIA DANE (opcional)
+# 5. CRUCE CON LA CARTOGRAFIA DANE (automatico; --dane la sobreescribe)
 # =====================================================================
-def asignar_municipio(df: pd.DataFrame, ruta_shp: Optional[str]) -> pd.DataFrame:
+def asignar_municipio(df: pd.DataFrame, ruta_shp: Optional[str],
+                      cfg: Optional[Config] = None) -> pd.DataFrame:
     """
     Asigna codigo DANE de municipio a cada celda mediante su centroide.
 
     Requiere el Marco Geoestadistico Nacional (MGN) del DANE, que trae
     el campo MPIO_CDPMP: la llave para unir variables socioeconomicas
-    y de credito rural del Observatorio.
+    y de credito rural del Observatorio. Tambien agrega el nombre del
+    municipio (columna `municipio`) cuando el archivo lo trae, solo
+    para lectura humana -- el cruce con otras fuentes debe hacerse
+    siempre por `cod_dane`, nunca por nombre (tildes/mayusculas
+    inconsistentes entre fuentes). Este cruce no es opcional para el
+    objetivo de negocio del proyecto (analisis a nivel municipal, ver
+    entendimiento del negocio) -- por eso, si no se pasa una ruta
+    explicita (--dane), se descarga automaticamente el archivo del DANE
+    en vez de omitir el paso (ver descargar_municipios.py).
 
-    Solo este paso necesita geopandas. Es opcional: sin shapefile el
-    panel se construye igual, sin la columna cod_dane.
+    Solo este paso necesita geopandas.
     """
-    if not ruta_shp:
-        logger.info("Sin shapefile DANE; se omite la asignacion municipal.")
-        return df
     try:
         import geopandas as gpd
     except ImportError:
-        logger.warning("geopandas no esta instalado; se omite el cruce DANE.")
+        logger.warning("geopandas no esta instalado; se omite el cruce municipal.")
         return df
+
+    if not ruta_shp:
+        from descargar_municipios import descargar_municipios, ruta_cache
+        destino = ruta_cache()
+        if not destino.exists():
+            logger.info("Sin limites municipales en disco; se descargan del DANE...")
+            data = descargar_municipios(cfg or Config())
+            destino.write_text(json.dumps(data))
+        ruta_shp = str(destino)
 
     mgn = gpd.read_file(ruta_shp).to_crs("EPSG:4326")
     celdas = df[["cell_id", "lon", "lat"]].drop_duplicates("cell_id")
@@ -226,10 +241,22 @@ def asignar_municipio(df: pd.DataFrame, ruta_shp: Optional[str]) -> pd.DataFrame
         logger.warning("No se hallo el campo de codigo DANE en el shapefile.")
         return df
 
-    unido = gpd.sjoin(pts, mgn[[campo, "geometry"]],
-                      how="left", predicate="within")
-    mapa = unido.set_index("cell_id")[campo].rename("cod_dane")
-    logger.info("Municipio asignado a %d celdas.", mapa.notna().sum())
+    campo_nombre = next((c for c in ("MPIO_CNMBR", "mpio_cnmbr")
+                         if c in mgn.columns), None)
+    campos = [campo, "geometry"] if campo_nombre is None else [campo, campo_nombre, "geometry"]
+
+    unido = gpd.sjoin(pts, mgn[campos], how="left", predicate="within")
+    unido = unido.set_index("cell_id")
+    mapa = unido[[campo]].rename(columns={campo: "cod_dane"})
+    if campo_nombre is not None:
+        # DANE entrega el nombre en mayusculas sostenidas ("MEDELLIN");
+        # se normaliza a una capitalizacion legible, igual que ya hace
+        # exportar_grilla.py con el nombre del departamento. Es solo
+        # para lectura -- cualquier cruce programatico debe usar
+        # cod_dane, no este texto.
+        mapa["municipio"] = unido[campo_nombre].str.title()
+
+    logger.info("Municipio asignado a %d celdas.", mapa["cod_dane"].notna().sum())
     return df.merge(mapa, on="cell_id", how="left")
 
 
@@ -248,7 +275,7 @@ def consolidar(cfg: Config, ruta_shp_dane: Optional[str] = None) -> pd.DataFrame
     df = filtrar_dominio(df, cfg)
     df = balancear(df)
     df = derivar_variables(df)
-    df = asignar_municipio(df, ruta_shp_dane)
+    df = asignar_municipio(df, ruta_shp_dane, cfg)
 
     csv = DIR_PANEL / "panel_deforestacion_colombia.csv"
     parquet = DIR_PANEL / "panel_deforestacion_colombia.parquet"

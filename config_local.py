@@ -45,13 +45,14 @@ DIR_HANSEN = DIR_DATOS / "hansen"      # granulos 10x10 de Hansen GFC
 DIR_CACHE = DIR_DATOS / "cache"        # bosque_ha por celda, ya calculado
 DIR_CRUDO = DIR_DATOS / "crudo"        # salida ancha de calcular_bosque.py + descargar_gfw.py
 DIR_PANEL = DIR_DATOS / "panel"        # panel final
+DIR_LIMITES = DIR_DATOS / "limites"    # limites municipales del DANE (MGN), para el cruce municipal
 DIR_LOG = DIR_DATOS / "logs"
 
 # Se crean automaticamente al importar este modulo (osea, la primera vez
 # que se corre CUALQUIER script del pipeline, porque todos hacen
 # "from config_local import ..."). exist_ok=True: si ya existen, no falla.
 for _d in (DIR_GRILLA, DIR_GFW, DIR_HANSEN, DIR_CACHE,
-           DIR_CRUDO, DIR_PANEL, DIR_LOG):
+           DIR_CRUDO, DIR_PANEL, DIR_LIMITES, DIR_LOG):
     _d.mkdir(parents=True, exist_ok=True)
 
 

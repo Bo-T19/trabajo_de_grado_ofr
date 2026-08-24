@@ -41,7 +41,8 @@ trabajo_de_grado/
 ├── calcular_bosque.py        bosque_ha por celda, reproyectando Hansen sobre la grilla nacional
 ├── configurar_gfw.py         registro de una sola vez en la API de GFW
 ├── descargar_gfw.py          calcula bosque_ha + descarga el evento -> datos/crudo/nacional.csv
-├── consolidar.py             arma el panel final (formato largo)
+├── descargar_municipios.py   limites municipales del DANE (MGN) -- automatico, sin cuenta
+├── consolidar.py             arma el panel final (formato largo) + cruce municipal
 ├── main_local.py             orquestador de línea de comandos
 ├── mapa_folium.py            mapa interactivo (Leaflet) del panel final
 ├── eda_deforestacion.ipynb   EDA con graficas del panel final
@@ -56,7 +57,7 @@ trabajo_de_grado/
 │                              activo (ver legacy/README.md)
 │
 └── datos/                   TODO el output cae aquí (ver sección 10)
-    ├── grilla/   hansen/   gfw/   cache/   crudo/   panel/   logs/
+    ├── grilla/   hansen/   gfw/   cache/   crudo/   limites/   panel/   logs/
 ```
 
 **Regla general del repositorio**: todo parámetro que pueda cambiar el
@@ -168,7 +169,12 @@ entorno virtual activado. El orquestador es `main_local.py`.
 └──────────────┬────────────┘
                ▼
 ┌──────────────────────────┐
-│ 4. consolidar                │  ~1-2 min
+│ 4. municipios (local, DANE) │  ~10 s · sin cuentas · opcional a mano
+│    (auto en el paso 5)      │    (consolidar la descarga si falta)
+└──────────────┬────────────┘
+               ▼
+┌──────────────────────────┐
+│ 5. consolidar                │  ~1-2 min
 └──────────────────────────┘
 ```
 
@@ -241,16 +247,49 @@ hectáreas y deforestación total detectada. Si "deforestación total" da 0,
 revise que `gfw_confianza_minima` en `config_local.py` no se haya cambiado
 por error a algo vacío.
 
-### Paso 4 — consolidar el panel final
+### Paso 4 — límites municipales del DANE (automático)
+
+```bash
+python main_local.py municipios
+# equivale a: python descargar_municipios.py
+```
+
+Descarga los polígonos de los 1.122 municipios del Marco Geoestadístico
+Nacional del DANE (versión MGN2025, nivel Municipio, capa "Gráfico"),
+del mismo servicio ArcGIS público (sin cuenta) que ya usa el Paso 1 para
+los límites departamentales. Salida:
+`datos/limites/municipios_dane_mgn2025.geojson`.
+
+Este paso es **opcional correrlo a mano**: si no existe el archivo,
+`consolidar` (Paso 5) lo descarga automáticamente antes de hacer el
+cruce. Se documenta como paso aparte solo para que quede claro en la
+trazabilidad de dónde sale cada dato.
+
+**Por qué la versión "Gráfico" y no "Político"**: para asignar un
+municipio al centroide de una celda de 5×5 km, la generalización de la
+versión "Gráfico" es irrelevante frente al tamaño de la celda — no
+cambia a qué municipio cae ningún centroide, y es la misma fuente
+(IGAC, vía DANE) que exige el documento de entendimiento del negocio
+para el análisis a nivel municipal.
+
+### Paso 5 — consolidar el panel final
 
 ```bash
 python main_local.py consolidar
-# opcionalmente, con el cruce de municipios del DANE:
-python main_local.py consolidar --dane ruta/al/MGN_MPIO.shp
+```
+
+El cruce municipal ya es automático: si `datos/limites/` está vacío,
+`consolidar` descarga los límites del DANE por su cuenta (ver Paso 4)
+antes de asignar `cod_dane` a cada celda. Para usar un archivo municipal
+distinto en vez del descargado automáticamente:
+
+```bash
+python main_local.py consolidar --dane ruta/al/otro_archivo.shp
 ```
 
 Ver la sección 7 para el detalle. Produce
-`datos/panel/panel_deforestacion_colombia.csv` y `.parquet`.
+`datos/panel/panel_deforestacion_colombia.csv` y `.parquet`, ahora con
+la columna `cod_dane` (código DANE de municipio) incluida por defecto.
 
 **Verificación**: el log final imprime filas, celdas, periodos, rango de
 fechas, % de celda-mes con evento y hectáreas totales. Compare contra la
@@ -302,9 +341,11 @@ perfecto, sin huecos).
 | 16 | `anio` | int | `derivar_variables` | año de `periodo` |
 | 17 | `mes` | int | `derivar_variables` | mes de `periodo` (1-12) |
 
-Si se corrió `consolidar.py --dane ...`, se agrega una columna 18,
-`cod_dane` (código de municipio del DANE). La **definición matemática
-exacta** de cada una de estas variables está en
+Desde que el cruce municipal quedó automático (ver Paso 5), se agrega
+además una columna 18, `cod_dane` (código de municipio del DANE) — la
+tabla de ejemplo de arriba es de una corrida anterior a ese cambio, por
+eso muestra 17. La **definición matemática exacta** de cada una de estas
+variables está en
 [METODOLOGIA.md, sección 3.4](METODOLOGIA.md#34-del-bosque-base-a-las-variables-de-exposición-y-tasa).
 
 Para inspeccionarlo directamente en Python:
@@ -375,15 +416,24 @@ de fallar en silencio.
 
 ### 5.6 `descargar_gfw.py` — bosque + evento (detalle en sección 6)
 
-### 5.7 `consolidar.py` — panel final (detalle en sección 7)
+### 5.7 `descargar_municipios.py` — límites municipales del DANE
 
-### 5.8 `main_local.py` — orquestador
+Trae los 1.122 polígonos municipales del Marco Geoestadístico Nacional
+2025 (nivel Municipio, capa "Gráfico") del mismo servicio ArcGIS público
+del DANE que usa `exportar_grilla.py` para los departamentos —sin
+cuenta, sin descarga manual desde el navegador—, y los guarda en
+`datos/limites/municipios_dane_mgn2025.geojson`. `consolidar.py` lo
+invoca automáticamente si ese archivo todavía no existe.
 
-Cada subcomando (`grilla`, `hansen`, `gfw`, `consolidar`, `estado`) arma la
-línea de comandos correcta y lanza el script correspondiente como
-subproceso (`subprocess.call`), excepto `consolidar`, que importa la
-función directamente. `estado` es el único subcomando que no delega: lista
-lo que hay en disco en cada carpeta.
+### 5.8 `consolidar.py` — panel final (detalle en sección 7)
+
+### 5.9 `main_local.py` — orquestador
+
+Cada subcomando (`grilla`, `hansen`, `gfw`, `municipios`, `consolidar`,
+`estado`) arma la línea de comandos correcta y lanza el script
+correspondiente como subproceso (`subprocess.call`), excepto
+`consolidar`, que importa la función directamente. `estado` es el único
+subcomando que no delega: lista lo que hay en disco en cada carpeta.
 
 ---
 
@@ -465,11 +515,13 @@ Cinco funciones, encadenadas por `consolidar()`:
    `.shift(k)` y `.rolling(3)` de `pandas`, todo ordenado cronológicamente
    por celda de antemano.
 
-5. **`asignar_municipio`** (opcional, solo si se pasa `--dane`): usa
-   `geopandas.sjoin` con predicado `within` para unir cada centroide de
-   celda al polígono municipal del DANE que lo contiene. Import perezoso
-   de `geopandas` dentro de la función — si no está instalado, el resto
-   del pipeline sigue funcionando sin esta columna.
+5. **`asignar_municipio`** (automático): si no se pasa `--dane`, descarga
+   primero los límites municipales del DANE (`descargar_municipios.py`,
+   cacheados en `datos/limites/`) y luego usa `geopandas.sjoin` con
+   predicado `within` para unir cada centroide de celda al polígono
+   municipal que lo contiene. Import perezoso de `geopandas` dentro de
+   la función — si no está instalado, el resto del pipeline sigue
+   funcionando, solo sin la columna `cod_dane`.
 
 Salida: `datos/panel/panel_deforestacion_colombia.csv` y `.parquet` (este
 último requiere `pyarrow`; si no está instalado, se guarda solo el CSV y
@@ -588,6 +640,7 @@ jupyter nbconvert --to notebook --execute --inplace eda_deforestacion.ipynb
 | `datos/gfw/` | `lote_NNNN.json` — resultados crudos por lote de celdas de la API de GFW | `descargar_gfw.py` |
 | `datos/cache/` | `bosque_am{anio}_ud{umbral}_res{resolucion}.npy` — bosque_ha por celda, ya calculado | `calcular_bosque.py` |
 | `datos/crudo/` | `nacional.csv`, formato ancho | `descargar_gfw.py` |
+| `datos/limites/` | `municipios_dane_mgn2025.geojson` — límites municipales del DANE | `descargar_municipios.py` |
 | `datos/panel/` | Panel final, formato largo, + `mapa_deforestacion.html` | `consolidar.py`, `mapa_folium.py` |
 | `datos/logs/` | `gfw_api_key.txt` | `configurar_gfw.py` |
 

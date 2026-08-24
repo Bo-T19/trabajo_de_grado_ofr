@@ -8,6 +8,7 @@
 !/datos/gfw/
 !/datos/cache/
 !/datos/crudo/
+!/datos/limites/
 !/datos/panel/
 !/datos/logs/
 
@@ -21,6 +22,8 @@
 !/datos/cache/.gitkeep
 /datos/crudo/*
 !/datos/crudo/.gitkeep
+/datos/limites/*
+!/datos/limites/.gitkeep
 /datos/panel/*
 !/datos/panel/.gitkeep
 /datos/logs/*
@@ -32,3 +35,7 @@
 # Cache
 /__pycache__/
 /legacy/fuente_dist_alert/__pycache__/
+
+# Entorno virtual (se recrea con "python -m venv .venv" + requirements_local.txt,
+# ver GUIA_CODIGO.md seccion 2.3-2.4 -- nunca debe subirse al repo)
+/.venv/

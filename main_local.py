@@ -18,11 +18,17 @@ USO — en este orden
         GFW. Produce datos/crudo/nacional.csv. Requiere una API key
         de GFW (ver configurar_gfw.py). Del orden de 10-20 minutos.
 
-    python main_local.py consolidar
-        Construye el panel final en datos/panel/.
+    python main_local.py municipios
+        Descarga los limites municipales del DANE (MGN2025, nivel
+        Municipio), sin cuenta ni descarga manual. ~10 segundos.
 
-    python main_local.py consolidar --dane ruta/al/MGN_MPIO.shp
-        Igual, mas el cruce con codigos DANE.
+    python main_local.py consolidar
+        Construye el panel final en datos/panel/, con cruce municipal
+        automatico (descarga los limites si aun no estan en disco).
+
+    python main_local.py consolidar --dane ruta/al/otro_archivo.shp
+        Igual, pero usando un shapefile/geojson municipal distinto en
+        vez del descargado automaticamente del DANE.
 
     python main_local.py estado
         Que hay en disco y que falta.
@@ -36,7 +42,7 @@ import sys
 from pathlib import Path
 
 from config_local import (Config, DIR_CRUDO, DIR_GRILLA, DIR_HANSEN,
-                          DIR_PANEL, logger)
+                          DIR_LIMITES, DIR_PANEL, logger)
 
 AQUI = Path(__file__).resolve().parent
 
@@ -58,6 +64,7 @@ def cmd_estado(cfg: Config) -> int:
     grilla = DIR_GRILLA / "grilla_colombia_5km.csv"
     hansen = list(DIR_HANSEN.glob("*.tif"))
     crudo = DIR_CRUDO / "nacional.csv"
+    municipios = DIR_LIMITES / "municipios_dane_mgn2025.geojson"
     panel = DIR_PANEL / "panel_deforestacion_colombia.csv"
     gb_h = sum(f.stat().st_size for f in hansen) / 1e9
 
@@ -66,11 +73,13 @@ def cmd_estado(cfg: Config) -> int:
 
     logger.info("=" * 62)
     logger.info("ESTADO DEL PIPELINE")
-    logger.info("  1. grilla    : %s",
+    logger.info("  1. grilla     : %s",
                 "OK" if grilla.exists() else "FALTA (python main_local.py grilla)")
-    logger.info("  2. hansen    : %d archivos, %.1f GB", len(hansen), gb_h)
-    logger.info("  3. gfw       : %s (%s)", _ok(crudo), crudo.name)
-    logger.info("  4. panel     : %s (%s)", _ok(panel), panel.name)
+    logger.info("  2. hansen     : %d archivos, %.1f GB", len(hansen), gb_h)
+    logger.info("  3. gfw        : %s (%s)", _ok(crudo), crudo.name)
+    logger.info("  4. municipios : %s (%s) [opcional, se auto-descarga en consolidar]",
+                _ok(municipios), municipios.name)
+    logger.info("  5. panel      : %s (%s)", _ok(panel), panel.name)
     logger.info("=" * 62)
     return 0
 
@@ -89,11 +98,14 @@ def main() -> int:
     sub.add_parser("grilla")
     sub.add_parser("hansen")
     sub.add_parser("gfw")
+    sub.add_parser("municipios")
     sub.add_parser("estado")
 
     pc = sub.add_parser("consolidar")
     pc.add_argument("--dane", default=None,
-                    help="Ruta al shapefile municipal del DANE (MGN)")
+                    help=("Ruta a un shapefile/geojson municipal alterno. "
+                          "Si se omite, se usa (descargandolo si hace falta) "
+                          "el de datos/limites/, ver municipios."))
 
     a = p.parse_args()
     cfg = Config()
@@ -109,6 +121,9 @@ def main() -> int:
 
     if a.cmd == "gfw":
         return _correr("descargar_gfw.py")
+
+    if a.cmd == "municipios":
+        return _correr("descargar_municipios.py")
 
     if a.cmd == "consolidar":
         # A diferencia de los demas subcomandos, este SI importa la
