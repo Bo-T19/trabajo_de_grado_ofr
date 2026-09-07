@@ -18,7 +18,7 @@ se explica su implementación.
 1. [Mapa del repositorio](#1-mapa-del-repositorio)
 2. [Preparar el entorno desde cero](#2-preparar-el-entorno-desde-cero)
 3. [Orden exacto de ejecución](#3-orden-exacto-de-ejecución)
-4. [Cómo se ven las tres tablas](#4-cómo-se-ven-las-tres-tablas)
+4. [Cómo se ven las cuatro tablas](#4-cómo-se-ven-las-cuatro-tablas)
 5. [Referencia de cada script](#5-referencia-de-cada-script)
 6. [Cómo se calcula el bosque base, en código](#6-cómo-se-calcula-el-bosque-base-en-código)
 7. [Cómo se construye el panel, en código](#7-cómo-se-construye-el-panel-en-código)
@@ -35,10 +35,10 @@ se explica su implementación.
 
 ```
 trabajo_de_grado/
-├── config_local.py          configuración central — todo parámetro vive aquí
-├── exportar_grilla.py        genera la grilla de 5 km — 1 vez (limites del DANE)
-├── zonal.py                  maquinaria compartida: reparte cualquier raster entre celdas
-├── descargar_municipios.py   limites municipales del DANE (MGN) -- automatico, sin cuenta
+├── config_local.py           configuración central — todo parámetro vive aquí
+├── exportar_grilla.py        genera la grilla de 5 km — una sola vez
+├── zonal.py                  reparte cualquier ráster entre las celdas de la grilla
+├── descargar_municipios.py   límites municipales del DANE (MGN), automático
 │
 │   ── LINEA BASE de bosque (Hansen) ───────────────────────────────
 ├── descargar_hansen.py       descarga los granulos de Hansen GFC
@@ -56,49 +56,63 @@ trabajo_de_grado/
 ├── descargar_ideam.py        capas de cambio de bosque del SMByC
 ├── panel_ideam.py            celda x periodo, con columnas de calidad
 │
+│   ── TABLA 4: alertas tempranas oficiales (IDEAM), trimestral ────
+├── descargar_dtd.py          detecciones tempranas del SMByC (KML por trimestre)
+├── panel_dtd.py              celda x trimestre, conteo de detecciones
+│
 ├── main_local.py             orquestador de línea de comandos
 ├── mapa_folium.py            mapa interactivo (Leaflet) de la tabla de alertas
 │
-├── requirements_local.txt   dependencias Python (pip)
-├── .dodsrc                  (sin uso en este pipeline; ver legacy/)
+├── requirements_local.txt    dependencias de Python (pip)
+├── .dodsrc                   (sin uso en este pipeline; ver legacy/)
 │
-├── METODOLOGIA.md           ← el "qué y por qué" (léalo primero)
-├── GUIA_CODIGO.md           ← este documento, el "cómo"
+├── METODOLOGIA.md            ← el "qué y por qué" (léalo primero)
+├── GUIA_CODIGO.md            ← este documento, el "cómo"
 │
-├── legacy/                   código archivado, ya no forma parte del pipeline
-│                              activo (ver legacy/README.md)
+├── legacy/                   código archivado, fuera del pipeline activo
+│                              (ver legacy/README.md)
 │
-└── datos/                   TODO el output cae aquí (ver sección 10)
-    ├── grilla/   hansen/   gfw/   cache/   crudo/   limites/   panel/   logs/
-    └── ideam/    capas de cambio de bosque del SMByC (~53 MB por periodo)
+└── datos/                    TODO el output cae aquí (ver sección 10)
+    ├── grilla/  hansen/  gfw/  cache/  crudo/  limites/  panel/  logs/
+    ├── ideam/                 capas de cambio de bosque del SMByC
+    └── dtd/                   detecciones tempranas del SMByC
 ```
 
-**Las tres tablas, y a qué corresponde cada una.** El repositorio
-produce tres paneles sobre la misma grilla. Miden conceptos **distintos**
-y por eso **nunca se suman entre sí**:
+### Las cuatro tablas
 
-| Tabla | Fuente | Qué mide exactamente | Unidad | Para qué sirve |
+El repositorio produce cuatro paneles sobre una misma grilla de 5 km.
+Cada uno mide un concepto distinto, y por eso **sus cifras nunca se suman
+entre sí**:
+
+| Tabla | Fuente | Qué mide | Unidad | Responde a |
 |---|---|---|---|---|
-| `panel_deforestacion_colombia` | GFW | *Disturbio* de la vegetación | celda × **mes** | Saber **dónde y cuándo** está pasando algo. Único con cadencia sub-anual |
-| `panel_hansen` | Hansen GFC | *Pérdida de cobertura arbórea* | celda × **año** | Comparar Colombia con **otros países**: mismo algoritmo en todo el planeta |
-| `panel_ideam` | IDEAM / SMByC | *Deforestación* de bosque natural | celda × **periodo** | La cifra **oficial**, con la definición nacional de bosque |
+| `panel_deforestacion_colombia` | GFW | *Disturbio* de la vegetación, en hectáreas | celda × **mes** | **¿Cuándo?** Es el de mayor resolución temporal |
+| `panel_hansen` | Hansen GFC | *Pérdida de cobertura arbórea*, en hectáreas | celda × **año** | **¿Cómo se compara con otros países?** Mismo algoritmo en todo el planeta |
+| `panel_ideam` | IDEAM / SMByC | *Deforestación* de bosque natural, en hectáreas | celda × **periodo** | **¿Cuánto, oficialmente?** Definición nacional de bosque |
+| `panel_dtd` | IDEAM / SMByC | *Detecciones* de alerta, en número de puntos | celda × **trimestre** | **¿Dónde, según la autoridad?** Único producto oficial sub-anual |
 
-Cada una tiene un alcance propio: una alerta de GFW señala que el dosel
-cambió; Hansen contabiliza toda pérdida de cobertura, incluida la cosecha
-de plantación y el incendio; el IDEAM aplica la definición nacional de
-bosque, con cadencia anual y rezago de publicación. Comparar sus cifras
-entre sí es uno de los **resultados** del trabajo (ver sección 4).
+El alcance de cada una es específico. Una alerta de GFW indica que el
+dosel cambió. Hansen contabiliza toda pérdida de cobertura arbórea,
+incluidas la cosecha de plantación y el incendio. Las capas de cambio del
+IDEAM aplican la definición nacional de bosque, con cadencia anual y
+rezago de publicación. Las detecciones tempranas ubican el fenómeno cada
+trimestre, en número de puntos y sin cuantificar superficie.
 
-Los tres comparten la grilla de 5 km, el `bosque_base_ha` de Hansen
-(calculado una sola vez en `calcular_bosque.py`), el mismo indexado de
-píxel a celda (`zonal.py`) y el mismo cruce municipal. Eso es lo que los
-hace comparables.
+Las tres primeras se expresan en **hectáreas** y son comparables en
+magnitud entre sí; comparar sus cifras es uno de los **resultados** del
+trabajo (sección 4). La cuarta se expresa en **conteos** y responde a otra
+pregunta.
 
-> **Hansen cumple dos papeles.** Como **línea base** define
-> `bosque_base_ha`, el denominador común de los tres paneles. Como
-> **fuente de evento** produce la Tabla 2. Conviene tenerlos presentes
-> por separado al leer el código: el primero vive en
-> `calcular_bosque.py`, el segundo en `panel_hansen.py`.
+Los cuatro comparten la grilla, el `bosque_base_ha` de Hansen (calculado
+una sola vez en `calcular_bosque.py`), el mismo indexado de píxel a celda
+(`zonal.py`) y el mismo cruce municipal. Esa base común es lo que los
+hace comparables entre sí.
+
+> **Hansen cumple dos papeles distintos.** Como **línea base** define
+> `bosque_base_ha`, el denominador común de los cuatro paneles; ese
+> cálculo vive en `calcular_bosque.py`. Como **fuente de evento** produce
+> la Tabla 2, en `panel_hansen.py`. Conviene no confundirlos al leer el
+> código.
 
 **Regla general del repositorio**: todo parámetro que pueda cambiar el
 resultado vive en `config_local.py`, nunca hardcodeado dentro de otro
@@ -114,8 +128,8 @@ lugar a revisar es ese archivo, no el resto del código.
 - Python 3.10 o superior.
 - **~5 GB libres en disco**, repartidos así en una corrida completa:
   gránulos de Hansen ~2,0 GB, cachés de lotes de la API de GFW ~1,0 GB,
-  las tres tablas ~0,67 GB, capas del IDEAM ~0,25 GB. Conviene dejar
-  margen.
+  las cuatro tablas ~0,85 GB, capas del IDEAM ~0,25 GB, detecciones
+  tempranas ~0,17 GB. Conviene dejar margen.
 - Conexión a internet.
 
 ### 2.2 Obtener el código
@@ -337,7 +351,7 @@ la columna `cod_dane` (código DANE de municipio) incluida por defecto.
 
 **Verificación**: el log final imprime filas, celdas, periodos, rango de
 fechas, % de celda-mes con evento y hectáreas totales. Compare contra la
-sección ["Cómo se ven las tres tablas"](#4-cómo-se-ven-las-tres-tablas)
+sección ["Cómo se ven las cuatro tablas"](#4-cómo-se-ven-las-cuatro-tablas)
 más abajo.
 
 ### Paso 6 — Tabla 2: pérdida anual de cobertura (Hansen)
@@ -391,6 +405,36 @@ periodo. Debe coincidir con la cifra oficial del IDEAM del **año final**
 del periodo (`cambio_2022_2023` → año 2023), con una diferencia menor al
 0,4 %. Ver METODOLOGIA.md sección 2.3 para la tabla de contraste.
 
+### Paso 9 — detecciones tempranas del IDEAM
+
+```bash
+python main_local.py dtd
+```
+
+Descarga los puntos de alerta trimestrales del SMByC a `datos/dtd/`, un
+KML por trimestre. Son ~167 MB para 2020-2026 y no requieren cuenta ni
+credencial. Toma menos de un minuto.
+
+El script **lee el índice del servidor** en vez de construir los nombres
+de archivo, porque la caja de las letras no es uniforme
+(`atd_2019_II_trim.kml` frente a `atd_2020_i_trim.kml`). Como efecto
+secundario, los trimestres nuevos que publique el IDEAM aparecen solos.
+
+Para bajar otros años:
+
+```bash
+python descargar_dtd.py --anios 2017 2018 2019
+```
+
+### Paso 10 — Tabla 4: alertas tempranas por celda y trimestre
+
+```bash
+python main_local.py panel-dtd
+```
+
+Produce `datos/panel/panel_dtd.csv` y `.parquet`, una fila por celda y
+trimestre. Tarda menos de un minuto.
+
 ### Comando de estado (en cualquier momento)
 
 ```bash
@@ -401,19 +445,20 @@ Resume qué hay en disco en cada etapa, sin modificar nada.
 
 ---
 
-## 4. Cómo se ven las tres tablas
+## 4. Cómo se ven las cuatro tablas
 
 *(Números de la corrida de referencia.)*
 
-Los tres paneles cubren exactamente las mismas **44 616 celdas**, con el
+Los cuatro paneles cubren exactamente las mismas **44 616 celdas**, con el
 mismo `bosque_base_ha` de Hansen (77 713 177 ha) y el mismo cruce
 municipal (1 114 municipios).
 
 | Archivo en `datos/panel/` | Mide | Unidad | Filas | Cols |
 |---|---|---|---|---|
-| `panel_deforestacion_colombia` | Disturbio (GFW) | celda × mes | 3 524 664 | 19 |
-| `panel_hansen` | Pérdida de cobertura (Hansen) | celda × año | 267 696 | 9 |
-| `panel_ideam` | Deforestación oficial (IDEAM) | celda × periodo | 223 080 | 14 |
+| `panel_deforestacion_colombia` | Disturbio, ha (GFW) | celda × mes | 3 524 664 | 19 |
+| `panel_hansen` | Pérdida de cobertura, ha (Hansen) | celda × año | 267 696 | 9 |
+| `panel_ideam` | Deforestación oficial, ha (IDEAM) | celda × periodo | 223 080 | 14 |
+| `panel_dtd` | Detecciones, conteo (IDEAM) | celda × trimestre | 1 115 400 | 13 |
 
 Cada uno en `.csv` y `.parquet`.
 
@@ -528,6 +573,68 @@ la capa de cambio, no solo la deforestación.
 > incertidumbre por vacíos de observación, y conviene ponderar o filtrar
 > las celdas afectadas.
 
+### Tabla 4 — `panel_dtd` (alertas tempranas oficiales, trimestral)
+
+13 columnas, 44 616 celdas × 25 trimestres (2020-T1 a 2026-T1). Panel
+balanceado, igual que el de alertas.
+
+| # | Columna | Tipo | Qué es |
+|---|---|---|---|
+| 1 | `cell_id` | texto | id de la celda, igual que en las otras tres |
+| 2 | `periodo` | fecha | primer día del trimestre, para ordenar y cruzar |
+| 3 | `trimestre_txt` | texto | `"2024-T2"`, legible |
+| 4-5 | `anio`, `trimestre` | int | descompuestos |
+| 6 | `n_alertas` | int | **número de puntos de alerta** publicados en esa celda |
+| 7 | `n_alertas_sinap` | int | cuántos de esos caen en un área protegida del SINAP |
+| 8-9 | `lon`, `lat` | float | centroide de la celda |
+| 10 | `departamento` | texto | departamento del centroide |
+| 11 | `bosque_base_ha` | float | línea base de Hansen, idéntica a las otras |
+| 12-13 | `cod_dane`, `municipio` | int, texto | cruce municipal del DANE |
+
+> **Los datos son puntos, sin superficie asociada.** Cada registro marca
+> un sitio donde el IDEAM detectó un cambio compatible con deforestación,
+> y no trae extensión: no hay campo de área y el campo `count` vale
+> siempre 1. Se verificó en las tres distribuciones del SMByC:
+>
+> | Capa | Qué contiene |
+> |---|---|
+> | `Puntos/` `.kml` | Puntos, sin campo de área — **lo que se usa** |
+> | `Nucleos/` `.kmz` | Una imagen superpuesta (PNG y un rectángulo), no polígonos |
+> | `Nucleos/` `.tif` | Ráster de **densidad**: conteos por celda de 2 500 m |
+>
+> Ninguna permite derivar hectáreas. La magnitud en superficie la dan las
+> Tablas 1 a 3.
+
+> **Ningún agregado de esta tabla sirve como serie temporal.** Que los
+> datos sean puntos sin superficie tiene una consecuencia directa: el
+> conteo depende de con cuánto detalle el IDEAM divida sus detecciones, y
+> ese criterio cambió a lo largo de la serie. Se probaron los tres
+> agregados posibles contra la cifra oficial (2021-2024) y los tres
+> fallan:
+>
+> | Agregado | Correlación con la cifra oficial |
+> |---|---|
+> | Conteo de puntos | −0,669 |
+> | Celdas con alerta | **−0,994** |
+> | Municipios con alerta | −0,978 |
+> | *(referencia: alertas GFW en ha)* | *+0,971* |
+>
+> El indicador de presencia, que en principio debería ser más robusto que
+> el conteo, resulta incluso peor. Cualquier agregado por año llevaría a
+> concluir que la deforestación aumentó en un periodo en que descendió.
+>
+> **La tabla sirve dentro de cada trimestre, para comparar unos lugares
+> con otros. No sirve para comparar un trimestre con otro.**
+>
+> Los usos que el dato sí sostiene: **prioridad espacial dentro de un
+> trimestre**, **respaldo institucional** (el IDEAM detectó alertas aquí)
+> y **cruce con áreas protegidas** — el 11,1 % de las detecciones cae
+> dentro del SINAP.
+
+> **Cobertura nacional.** Las detecciones alcanzan las cinco regiones
+> naturales (Amazónica, Andina, Pacífica, Orinoquía y Caribe) y 1 114
+> municipios, lo que la hace utilizable también en la zona andina.
+
 ### Qué denominador usar en cada tabla
 
 Esto importa y es fácil equivocarse. La regla es que el denominador debe
@@ -546,16 +653,23 @@ Hansen incluye las plantaciones forestales, el IDEAM las excluye.
 
 ### Inspeccionarlas en Python
 
+> **Al leer los CSV, `cod_dane` debe forzarse a texto.** Los códigos DANE
+> llevan cero a la izquierda en Antioquia (`05001`) y Atlántico (`08001`).
+> Si `pandas` los infiere, los convierte a entero y el cero desaparece
+> (`5001`), lo que rompe cualquier cruce con otra fuente del DANE. Los
+> `.parquet` conservan el tipo; los `.csv` no lo declaran.
+
 ```python
 import pandas as pd
 
+# Con Parquet el tipo viene conservado:
 gfw    = pd.read_parquet("datos/panel/panel_deforestacion_colombia.parquet")
 hansen = pd.read_parquet("datos/panel/panel_hansen.parquet")
 ideam  = pd.read_parquet("datos/panel/panel_ideam.parquet")
 
-# Sin pyarrow instalado, usar los CSV:
+# Sin pyarrow instalado, usar los CSV -- declarando el tipo de cod_dane:
 # gfw = pd.read_csv("datos/panel/panel_deforestacion_colombia.csv",
-#                   parse_dates=["periodo"])
+#                   parse_dates=["periodo"], dtype={"cod_dane": "string"})
 
 # --- Ranking municipal segun la fuente OFICIAL ---
 (ideam.groupby(["cod_dane", "municipio"])["def_ha"].sum()
@@ -690,14 +804,33 @@ Calcula además `bosque_ideam_ha` (clase 1 + clase 2), que es el
 denominador correcto para las tasas de esta tabla — ver la advertencia de
 la sección 4.
 
-### 5.13 `main_local.py` — orquestador
+### 5.13 `descargar_dtd.py` — detecciones tempranas del SMByC
+
+Baja los puntos de alerta trimestrales a `datos/dtd/`. En vez de
+construir los nombres de archivo, **lista el índice del servidor** y toma
+los que encuentra: la caja de las letras no es uniforme entre años, y así
+los trimestres nuevos aparecen sin tocar código. Renombra a un patrón
+regular en disco (`atd_<año>_<trimestre>.kml`).
+
+Se usan los **puntos** y no los **núcleos** porque la serie de puntos no
+tiene huecos (2016-III a 2026-I), mientras la de núcleos carece del año
+2024 completo en el servidor.
+
+### 5.14 `panel_dtd.py` — Tabla 4, alertas tempranas
+
+Reproyecta los puntos a `cfg.grid_crs` y los asigna a su celda con la
+misma regla aritmética que usa `zonal.py` para los rásteres
+(`floor(coord / grid_scale_m)`), de modo que un punto y un píxel en el
+mismo lugar caen en la misma celda. Emite un panel balanceado.
+
+### 5.15 `main_local.py` — orquestador
 
 Cada subcomando (`grilla`, `hansen`, `gfw`, `municipios`, `consolidar`,
-`panel-hansen`, `ideam`, `panel-ideam`, `estado`) arma la línea de
-comandos correcta y lanza el script correspondiente como subproceso
+`panel-hansen`, `ideam`, `panel-ideam`, `dtd`, `panel-dtd`, `estado`)
+arma la línea de comandos correcta y lanza el script correspondiente como subproceso
 (`subprocess.call`), excepto `consolidar`, que importa la función
 directamente. `estado` es el único que no delega: lista lo que hay en
-disco en cada etapa y cuáles de las tres tablas ya existen.
+disco en cada etapa y cuáles de las cuatro tablas ya existen.
 
 ---
 
@@ -863,7 +996,7 @@ se puede leer el `.parquet`.
 
 ## 9. Análisis exploratorio (pendiente)
 
-El análisis exploratorio sobre las tres tablas está pendiente de
+El análisis exploratorio sobre las cuatro tablas está pendiente de
 elaborar. Lo que debería cubrir:
 
 - **Panel de alertas**: balance del panel (`filas = celdas × periodos`),
@@ -895,13 +1028,15 @@ en `requirements_local.txt`.
 | `datos/crudo/` | `nacional.csv`, formato ancho | `descargar_gfw.py` |
 | `datos/limites/` | `municipios_dane_mgn2025.geojson` — límites municipales del DANE | `descargar_municipios.py` |
 | `datos/ideam/` | `cambio_<periodo>.img` — capas de cambio del SMByC (~53 MB c/u) | `descargar_ideam.py` |
-| `datos/panel/` | **Las tres tablas** (`.csv` + `.parquet`) + `mapa_deforestacion.html` | `consolidar.py`, `panel_hansen.py`, `panel_ideam.py`, `mapa_folium.py` |
+| `datos/dtd/` | `atd_<año>_<trim>.kml` — detecciones tempranas (~167 MB en total) | `descargar_dtd.py` |
+| `datos/panel/` | **Las cuatro tablas** (`.csv` + `.parquet`) + `mapa_deforestacion.html` | `consolidar.py`, `panel_hansen.py`, `panel_ideam.py`, `panel_dtd.py`, `mapa_folium.py` |
 | `datos/logs/` | `gfw_api_key.txt` | `configurar_gfw.py` |
 
 Si algo se ve raro o hay que reconstruir desde cero, casi siempre basta con
 borrar la carpeta correspondiente y volver a correr el paso que la genera
-— **excepto** `datos/hansen/` (varios minutos de descarga) y
-`datos/ideam/` (~260 MB), que conviene conservar. Borrar `datos/cache/` es seguro y barato de regenerar
+— **excepto** `datos/hansen/` (varios minutos de descarga),
+`datos/ideam/` (~260 MB) y `datos/dtd/` (~167 MB), que conviene
+conservar. Borrar `datos/cache/` es seguro y barato de regenerar
 (se recalcula solo en la siguiente corrida de `descargar_gfw.py`). Borrar
 `datos/gfw/` es igual de seguro (son solo cachés de lotes ya descargados de
 la API).
@@ -960,10 +1095,13 @@ Se agrega como una columna nueva dentro de `derivar_variables()` en
 | `descargar_gfw.py` falla con `"extra fields not permitted"` en `feature_collection.features[i].id` | `geopandas`/`shapely` agregan un campo `"id"` a nivel de *feature* al exportar a GeoJSON, que la API de GFW rechaza | No debería pasar en la versión actual (`procesar_lote()` ya hace `feat.pop("id", None)` antes de enviar); si se quitó esa línea, restaurarla |
 | `descargar_gfw.py` falla con `FileNotFoundError` sobre gránulos Hansen | No se corrió el Paso 2 | `python main_local.py hansen` |
 | El mapa de `mapa_folium.py` pesa demasiado / tarda en abrir | Demasiados marcadores individuales en la capa de "Celdas con deforestación" | Bajar `--top-n` o subir `--umbral-ha` |
+| Un cruce por `cod_dane` no encuentra los municipios de Antioquia o Atlántico | Se leyó el CSV sin declarar el tipo y `pandas` convirtió `05001` en `5001` | Leer con `dtype={"cod_dane": "string"}`, o usar el `.parquet`, que conserva el tipo |
 | El mapa sale en blanco, sin fondo | El proveedor de tiles exige API key (CartoDB y Stamen hoy la piden) | La versión actual usa OpenStreetMap, que no la necesita; si se cambió con `--tiles`, volver al valor por defecto |
 | `descargar_ideam.py` se queda colgado sin dar error | La URL va por `http://` y el servidor del IDEAM tiene el puerto 80 cerrado | Verificar que `BASE` en el script empiece por `https://` — no da error de protocolo, solo agota el tiempo de espera |
 | El total de `panel_ideam` no coincide con la cifra oficial del IDEAM | Es esperado: queda ~0,25 % por debajo | Son celdas con menos de `bosque_minimo_ha` de bosque base, excluidas por el filtro de dominio. Si la diferencia es mucho mayor, revisar `anio_mascara` y `umbral_dosel` |
 | `panel-hansen` o `panel-ideam` tardan muchísimo (más de 30 min) | El índice de celda se está calculando por el camino general en vez del separable | Ocurre solo si el ráster de destino lleva rotación. Con la configuración por defecto no pasa: son ~3 min (Hansen) y ~6 min (IDEAM) |
+| Los conteos de `panel_dtd` suben mientras la deforestación baja | Comportamiento esperado del dato | La sensibilidad de detección del sistema cambió a lo largo de la serie: los conteos sirven para prioridad espacial dentro de un trimestre, no como serie temporal de magnitud (correlación −0,669 con la cifra oficial) |
+| `descargar_dtd.py` no encuentra un trimestre reciente | Aún no está publicado, o cambió el nombre en el servidor | El script lee el índice del servidor, así que los nombres nuevos aparecen solos; si un año no tiene carpeta `Puntos/`, se omite con un aviso |
 | La cifra de `panel_hansen` no coincide con la del IDEAM | Comportamiento esperado | Cada uno mide un concepto distinto: Hansen reporta pérdida de cobertura arbórea, que incluye plantación e incendio, y sobre Colombia da entre 1,5 y 2,5 veces la cifra oficial, con una razón que varía por año |
 | Las tasas de `panel_ideam` parecen bajas | Se está usando `bosque_base_ha` (Hansen) como denominador | Para esa tabla el denominador correcto es `bosque_ideam_ha`; usar el de Hansen subestima la tasa un 30-45 % |
 

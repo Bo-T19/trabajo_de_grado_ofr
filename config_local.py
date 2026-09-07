@@ -47,13 +47,15 @@ DIR_CRUDO = DIR_DATOS / "crudo"        # salida ancha de calcular_bosque.py + de
 DIR_PANEL = DIR_DATOS / "panel"        # panel final
 DIR_LIMITES = DIR_DATOS / "limites"    # limites municipales del DANE (MGN), para el cruce municipal
 DIR_IDEAM = DIR_DATOS / "ideam"        # capas de cambio de bosque del SMByC (IDEAM)
+DIR_DTD = DIR_DATOS / "dtd"            # detecciones tempranas de deforestacion (IDEAM)
 DIR_LOG = DIR_DATOS / "logs"
 
 # Se crean automaticamente al importar este modulo (osea, la primera vez
 # que se corre CUALQUIER script del pipeline, porque todos hacen
 # "from config_local import ..."). exist_ok=True: si ya existen, no falla.
 for _d in (DIR_GRILLA, DIR_GFW, DIR_HANSEN, DIR_CACHE,
-           DIR_CRUDO, DIR_PANEL, DIR_LIMITES, DIR_IDEAM, DIR_LOG):
+           DIR_CRUDO, DIR_PANEL, DIR_LIMITES, DIR_IDEAM,
+           DIR_DTD, DIR_LOG):
     _d.mkdir(parents=True, exist_ok=True)
 
 
@@ -180,6 +182,18 @@ class Config:
     # codigo.
     ideam_periodos: Tuple[str, ...] = (
         "2020-2021", "2021-2022", "2022-2023", "2023-2024", "2024-2025")
+
+    # =================================================================
+    # 3c. ALERTAS TEMPRANAS OFICIALES (IDEAM / SMByC)
+    # =================================================================
+    # Anios de detecciones tempranas de deforestacion (DTD) a descargar
+    # y agregar. El SMByC publica un archivo por TRIMESTRE; los nombres
+    # exactos se leen del propio servidor (ver descargar_dtd.py), asi
+    # que aqui basta con listar los anios.
+    #
+    # La serie de puntos disponible va del III trimestre de 2016 en
+    # adelante. Por defecto se toman los que cubren la ventana del panel.
+    dtd_anios: Tuple[int, ...] = (2020, 2021, 2022, 2023, 2024, 2025, 2026)
 
     # =================================================================
     # 4. EJECUCION

@@ -38,6 +38,13 @@ USO — en este orden
     python main_local.py panel-ideam
         TABLA 3: deforestacion oficial por celda y periodo (IDEAM).
 
+    python main_local.py dtd
+        Descarga las detecciones tempranas de deforestacion del SMByC
+        (IDEAM), un archivo por trimestre. Sin cuenta ni credencial.
+
+    python main_local.py panel-dtd
+        TABLA 4: alertas tempranas oficiales por celda y trimestre.
+
     Las tres tablas miden conceptos DISTINTOS sobre el mismo territorio
     -- disturbio (GFW), perdida de cobertura arborea (Hansen) y
     deforestacion de bosque natural (IDEAM) -- y por eso NUNCA se suman
@@ -59,8 +66,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-from config_local import (Config, DIR_CRUDO, DIR_GRILLA, DIR_HANSEN,
-                          DIR_IDEAM, DIR_LIMITES, DIR_PANEL, logger)
+from config_local import (Config, DIR_CRUDO, DIR_DTD, DIR_GRILLA,
+                          DIR_HANSEN, DIR_IDEAM, DIR_LIMITES, DIR_PANEL,
+                          logger)
 
 AQUI = Path(__file__).resolve().parent
 
@@ -86,7 +94,9 @@ def cmd_estado(cfg: Config) -> int:
     panel = DIR_PANEL / "panel_deforestacion_colombia.csv"
     p_hansen = DIR_PANEL / "panel_hansen.csv"
     p_ideam = DIR_PANEL / "panel_ideam.csv"
+    p_dtd = DIR_PANEL / "panel_dtd.csv"
     capas_ideam = list(DIR_IDEAM.glob("cambio_*.img"))
+    capas_dtd = list(DIR_DTD.glob("atd_*.kml"))
     gb_h = sum(f.stat().st_size for f in hansen) / 1e9
     gb_i = sum(f.stat().st_size for f in capas_ideam) / 1e9
 
@@ -102,10 +112,12 @@ def cmd_estado(cfg: Config) -> int:
     logger.info("  4. municipios : %s (%s) [opcional, se auto-descarga en consolidar]",
                 _ok(municipios), municipios.name)
     logger.info("  5. capas IDEAM: %d archivos, %.1f GB", len(capas_ideam), gb_i)
+    logger.info("  6. DTD trimest: %d archivos", len(capas_dtd))
     logger.info("  --- tablas de salida ---")
     logger.info("  T1 GFW alertas: %s (%s)", _ok(panel), panel.name)
     logger.info("  T2 Hansen     : %s (%s)", _ok(p_hansen), p_hansen.name)
     logger.info("  T3 IDEAM      : %s (%s)", _ok(p_ideam), p_ideam.name)
+    logger.info("  T4 DTD alertas: %s (%s)", _ok(p_dtd), p_dtd.name)
     logger.info("=" * 62)
     return 0
 
@@ -128,6 +140,8 @@ def main() -> int:
     sub.add_parser("ideam")
     sub.add_parser("panel-hansen")
     sub.add_parser("panel-ideam")
+    sub.add_parser("dtd")
+    sub.add_parser("panel-dtd")
     sub.add_parser("estado")
 
     pc = sub.add_parser("consolidar")
@@ -162,6 +176,12 @@ def main() -> int:
 
     if a.cmd == "panel-ideam":
         return _correr("panel_ideam.py")
+
+    if a.cmd == "dtd":
+        return _correr("descargar_dtd.py")
+
+    if a.cmd == "panel-dtd":
+        return _correr("panel_dtd.py")
 
     if a.cmd == "consolidar":
         # A diferencia de los demas subcomandos, este SI importa la

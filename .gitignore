@@ -12,6 +12,7 @@
 !/datos/panel/
 !/datos/logs/
 !/datos/ideam/
+!/datos/dtd/
 
 /datos/grilla/*
 !/datos/grilla/.gitkeep
@@ -31,6 +32,8 @@
 !/datos/logs/.gitkeep
 /datos/ideam/*
 !/datos/ideam/.gitkeep
+/datos/dtd/*
+!/datos/dtd/.gitkeep
 
 # Archivos de credenciales y pruebas
 .dodsrc

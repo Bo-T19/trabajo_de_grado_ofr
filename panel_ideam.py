@@ -1,7 +1,7 @@
 """
 panel_ideam.py
 ======================================================================
-TABLA 3 de 3: deforestacion oficial por celda y periodo, segun las
+TABLA 3 de 4: deforestacion oficial por celda y periodo, segun las
 capas de cambio de bosque del SMByC (IDEAM).
 
     python main_local.py panel-ideam

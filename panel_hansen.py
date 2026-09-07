@@ -1,7 +1,7 @@
 """
 panel_hansen.py
 ======================================================================
-TABLA 2 de 3: perdida anual de cobertura arborea por celda, segun
+TABLA 2 de 4: perdida anual de cobertura arborea por celda, segun
 Hansen Global Forest Change.
 
     python main_local.py panel-hansen
