@@ -10,6 +10,10 @@ Salida: datos/panel/mapa_deforestacion.html — se abre con doble click
 en cualquier navegador, no necesita servidor ni internet para verse
 (solo los tiles del mapa base piden internet la primera vez).
 
+El mapa base es OpenStreetMap, que no requiere credencial. CartoDB
+(positron) y Stamen, que folium tambien ofrece, hoy exigen API key y
+sin ella el mapa aparece en blanco. Ver --tiles para cambiarlo.
+
 QUE MUESTRA
 -----------
 Agrega el panel LARGO (una fila por celda-mes) a UNA fila por celda,
@@ -47,6 +51,12 @@ SALIDA = DIR_PANEL / "mapa_deforestacion.html"
 # Centro y zoom inicial: encuadran Colombia continental completa.
 CENTRO_COLOMBIA = (4.2, -73.5)
 ZOOM_INICIAL = 6
+
+# Mapa base. OpenStreetMap es el unico de los proveedores integrados en
+# folium que sigue siendo de uso libre sin credencial: CartoDB (positron,
+# dark_matter) y Stamen (via Stadia Maps) hoy exigen API key y, sin ella,
+# el mapa carga en blanco. Ver --tiles para cambiarlo.
+TILES_DEFECTO = "OpenStreetMap"
 
 
 # =====================================================================
@@ -190,13 +200,53 @@ def capa_marcadores(celdas: pd.DataFrame, umbral_ha: float, top_n: int,
 # =====================================================================
 # 3. ENSAMBLAJE
 # =====================================================================
-def construir_mapa(celdas: pd.DataFrame, umbral_ha: float, top_n: int) -> folium.Map:
+def _atenuar_mapa_base(mapa: folium.Map) -> None:
+    """
+    Vuelve el mapa base gris y tenue, con un filtro CSS del navegador.
+
+    Por que asi y no con otro proveedor de tiles: los mapas base grises
+    "de fabrica" (CartoDB positron, Stamen toner-lite) hoy exigen API
+    key. En vez de depender de un tercero con credencial, se deja
+    OpenStreetMap -- libre, licencia ODbL, valido tambien para uso
+    comercial con atribucion, que es lo que necesita este proyecto -- y
+    se desatura en el navegador.
+
+    El filtro se aplica SOLO a .leaflet-tile-pane, que es la capa de
+    tiles del mapa base. Los datos (mapa de calor, marcadores, escala de
+    color) viven en .leaflet-overlay-pane y .leaflet-marker-pane, asi que
+    conservan su color intacto: justamente el contraste que se busca.
+    """
+    css = folium.Element("""
+<style>
+  /* Mapa base desaturado y aclarado para que los datos resalten.
+     grayscale: quita el color de OSM (verdes, amarillos de carreteras).
+     brightness/contrast: lo aclara y suaviza, imitando un "positron". */
+  .leaflet-tile-pane {
+    filter: grayscale(100%) brightness(107%) contrast(88%);
+  }
+</style>
+""")
+    mapa.get_root().header.add_child(css)
+
+
+def construir_mapa(celdas: pd.DataFrame, umbral_ha: float, top_n: int,
+                   tiles: str = TILES_DEFECTO, atenuar: bool = True) -> folium.Map:
     # prefer_canvas: Leaflet dibuja los CircleMarker en un <canvas> en
     # vez de un elemento SVG por marcador -- mucho mas liviano para el
     # navegador cuando hay miles de puntos.
+    #
+    # tiles: se usa OpenStreetMap por defecto porque NO requiere API key.
+    # Antes se usaba "CartoDB positron" (mapa base gris claro, ideal para
+    # superponer datos), pero CartoDB empezo a exigir credencial y los
+    # mapas dejaban de cargar. Otros proveedores populares (Stamen) hoy
+    # tambien piden key via Stadia Maps. Ver --tiles en la linea de
+    # comandos si se quiere volver a uno de esos teniendo credencial.
     mapa = folium.Map(location=CENTRO_COLOMBIA, zoom_start=ZOOM_INICIAL,
-                      tiles="CartoDB positron", control_scale=True,
+                      tiles=tiles, control_scale=True,
                       prefer_canvas=True)
+
+    if atenuar:
+        _atenuar_mapa_base(mapa)
 
     capa_contexto(celdas).add_to(mapa)
     capa_calor(celdas).add_to(mapa)
@@ -214,7 +264,10 @@ def construir_mapa(celdas: pd.DataFrame, umbral_ha: float, top_n: int) -> folium
 
     folium.LayerControl(collapsed=False).add_to(mapa)
     Fullscreen(position="topleft").add_to(mapa)
-    MiniMap(toggle_display=True).add_to(mapa)
+    # tile_layer explicito: si no se pasa, MiniMap usa su propio default
+    # (que puede ser un proveedor con API key). Se le da el mismo mapa
+    # base que el principal para que nunca quede en blanco.
+    MiniMap(tile_layer=tiles, toggle_display=True).add_to(mapa)
     return mapa
 
 
@@ -230,11 +283,19 @@ def main() -> int:
                         "siempre muestra todas las celdas. Default: 3000")
     p.add_argument("--salida", type=str, default=str(SALIDA),
                    help="Ruta del HTML de salida")
+    p.add_argument("--tiles", type=str, default=TILES_DEFECTO,
+                   help=f"Mapa base de Leaflet. Default: {TILES_DEFECTO} "
+                        "(no requiere API key). CartoDB y Stamen hoy si la "
+                        "exigen: sin credencial el mapa carga en blanco.")
+    p.add_argument("--base-color", action="store_true",
+                   help="Deja el mapa base a todo color. Por defecto se "
+                        "atenua (gris claro) para que los datos resalten.")
     a = p.parse_args()
 
     df = cargar_panel()
     celdas = agregar_por_celda(df)
-    mapa = construir_mapa(celdas, a.umbral_ha, a.top_n)
+    mapa = construir_mapa(celdas, a.umbral_ha, a.top_n, a.tiles,
+                          atenuar=not a.base_color)
 
     destino = a.salida
     mapa.save(destino)

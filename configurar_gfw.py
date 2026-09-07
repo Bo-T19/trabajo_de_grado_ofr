@@ -2,8 +2,9 @@
 configurar_gfw.py
 ======================================================================
 Registro de una sola vez en la API de Global Forest Watch (GFW) y
-obtencion de la API key necesaria para consultar gfw_integrated_dist_alerts,
-la fuente de evento de todo el pipeline (ver descargar_gfw.py).
+obtencion de la API key necesaria para consultar la fuente de evento del
+pipeline (por defecto gfw_integrated_alerts; ver config_local.py y
+descargar_gfw.py). La misma key sirve para cualquier dataset de la API.
 
 Flujo (verificado contra el esquema real de data-api.globalforestwatch.org,
 no documentacion de terceros):

@@ -2,7 +2,9 @@
 descargar_gfw.py
 ======================================================================
 Construye el panel de deforestacion de Colombia usando el producto
-integrado de Global Forest Watch (gfw_integrated_dist_alerts).
+integrado de alertas de Global Forest Watch. Cual producto exactamente
+lo decide config_local.py (gfw_dataset); por defecto
+"gfw_integrated_alerts", que integra GLAD-L, GLAD-S2 y RADD.
 
     python descargar_gfw.py
 
@@ -36,8 +38,10 @@ COMO FUNCIONA
    tamano angular fijo varia con la latitud -- sumar `area__ha`
    evita asumir un tamano de pixel fijo para todo el pais.
 
-REANUDABLE: cada lote se cachea en datos/gfw/lote_XXXX.json apenas se
-descarga.
+REANUDABLE: cada lote se cachea en datos/gfw/lote_<dataset>_XXXX.json
+apenas se descarga. El nombre incluye el dataset para que cambiar de
+fuente en config_local.py nunca reutilice en silencio resultados de la
+fuente anterior.
 
 REQUISITOS
 ----------
@@ -101,20 +105,28 @@ def sql_lote(cfg: Config) -> str:
     La API de este endpoint NO soporta el operador SQL "IN" (se
     confirmo empiricamente: devuelve "Unsupported filter operator: in"),
     asi que el filtro de confianza se arma con OR encadenados.
+
+    El prefijo de los campos (confidence/date) es igual al nombre del
+    dataset (cfg.gfw_dataset) en todos los datasets de alertas de GFW
+    verificados hasta ahora (gfw_integrated_dist_alerts,
+    umd_glad_landsat_alerts, umd_glad_sentinel2_alerts) -- por eso se
+    arma dinamicamente en vez de escribirlo a mano, para que cambiar de
+    fuente sea solo cambiar cfg.gfw_dataset, sin tocar este archivo.
     """
+    prefijo = cfg.gfw_dataset
     condiciones = " OR ".join(
-        f"gfw_integrated_dist_alerts__confidence = '{c}'"
+        f"{prefijo}__confidence = '{c}'"
         for c in cfg.gfw_confianza_minima)
     fin_excl = pd.Timestamp(cfg.fecha_fin).strftime("%Y-%m-%d")
     return f"""
-SELECT gfw_integrated_dist_alerts__confidence,
-       gfw_integrated_dist_alerts__date,
+SELECT {prefijo}__confidence,
+       {prefijo}__date,
        SUM(area__ha) AS ha
 FROM data
-WHERE gfw_integrated_dist_alerts__date >= '{cfg.fecha_inicio}'
-  AND gfw_integrated_dist_alerts__date < '{fin_excl}'
+WHERE {prefijo}__date >= '{cfg.fecha_inicio}'
+  AND {prefijo}__date < '{fin_excl}'
   AND ({condiciones})
-GROUP BY gfw_integrated_dist_alerts__confidence, gfw_integrated_dist_alerts__date
+GROUP BY {prefijo}__confidence, {prefijo}__date
 """
 
 
@@ -135,7 +147,12 @@ def celdas_como_poligonos(cfg: Config, grilla: pd.DataFrame) -> gpd.GeoDataFrame
 # =====================================================================
 def procesar_lote(cfg: Config, key: str, indice: int,
                   lote: gpd.GeoDataFrame) -> List[dict]:
-    cache = DIR_GFW / f"lote_{indice:04d}.json"
+    # El nombre de la cache incluye cfg.gfw_dataset a proposito: si no
+    # lo incluyera, cambiar de fuente (p.ej. del producto integrado a
+    # GLAD-L solo) reutilizaria en silencio los resultados del dataset
+    # anterior, sin ningun error visible -- mismo riesgo que ya se
+    # corrigio antes para la cache de bosque en calcular_bosque.py.
+    cache = DIR_GFW / f"lote_{cfg.gfw_dataset}_{indice:04d}.json"
     if cache.exists():
         return json.loads(cache.read_text())
 
@@ -182,8 +199,9 @@ def procesar_lote(cfg: Config, key: str, indice: int,
 # =====================================================================
 # AGREGACION: de filas diarias por celda a columnas d_AAAA_MM
 # =====================================================================
-def agregar_a_mensual(resultados_por_lote: List[List[dict]],
+def agregar_a_mensual(cfg: Config, resultados_por_lote: List[List[dict]],
                       ms: List[pd.Timestamp]) -> pd.DataFrame:
+    campo_fecha = f"{cfg.gfw_dataset}__date"
     columnas = {f"d_{m.strftime('%Y_%m')}": {} for m in ms}
     todas_las_celdas = set()
 
@@ -194,7 +212,7 @@ def agregar_a_mensual(resultados_por_lote: List[List[dict]],
                 continue
             todas_las_celdas.add(cell_id)
             for fila in item.get("result", []):
-                fecha = fila.get("gfw_integrated_dist_alerts__date")
+                fecha = fila.get(campo_fecha)
                 ha = fila.get("ha") or 0.0
                 if not fecha:
                     continue
@@ -252,7 +270,7 @@ def main() -> int:
             logger.info("  progreso: %d/%d lotes (lote %d: %d celdas con resultado)",
                         j, len(lotes), i, len(resultados[i]))
 
-    mensual = agregar_a_mensual([r for r in resultados if r], ms)
+    mensual = agregar_a_mensual(cfg, [r for r in resultados if r], ms)
     logger.info("Celdas con al menos una alerta: %d", len(mensual))
 
     # --- 3. Ensamblar el archivo ancho ---

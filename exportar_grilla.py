@@ -50,8 +50,8 @@ El script verifica que la grilla quede alineada al origen de la
 proyeccion. A diferencia de la version con Earth Engine (donde había que
 verificar la alineación porque coveringGrid() era una caja negra), aquí la
 alineación queda GARANTIZADA por construcción: cada celda se arma
-directamente como múltiplo entero del lado, así que la verificación es
-una prueba de regresión, no una esperanza.
+directamente como múltiplo entero del lado, de modo que la verificación
+funciona como prueba de regresión.
 ======================================================================
 """
 from __future__ import annotations

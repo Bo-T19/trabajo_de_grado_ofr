@@ -46,13 +46,14 @@ DIR_CACHE = DIR_DATOS / "cache"        # bosque_ha por celda, ya calculado
 DIR_CRUDO = DIR_DATOS / "crudo"        # salida ancha de calcular_bosque.py + descargar_gfw.py
 DIR_PANEL = DIR_DATOS / "panel"        # panel final
 DIR_LIMITES = DIR_DATOS / "limites"    # limites municipales del DANE (MGN), para el cruce municipal
+DIR_IDEAM = DIR_DATOS / "ideam"        # capas de cambio de bosque del SMByC (IDEAM)
 DIR_LOG = DIR_DATOS / "logs"
 
 # Se crean automaticamente al importar este modulo (osea, la primera vez
 # que se corre CUALQUIER script del pipeline, porque todos hacen
 # "from config_local import ..."). exist_ok=True: si ya existen, no falla.
 for _d in (DIR_GRILLA, DIR_GFW, DIR_HANSEN, DIR_CACHE,
-           DIR_CRUDO, DIR_PANEL, DIR_LIMITES, DIR_LOG):
+           DIR_CRUDO, DIR_PANEL, DIR_LIMITES, DIR_IDEAM, DIR_LOG):
     _d.mkdir(parents=True, exist_ok=True)
 
 
@@ -116,15 +117,27 @@ class Config:
     # =================================================================
     # 3. VENTANA TEMPORAL Y FUENTE DEL EVENTO (Global Forest Watch)
     # =================================================================
-    # Producto integrado de Global Forest Watch / World Resources
-    # Institute: combina DIST-ALERT (NASA OPERA), GLAD-L (Landsat, UMD),
-    # GLAD-S2 (Sentinel-2, UMD) y RADD (radar Sentinel-1, Wageningen
-    # University) en una sola capa con una unica escala de confianza.
-    # Metodologia publicada y revisada por pares: Pickens, Hansen, Song
-    # et al., "Rapid monitoring of global land change", Nature
-    # Communications 16, 8948 (2025). Se consulta via su API SQL
-    # (ver descargar_gfw.py), no se descarga ningun raster de evento.
-    gfw_dataset: str = "gfw_integrated_dist_alerts"
+    # gfw_dataset determina CUAL producto de GFW se consulta. Cambiar
+    # este valor es el unico paso necesario para cambiar de fuente de
+    # evento -- descargar_gfw.py arma la consulta SQL dinamicamente a
+    # partir de este nombre (ver sql_lote()), asi que nunca hay que
+    # tocar codigo para probar otro dataset.
+    #
+    # FUENTE: "gfw_integrated_alerts" -- integra tres sistemas de alerta
+    # (GLAD-L sobre Landsat y GLAD-S2 sobre Sentinel-2, ambos del
+    # laboratorio GLAD de la Universidad de Maryland; y RADD sobre radar
+    # Sentinel-1, de Wageningen University) en una sola capa con una
+    # escala de confianza unificada. Composicion de sensores estable en
+    # toda la ventana 2020-presente.
+    #
+    # Otros datasets de alertas disponibles en la API, por si se quiere
+    # comparar (todos comparten el mismo esquema de campos, asi que
+    # basta cambiar esta linea):
+    #   "gfw_integrated_dist_alerts"  -- agrega un cuarto sistema
+    #   "umd_glad_landsat_alerts"      -- solo GLAD-L
+    #   "umd_glad_sentinel2_alerts"    -- solo GLAD-S2
+    #   "wur_radd_alerts"              -- solo RADD
+    gfw_dataset: str = "gfw_integrated_alerts"
     gfw_version: str = "latest"
 
     fecha_inicio: str = "2020-01-01"
@@ -137,6 +150,12 @@ class Config:
     # tres niveles (nominal/high/highest); se excluye 'nominal' (la
     # deteccion menos confiable, equivalente a una alerta "provisional"
     # sin confirmar) y se incluyen 'high' y 'highest'.
+    #
+    # ALTERNATIVA: usar solo ("highest",) -- alertas detectadas varias
+    # veces por varios sistemas, el criterio mas estricto que ofrece el
+    # producto. Produce un panel mas disperso (menos eventos, mas ceros
+    # para modelar), por eso se mantiene ("high","highest") como default;
+    # cambiar esta linea es todo lo que hace falta para probar la otra.
     gfw_confianza_minima: Tuple[str, ...] = ("high", "highest")
 
     # Cuantas celdas de la grilla se mandan por lote a la API de GFW.
@@ -145,6 +164,22 @@ class Config:
     # orden de 30-50 s por lote en la practica.
     gfw_celdas_por_lote: int = 400
     gfw_lotes_en_paralelo: int = 6
+
+    # =================================================================
+    # 3b. FUENTE OFICIAL (IDEAM / SMByC)
+    # =================================================================
+    # Periodos de las capas de cambio de bosque del SMByC a descargar y
+    # agregar (ver descargar_ideam.py para el catalogo completo, que va
+    # desde 2000-2002). Son TRANSICIONES entre composiciones anuales de
+    # imagenes, no años calendario: por eso se nombran con los dos años
+    # y la tabla resultante conserva ese texto en vez de reducirlo a uno.
+    #
+    # Por defecto se toman los que cubren la ventana del panel a partir
+    # de la fecha de corte del EUDR (31-dic-2020). Agregar un periodo
+    # aqui es todo lo que hace falta para incluirlo: no hay que tocar
+    # codigo.
+    ideam_periodos: Tuple[str, ...] = (
+        "2020-2021", "2021-2022", "2022-2023", "2023-2024", "2024-2025")
 
     # =================================================================
     # 4. EJECUCION

@@ -4,10 +4,10 @@ Este documento explica **qué mide el panel, de dónde sale cada dato, y por
 qué se diseñó así** — el "qué y por qué". El "cómo está programado" vive en
 [GUIA_CODIGO.md](GUIA_CODIGO.md).
 
-El destino declarado de este panel no es solo académico: es insumo de
-consultorías comerciales del Observatorio Financiero Rural de la Pontificia
-Universidad Javeriana. Eso condiciona varias decisiones documentadas aquí,
-en particular la sección 7 (licencias).
+El destino declarado de este panel abarca, además del uso académico, su
+empleo como insumo de consultorías comerciales del Observatorio Financiero
+Rural de la Pontificia Universidad Javeriana. Eso condiciona varias
+decisiones documentadas aquí, en particular la sección 7 (licencias).
 
 ---
 
@@ -20,7 +20,7 @@ en particular la sección 7 (licencias).
 5. [Supuestos del estudio](#5-supuestos-del-estudio)
 6. [Limitaciones conocidas](#6-limitaciones-conocidas)
 7. [Restricciones de licencia y uso comercial](#7-restricciones-de-licencia-y-uso-comercial)
-8. [Cómo se ve la unidad de observación final](#8-cómo-se-ve-la-unidad-de-observación-final)
+8. [Cómo se ven las unidades de observación finales](#8-cómo-se-ven-las-unidades-de-observación-finales)
 9. [Glosario técnico](#9-glosario-técnico)
 10. [Referencias](#10-referencias)
 
@@ -30,12 +30,63 @@ en particular la sección 7 (licencias).
 
 ### 1.1 Pregunta que responde el panel
 
-Para cada celda de 5×5 km del territorio continental de Colombia y cada
-mes desde enero de 2020, ¿cuántas hectáreas de bosque se perdieron ese mes,
-y cuánto bosque quedaba disponible para perderse al empezar ese mes? Es un
-panel espacio-temporal balanceado (toda celda tiene una fila en todo
-periodo), pensado como insumo para un modelo posterior de riesgo de
-deforestación, no como el modelo en sí.
+Para cada celda de 5×5 km del territorio continental de Colombia,
+¿cuánto bosque se perdió, cuándo, y cuánto bosque quedaba disponible para
+perderse?
+
+La pregunta se responde con **tres paneles** sobre la misma grilla,
+porque **no existe una sola fuente** que sea a la vez oportuna,
+homogénea a escala global y oficialmente válida. Cada una renuncia a algo:
+
+| Panel | Fuente | Qué mide exactamente | Unidad | Su ventaja | Lo que sacrifica |
+|---|---|---|---|---|---|
+| **1. Alertas** | GFW `gfw_integrated_alerts` | *Disturbio* de la vegetación | celda × **mes** | Única con resolución sub-anual; detección casi en tiempo real | No distingue causa; las alertas son provisionales y pueden reclasificarse |
+| **2. Pérdida** | Hansen GFC | *Pérdida de cobertura arbórea* | celda × **año** | Mismo algoritmo en todo el planeta: permite comparar países | Incluye cosecha de plantación e incendio; anual y estático |
+| **3. Oficial** | IDEAM / SMByC | *Deforestación* de bosque natural | celda × **periodo** | Es la cifra que Colombia reporta; definición nacional de bosque | Rezago de publicación; solo cubre Colombia |
+
+**Los tres miden cosas distintas y por eso nunca se suman entre sí.** Lo
+que comparten —y lo que los hace comparables— es la grilla de 5 km, la
+línea base de bosque calculada una sola vez, y el cruce municipal.
+
+El panel de alertas es además espacio-temporal **balanceado** (toda celda
+tiene una fila en todo periodo), pensado como insumo para un modelo
+posterior de riesgo de deforestación.
+
+#### Qué aporta cada panel
+
+Cada panel responde una pregunta que los otros dos no pueden responder:
+
+| Pregunta | Panel que la responde | Por qué |
+|---|---|---|
+| ¿Dónde está ocurriendo un disturbio **ahora mismo**? | Alertas (GFW) | Es el único con cadencia mensual |
+| ¿Cuánta **deforestación oficial** hubo? | Oficial (IDEAM) | Aplica la definición nacional de bosque y es la cifra que reporta el país |
+| ¿Cómo se sitúa Colombia frente a **otros países**? | Pérdida (Hansen) | Aplica el mismo algoritmo en todo el planeta |
+
+Tenerlos **juntos sobre la misma grilla** habilita además una cuarta
+pregunta: cuánto se aparta cada proxy del dato oficial. La razón entre
+sus cifras es medible celda a celda y año a año (sección 8), y un
+municipio señalado por los tres a la vez constituye una señal más sólida
+que uno señalado por uno solo.
+
+#### Advertencia sobre la independencia de las fuentes
+
+Al argumentar convergencia hay que declarar una asimetría: **Hansen y las
+alertas de GFW no son independientes entre sí.** El producto Hansen y el
+sistema GLAD provienen del mismo laboratorio (GLAD, Universidad de
+Maryland) y ambos se basan en imágenes Landsat, de modo que su
+coincidencia aporta menos evidencia de lo que aparenta. Las parejas
+genuinamente independientes son IDEAM–Hansen e IDEAM–GFW; dentro de las
+alertas, RADD (radar Sentinel-1, Wageningen) sí es independiente de la
+familia Landsat.
+
+#### El doble papel de Hansen
+
+Hansen aparece dos veces en el diseño y conviene no confundir los papeles:
+
+- **Como línea base** (§2.1): define `bosque_base_ha`, el denominador
+  común de los tres paneles. Este papel es estructural y ninguna otra
+  fuente lo cubre.
+- **Como fuente de evento** (panel 2): la pérdida anual de cobertura.
 
 ### 1.2 Unidad de análisis: por qué una celda de 5×5 km y no el píxel nativo
 
@@ -74,11 +125,25 @@ mensual (`frecuencia = "MS"`) es un punto medio entre:
 
 ## 2. Fuentes de datos
 
-Se cruzan **dos** productos independientes — cada uno responde una
-pregunta distinta — más una capa cartográfica auxiliar que no aporta señal
-de cambio, solo estructura espacial y atributos administrativos.
+Se usan **tres** productos de observación de la Tierra, más una capa
+cartográfica auxiliar que no aporta señal de cambio sino estructura
+espacial y atributos administrativos.
 
-### 2.1 Hansen Global Forest Change (GFC) — la línea base
+| Fuente | Papel en este trabajo | Salida |
+|---|---|---|
+| Hansen GFC (§2.1) | **Línea base** de bosque **y** fuente de evento anual | `bosque_base_ha` + Panel 2 |
+| GFW `gfw_integrated_alerts` (§2.2) | Fuente de evento mensual | Panel 1 |
+| IDEAM / SMByC (§2.3) | Fuente de evento oficial | Panel 3 |
+| DANE — MGN (§2.4) | Estructura espacial y `cod_dane` | Columnas de todos |
+
+Cada subsección describe qué es el producto, cómo se genera, qué se usa
+de él y cuáles son sus límites conocidos. La comparación entre las tres
+fuentes de evento constituye uno de los **resultados** del trabajo:
+cuantifica, celda a celda y año a año, la relación entre una alerta de
+disturbio, una hectárea de cobertura perdida y una hectárea oficialmente
+deforestada (sección 8).
+
+### 2.1 Hansen Global Forest Change — línea base y pérdida de cobertura
 
 **Qué es.** Producto global de cobertura y cambio de bosque a 30 m de
 resolución, desarrollado por el Global Land Analysis and Discovery (GLAD)
@@ -127,22 +192,30 @@ la literatura.
   píxel — por eso se usa solo para la línea base, no para el evento
   mensual (sección 2.2).
 
-### 2.2 Global Forest Watch — Integrated Disturbance Alerts (el evento)
+### 2.2 Global Forest Watch — alertas de disturbio (mensual)
 
 **Qué es.** Producto de Global Forest Watch / World Resources Institute
-(WRI) que combina, en una sola capa con una única escala de confianza,
-**cuatro** sistemas independientes de alerta de disturbio: DIST-ALERT
-(NASA OPERA), GLAD-L (Landsat, UMD), GLAD-S2 (Sentinel-2, UMD) y RADD
-(radar Sentinel-1, Wageningen University). Metodología publicada y
-revisada por pares: Pickens, Hansen, Song et al., *"Rapid monitoring of
-global land change"*, Nature Communications 16, 8948 (2025).
+(WRI), identificado en su API como `gfw_integrated_alerts`, que combina en
+una sola capa con una única escala de confianza **tres** sistemas
+independientes de alerta de deforestación:
 
-**Por qué esta fuente.** Se prefirió el producto **ya integrado** frente a
+| Sistema | Sensor | Productor |
+|---|---|---|
+| GLAD-L | Landsat (óptico, 30 m) | GLAD lab, Universidad de Maryland |
+| GLAD-S2 | Sentinel-2 (óptico, 10 m) | GLAD lab, Universidad de Maryland |
+| RADD | Sentinel-1 (radar, 10 m) | Wageningen University & Research |
+
+Las alertas de Landsat se remuestrean a 10 m para calzar con las de
+Sentinel, lo que evita el doble conteo de alertas superpuestas: cuando dos
+sistemas independientes detectan el mismo evento, en vez de sumarse, la
+alerta sube de nivel de confianza. La combinación de óptico y radar es
+deliberada: el radar atraviesa nubes, lo que reduce el vacío de detección
+en las regiones de nubosidad persistente (Amazonía, Pacífico).
+
+**Por qué esta fuente.** Se prefirió un producto **ya integrado** frente a
 combinar varios sistemas de alerta a mano: evita que la definición de
 "evento" sea una decisión artesanal de esta tesis en vez de una
-metodología ya publicada y validada por el equipo que produce los datos.
-Además cubre la ventana completa desde 2020-01, con una cadencia de
-detección casi en tiempo real.
+metodología ya publicada por el equipo que produce los datos.
 
 **Cómo se accede.** Se consulta mediante una API SQL de solo lectura
 (`data-api.globalforestwatch.org`) que corre la consulta directamente
@@ -162,21 +235,85 @@ decisión 2 en la sección 4.
 
 **Limitaciones conocidas:**
 
-- Al combinar cuatro sistemas con metodologías de detección distintas
+- Al combinar tres sistemas con metodologías de detección distintas
   (óptico de dos resoluciones + radar), la sensibilidad y el sesgo
   geográfico pueden no ser perfectamente homogéneos a lo largo del país —
   por ejemplo, el componente de radar es menos sensible a la nubosidad que
   los sistemas ópticos, lo que puede hacer que el sistema que "gana" la
   detección varíe por región.
 - Es agnóstica a la causa del disturbio, igual que Hansen — no distingue
-  deforestación de otros tipos de disturbio de vegetación (incendios en
-  pastizales, cosecha agrícola, daño por tormenta).
+  deforestación de otros tipos de disturbio de vegetación (incendios,
+  cosecha agrícola, daño por tormenta).
 - Como cualquier sistema de alerta casi en tiempo real, tiene un rezago de
   confirmación: los últimos 1-2 meses de cualquier corrida pueden estar
   subestimados porque parte de sus eventos reales todavía no se han
   confirmado al momento de la descarga.
 
-### 2.3 Cartografía auxiliar (DANE) — no aporta señal de cambio
+### 2.3 IDEAM / SMByC — deforestación oficial
+
+**Qué es.** Las capas de *Cambio en la superficie cubierta por bosque
+natural* del Sistema de Monitoreo de Bosques y Carbono (SMByC) del IDEAM
+son el insumo espacial con que Colombia produce su **cifra oficial de
+deforestación**. Se publican como rásteres anuales de ~30 m, en acceso
+abierto y sin credencial.
+
+**Por qué importa que esté aquí.** Es la única de las tres fuentes que
+mide *deforestación* en sentido estricto —conversión de bosque natural a
+otra cobertura, con la definición nacional de bosque— y no un proxy más
+amplio. Hansen mide pérdida de cobertura arbórea (incluye cosecha de
+plantación e incendio); las alertas de GFW miden disturbio de la
+vegetación. Tener la fuente oficial en la misma grilla permite expresar
+las otras dos en términos de ella.
+
+**Leyenda de las capas** (según `Contenido_Cambio.txt` del propio
+servidor del SMByC):
+
+| Código | Clase |
+|---|---|
+| 1 | Bosque estable |
+| **2** | **Deforestación** — la clase de interés |
+| 3 | Sin información (nubosidad) |
+| 4 | Regeneración |
+| 5 | No bosque estable |
+
+**Periodos, no años calendario.** Cada capa cubre una transición entre
+dos composiciones anuales de imágenes (`cambio_2022_2023`), cuya ventana
+no coincide con el 1 de enero al 31 de diciembre. La tabla conserva el
+periodo como texto en vez de reducirlo a un año: hacerlo afirmaría una
+equivalencia temporal que el dato no respalda. La correspondencia con el
+año de referencia se verificó empíricamente (ver abajo): `cambio_YYYY_ZZZZ`
+corresponde al año **ZZZZ**.
+
+**Validación contra la cifra publicada.** El total nacional de la clase 2
+en cada capa se contrastó con la cifra oficial del año correspondiente:
+
+| Capa | Calculado (ha) | Oficial IDEAM (ha) | Razón |
+|---|---|---|---|
+| `cambio_2020_2021` | 174.100 | 174.103 (2021) | 1,000 |
+| `cambio_2021_2022` | 123.515 | 123.517 (2022) | 1,000 |
+| `cambio_2022_2023` | 79.255 | 79.256 (2023) | 1,000 |
+| `cambio_2023_2024` | 113.606 | 113.608 (2024) | 1,000 |
+
+La diferencia es de 2 a 3 hectáreas sobre totales de 79.000 a 174.000, es
+decir 0,002%, atribuible al redondeo del área de píxel. Esto confirma dos
+cosas: la convención de nombres de las capas, y que el procedimiento de
+agregación de este trabajo reproduce el dato oficial.
+
+**Cobertura de nubes, muy desigual entre periodos.** La superficie
+clasificada como "sin información" cae de forma abrupta en la serie:
+116.461 ha en 2020-2021 y 148.472 ha en 2021-2022, frente a 648 ha en
+2022-2023 y 377 ha en 2023-2024. Los dos primeros periodos tienen, por
+tanto, más incertidumbre por vacíos de observación que los siguientes.
+Por eso la tabla conserva `sin_info_ha` como columna: permite filtrar o
+ponderar las celdas afectadas, dado que un vacío de observación y una
+ausencia real de deforestación se registrarían de otro modo igual.
+
+**Qué se usa de este producto:** la clase 2 (deforestación) como variable
+principal, y las clases 1, 3, 4 y 5 como contexto y control de calidad.
+
+---
+
+### 2.4 Cartografía auxiliar (DANE) — no aporta señal de cambio
 
 | Fuente | Uso | Por qué esta y no otra |
 |---|---|---|
@@ -272,7 +409,10 @@ requerirían tomar el máximo entre piezas para no duplicar bosque).
 
 | # | Decisión | Alternativas consideradas | Por qué esta opción | Riesgo/costo aceptado |
 |---|---|---|---|---|
-| 1 | Fuente del evento: producto integrado de GFW (`gfw_integrated_dist_alerts`) | Combinar a mano, por separado, cada uno de los sistemas de alerta que este producto ya integra (sección 2.2) | El producto integrado ya es una metodología publicada y revisada por pares (Pickens et al. 2025): evita que la fusión de sensores sea una decisión artesanal de esta tesis | Al combinar sistemas con sensibilidades distintas, la homogeneidad metodológica interna del evento es algo menor que la de un solo sensor — aceptado a cambio de cobertura temporal completa desde 2020 y de apoyarse en una fusión ya validada |
+| 0 | **Tres paneles separados** (alertas GFW, pérdida Hansen, deforestación IDEAM) sobre la misma grilla, en vez de una sola tabla con las tres fuentes como columnas | Una tabla única con las tres fuentes; quedarse con una sola y descartar las demás | Miden conceptos distintos (*disturbio* / *pérdida de cobertura* / *deforestación*) y tienen unidades temporales distintas (mes / año calendario / transición entre composiciones de imágenes). Ponerlas en una misma fila bajo una columna "año" afirmaría una equivalencia temporal que el dato no respalda. Y descartar fuentes perdería capacidades que solo una tiene: cadencia mensual (GFW), comparabilidad internacional (Hansen), validez oficial (IDEAM) | Toda comparación entre paneles exige un `join` explícito y declarar el desfase temporal. Se acepta a cambio de no falsear la alineación de periodos |
+| 0b | **El denominador de cada panel corresponde a su propio numerador** | Un único denominador para todo (el de Hansen, o el del IDEAM) | El denominador debe **contener** al numerador. Verificado empíricamente: con el bosque del IDEAM como denominador de las alertas, 843 celdas darían tasas superiores al 100 % (máximo 130,3), porque las alertas se disparan también fuera del bosque natural; con el de Hansen, ninguna. A la inversa, dividir la deforestación oficial entre el bosque de Hansen —que incluye plantaciones— subestima la tasa entre un 30 % y un 45 % | El panel del IDEAM lleva dos columnas de bosque y hay que elegir bien cuál usar. Se documenta de forma explícita en la propia tabla, en la guía y en la sección 8 |
+| 1 | Fuente del evento: producto integrado de GFW (`gfw_integrated_alerts`) | Combinar a mano, por separado, cada uno de los sistemas de alerta que este producto ya integra (sección 2.2); usar un producto de un solo sensor; usar Hansen anual | El producto integrado ya es una metodología publicada por el equipo que produce los datos: evita que la fusión de sensores sea una decisión artesanal de esta tesis. Cubre la ventana completa 2020-presente con cadencia casi en tiempo real, algo que un producto anual no permite | Al combinar sistemas con sensibilidades distintas, la homogeneidad metodológica interna del evento es algo menor que la de un solo sensor — aceptado a cambio de mejor cobertura de detección (el radar complementa al óptico bajo nubes) |
+| 1b | Fuente oficial: capas rásteres de cambio del SMByC, agregadas por celda | Usar solo la cifra nacional o departamental publicada en los informes del IDEAM; prescindir del IDEAM | Las capas rásteres permiten llevar el dato oficial a la misma celda de 5 km que las otras dos fuentes, en vez de quedarse en un agregado nacional. La agregación se validó contra la cifra publicada y la reproduce al 99,75 % (sección 8), lo que confirma de paso la convención de nombres de las capas | Los periodos son transiciones entre composiciones de imágenes, no años calendario, y hay que declararlo en todo cruce. Además el dato llega con rezago de publicación |
 | 2 | Confianza mínima del evento: `high` + `highest`, se descarta `nominal` | Incluir también `nominal` | `nominal` es la detección menos confiable (análoga a "primera detección, sin confirmar"); incluirla infla falsos positivos | El panel mide deforestación con confianza alta/altísima, no cualquier disturbio detectado — subestima disturbios de baja confianza que luego sí podrían confirmarse |
 | 3 | Máscara de bosque con corte de Hansen en `anio_mascara = 2019`, un año antes del inicio de la ventana de eventos (2020-01) | Usar Hansen `lossyear` también para 2020 en adelante | Traza una línea clara: Hansen = línea base estática (hasta el corte), la fuente de evento = único registro de pérdida dentro de su ventana. Cortar justo antes evita que una misma pérdida se atribuya dos veces | Se asume que el bosque es estático entre el corte de Hansen (2019) y el inicio de la ventana de eventos (2020-01) — un margen de días, no de años |
 | 4 | Grilla regular de 5×5 km como unidad de análisis | Píxel nativo; unidad administrativa (municipio) | Balance entre volumen computacional, señal estadística y resolución espacial útil (sección 1.2) | Se pierde la ubicación exacta del evento dentro de la celda |
@@ -313,17 +453,18 @@ requerirían tomar el máximo entre piezas para no duplicar bosque).
 - **No se distingue causa del disturbio** en ninguna de las dos fuentes:
   el panel mide pérdida de cobertura/vegetación de cualquier origen
   (antrópico o natural), no específicamente deforestación por actividad
-  humana en el sentido estricto.
+  humana en el sentido estricto. Lo que registra `area_def_ha` es, con
+  precisión, *área con alerta de disturbio de alta confianza*.
 - **Posible confusión con plantaciones forestales de rotación corta** en
   la línea base de Hansen (sección 2.1).
-- **Al combinar cuatro sistemas de detección** (sección 2.2), la
+- **Al combinar tres sistemas de detección** (sección 2.2), la
   sensibilidad no es perfectamente homogénea a lo largo del país.
 - **Sin validación de campo local**: la precisión reportada de ambos
   productos proviene de sus respectivas validaciones globales/regionales,
   no de un ejercicio de verificación específico para Colombia dentro de
   esta tesis.
 - **El desbalance de clases es marcado** (ver sección 8 y
-  `eda_deforestacion.ipynb`): cualquier modelo posterior debe tratar esto
+  en el análisis exploratorio): cualquier modelo posterior debe tratar esto
   explícitamente (de ahí el diseño de `evento` como variable separada,
   pensada para un enfoque de dos etapas). La proporción exacta y
   actualizada está siempre en el notebook de EDA, no hay que tomar
@@ -352,8 +493,9 @@ de este panel.
 | Fuente | Licencia | Uso comercial | Obligación práctica |
 |---|---|---|---|
 | Hansen Global Forest Change | CC BY 4.0 | Permitido, incluida la reventa/redistribución | Atribución: *"Source: Hansen/UMD/Google/USGS/NASA"* + cita del paper (Hansen et al. 2013, sección 10) |
+| IDEAM — capas de cambio de bosque (SMByC) | Datos abiertos del Estado colombiano, publicados bajo el marco de la Ley 1712 de 2014 (transparencia y acceso a la información pública). El propio marco define los datos abiertos como información *"bajo licencia abierta y sin restricciones legales para su aprovechamiento"*. **No se encontró una licencia con nombre propio (tipo CC BY) declarada específicamente para estas capas rásteres**, a diferencia de Hansen o el DANE | Muy probablemente permitido, por el marco de datos abiertos — **confirmar con el IDEAM antes de comercializar** | Atribución al IDEAM / Sistema de Monitoreo de Bosques y Carbono, citando el año de la capa. Dado que es la fuente oficial del país, conviene además dejar claro en cualquier producto derivado que el IDEAM no avala ni valida el análisis propio |
 | DANE — Marco Geoestadístico Nacional | CC BY 4.0 | Permitido | Atribución, en las palabras del propio DANE: *"Departamento Administrativo Nacional de Estadística - DANE: www.dane.gov.co"* |
-| GFW / GLAD-L / GLAD-S2 / RADD (evento) | CC BY 4.0 (confirmado para GFW en general y para RADD directamente desde Wageningen University; GLAD-L es muy probablemente el mismo caso — mismo laboratorio que Hansen GFC — pero no se encontró una página que lo confirme en esas palabras exactas específicamente para GLAD-L) | Permitido | Atribución por dataset; GFW advierte que "cada dataset tiene su propia licencia", así que conviene guardar un archivo de atribuciones junto al panel final |
+| GFW / GLAD-L / GLAD-S2 / RADD (evento) | CC BY 4.0 (confirmado para GFW en general y para RADD directamente desde Wageningen University; GLAD-L es muy probablemente el mismo caso — mismo laboratorio que Hansen GFC — pero no se encontró una página que lo confirme en esas palabras exactas específicamente para GLAD-L) | Permitido | Atribución por dataset; GFW advierte que "cada dataset tiene su propia licencia", así que conviene guardar un archivo de atribuciones junto a las tablas publicadas |
 | ~~Google Earth Engine~~ (no se usa) | Edición gratuita/académica: uso no comercial únicamente | **Prohibido explícitamente** para este caso de uso | Nunca se usó en este pipeline — ver decisión 10, sección 4, y cita textual abajo |
 
 **Por qué no se usa Earth Engine** (cita textual de los términos de la
@@ -374,23 +516,93 @@ universidad antes de la primera venta.
 
 ---
 
-## 8. Cómo se ve la unidad de observación final
+## 8. Cómo se ven las unidades de observación finales
 
-*(Los números de esta sección son de una corrida puntual, congelados como
-ejemplo. El pipeline se sigue corriendo y el panel crece con cada nueva
-descarga — la fuente viva y siempre actualizada de estas cifras, con
-gráficas, es [`eda_deforestacion.ipynb`](eda_deforestacion.ipynb).)*
+*(Números de la corrida de referencia.)*
 
-El panel resultante (`datos/panel/panel_deforestacion_colombia.csv`) es
-una tabla de **3 524 664 filas × 17 columnas**: 44 616 celdas × 79 periodos
-mensuales (2020-01 a 2026-07), cubriendo 32 departamentos. Cada fila es una
-celda-mes. Bosque total 77 713 177 ha, deforestación total 6 444 875 ha
-(38,96 % de las celda-mes con evento). La descripción completa de las 17
-columnas, con ejemplos y cómo inspeccionarlas en `pandas`, está en
-[GUIA_CODIGO.md, sección "Cómo se ve la base de datos final"](GUIA_CODIGO.md#cómo-se-ve-la-base-de-datos-final)
-— aquí se documenta como parte de la metodología porque el diseño de cada
-columna (qué mide, en qué unidades, por qué existe) es una decisión
-metodológica, no solo de formato de archivo.
+El pipeline produce **tres paneles** en `datos/panel/`, cada uno en
+`.csv` y `.parquet`. Los tres cubren exactamente las mismas **44 616
+celdas** (32 departamentos, 1 114 municipios), con la misma línea base de
+bosque —**77 713 177 ha** según Hansen— y el mismo cruce municipal. Esa
+coincidencia se sigue del diseño: los tres usan el mismo cálculo de
+bosque base y el mismo indexado de píxel a celda, y es lo que los hace
+comparables.
+
+| Panel | Unidad de observación | Filas | Columnas |
+|---|---|---|---|
+| `panel_deforestacion_colombia` | celda × mes (79 periodos, 2020-01 a 2026-07) | 3 524 664 | 19 |
+| `panel_hansen` | celda × año (6 años, 2020-2025) | 267 696 | 9 |
+| `panel_ideam` | celda × periodo (5 transiciones, 2020-2021 a 2024-2025) | 223 080 | 14 |
+
+En el panel de alertas, `filas = celdas × periodos` exactamente: es un
+rectángulo perfecto, sin huecos, que es la condición para modelar. Área
+con alerta 1 085 131 ha, 28,01 % de las celda-mes con evento.
+
+### Qué reporta cada fuente, lado a lado
+
+| Año | GFW alerta (ha) | Hansen pérdida (ha) | IDEAM def. (ha) | Oficial IDEAM (ha) | Hansen/IDEAM | GFW/IDEAM |
+|---|---|---|---|---|---|---|
+| 2021 | 195 833 | 265 200 | 173 663 | 174 103 | 1,53 | 1,13 |
+| 2022 | 172 082 | 266 168 | 123 204 | 123 517 | 2,16 | 1,40 |
+| 2023 | 122 362 | 197 246 | 78 982 | 79 256 | 2,50 | 1,55 |
+| 2024 | 156 640 | 213 785 | 113 423 | 113 608 | 1,88 | 1,38 |
+| 2025 | 144 843 | 186 697 | 119 282 | *(sin publicar)* | 1,57 | 1,21 |
+
+El panel del IDEAM recupera entre el **99,65 % y el 99,84 %** de la cifra
+oficial publicada; lo que falta son celdas por debajo de
+`bosque_minimo_ha`, excluidas por el filtro de dominio que los tres
+paneles aplican por igual. Esta correspondencia **valida el procedimiento
+de agregación zonal** contra una cifra externa: no se asume que reproduce
+el dato oficial, se comprueba.
+
+### Cómo leer las razones entre fuentes
+
+Cada razón **mide la distancia entre un proxy y el concepto oficial**:
+
+- **Hansen/IDEAM (1,53 a 2,50)**: Hansen cuenta pérdida de cobertura
+  arbórea, que incluye cosecha de plantación forestal, incendio y daño
+  natural, ninguno de los cuales es deforestación en sentido estricto.
+- **GFW/IDEAM (1,13 a 1,55)**: las alertas señalan disturbio, que además
+  incluye eventos que no llegan a ser conversión de uso del suelo.
+
+**Ambas razones varían año a año.** La implicación metodológica es
+directa: **la conversión entre fuentes exige un factor específico para
+cada año**, y aplicar un coeficiente constante produciría errores de
+decenas de miles de hectáreas. Mantener los tres paneles sobre la misma
+grilla permite estimar esa relación empíricamente en lugar de suponerla.
+
+### Dos definiciones de bosque, y cuál usar en cada caso
+
+El panel del IDEAM lleva **dos** columnas de bosque disponible, y no son
+intercambiables:
+
+| Columna | Definición | Total nacional |
+|---|---|---|
+| `bosque_base_ha` | Hansen: dosel ≥ `umbral_dosel`, plantaciones incluidas | 77 713 177 ha |
+| `bosque_ideam_ha` | IDEAM: bosque natural, definición nacional | 59 294 546 ha |
+
+**El mismo territorio, el mismo año, una diferencia del 31 %.** La brecha
+proviene de la definición de la palabra "bosque": Hansen cuenta como
+bosque cualquier píxel con dosel suficiente, incluidas plantaciones
+forestales y rastrojo alto, mientras la definición nacional de bosque
+natural los excluye.
+
+La regla, formalizada en la decisión 0b de la sección 4, es que **el
+denominador debe contener al numerador**:
+
+| Panel | Denominador correcto | Por qué |
+|---|---|---|
+| Alertas GFW | `bosque_base_ha` | Las alertas se disparan también fuera del bosque natural. Con el denominador del IDEAM, **843 celdas darían tasas superiores al 100 %** (máximo observado 130,3); con el de Hansen, ninguna |
+| Hansen | `bosque_base_ha` | Numerador y denominador salen del mismo producto: son internamente consistentes |
+| IDEAM | `bosque_ideam_ha` | `def_ha` cuenta solo bosque natural destruido. Dividirlo entre el bosque de Hansen mezcla definiciones y **subestima la tasa entre un 30 % y un 45 %** |
+
+`bosque_base_ha` se conserva en los tres paneles pese a lo anterior,
+porque es lo que garantiza que cubran el mismo conjunto de celdas y
+permite compararlos sobre un denominador común.
+
+La descripción columna por columna de los tres paneles, con ejemplos de
+cómo inspeccionarlos en `pandas`, está en
+[GUIA_CODIGO.md, sección 4](GUIA_CODIGO.md#4-cómo-se-ven-las-tres-tablas).
 
 ---
 
@@ -415,11 +627,20 @@ metodológica, no solo de formato de archivo.
   (2013). High-Resolution Global Maps of 21st-Century Forest Cover Change.
   *Science*, 342(6160), 850–853. https://doi.org/10.1126/science.1244693
   — actualizaciones anuales del producto: https://glad.earthengine.app/view/global-forest-change
-- Pickens, A. H., Hansen, M. C., Song, X.-P., et al. (2025). Rapid
-  monitoring of global land change. *Nature Communications*, 16, 8948.
-  (Verificar el DOI exacto contra la publicación antes de citar en la
-  tesis — no se tiene una fuente verificada de él en este proyecto.)
 - Global Forest Watch / World Resources Institute. *Integrated
-  Deforestation Alerts*. https://www.globalforestwatch.org
-- DANE. *Marco Geoestadístico Nacional 2023*.
+  Deforestation Alerts* (`gfw_integrated_alerts`) — integra GLAD-L,
+  GLAD-S2 y RADD. https://www.globalforestwatch.org — ficha técnica y
+  metadatos consultables vía
+  `https://data-api.globalforestwatch.org/dataset/gfw_integrated_alerts`
+- Reiche, J., et al. *RADD — Radar for Detecting Deforestation*,
+  Wageningen University & Research. (Verificar la cita exacta del paper
+  antes de usarla en la tesis.)
+- IDEAM. *Sistema de Monitoreo de Bosques y Carbono (SMByC) — Cambio en
+  la superficie cubierta por bosque natural*. Capas rásteres anuales en
+  acceso abierto:
+  https://bart.ideam.gov.co/smbyc/ — la leyenda de clases está en el
+  archivo `Contenido_Cambio.txt` del propio directorio de capas.
+  Cifras oficiales de deforestación por año en los comunicados del
+  SMByC (verificar el comunicado del año que se cite).
+- DANE. *Marco Geoestadístico Nacional*.
   https://www.dane.gov.co
