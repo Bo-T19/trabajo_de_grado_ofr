@@ -428,6 +428,7 @@ en cada capa se contrastó con la cifra oficial del año correspondiente:
 | `cambio_2021_2022` | 123.515 | 123.517 (2022) | 1,000 |
 | `cambio_2022_2023` | 79.255 | 79.256 (2023) | 1,000 |
 | `cambio_2023_2024` | 113.606 | 113.608 (2024) | 1,000 |
+| `cambio_2024_2025` | 119.481 | 119.483 (2025) | 1,000 |
 
 La diferencia es de 2 a 3 hectáreas sobre totales de 79.000 a 174.000, es
 decir 0,002%, atribuible al redondeo del área de píxel. Esto confirma dos
@@ -749,7 +750,7 @@ con alerta 1 085 131 ha, 28,01 % de las celda-mes con evento.
 | 2022 | 172 082 | 266 168 | 123 204 | 123 517 | 2,16 | 1,40 |
 | 2023 | 122 362 | 197 246 | 78 982 | 79 256 | 2,50 | 1,55 |
 | 2024 | 156 640 | 213 785 | 113 423 | 113 608 | 1,88 | 1,38 |
-| 2025 | 144 843 | 186 697 | 119 282 | *(sin publicar)* | 1,57 | 1,21 |
+| 2025 | 144 843 | 186 697 | 119 282 | 119 483 | 1,57 | 1,21 |
 
 El panel del IDEAM recupera entre el **99,65 % y el 99,84 %** de la cifra
 oficial publicada; lo que falta son celdas por debajo de

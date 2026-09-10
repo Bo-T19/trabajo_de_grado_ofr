@@ -471,7 +471,7 @@ Cada uno en `.csv` y `.parquet`.
 | 2022 | 172 082 | 266 168 | 123 204 | 123 517 | 2,16 | 1,40 |
 | 2023 | 122 362 | 197 246 | 78 982 | 79 256 | 2,50 | 1,55 |
 | 2024 | 156 640 | 213 785 | 113 423 | 113 608 | 1,88 | 1,38 |
-| 2025 | 144 843 | 186 697 | 119 282 | *(sin publicar)* | 1,57 | 1,21 |
+| 2025 | 144 843 | 186 697 | 119 282 | 119 483 | 1,57 | 1,21 |
 
 La tabla del IDEAM recupera entre el **99,65 % y el 99,84 %** de la cifra
 oficial publicada; lo que falta son celdas por debajo de

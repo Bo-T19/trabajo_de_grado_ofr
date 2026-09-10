@@ -18,7 +18,11 @@ cobertura, con la definicion nacional de bosque. Es el insumo de la
 cifra OFICIAL de Colombia, y la unica salida del proyecto que mide
 directamente ese concepto.
 
-Las tres tablas se comparan entre si; sus cifras nunca se suman, porque
+La agregacion de este modulo reproduce el dato publicado entre el 99,65%
+y el 99,84% en los cinco periodos disponibles (2020-2021 a 2024-2025), lo
+que valida el procedimiento contra una fuente externa.
+
+Las cuatro tablas se comparan entre si; sus cifras nunca se suman, porque
 cada una mide un concepto distinto.
 
 PERIODOS DE TRANSICION
