@@ -60,7 +60,7 @@ trabajo_de_grado/
 ├── descargar_dtd.py          detecciones tempranas del SMByC (KML por trimestre)
 ├── panel_dtd.py              celda x trimestre, conteo de detecciones
 │
-├── catalogo_paneles.ipynb    describe las cuatro tablas y sus columnas
+├── catalogo_paneles.ipynb    describe las cuatro tablas, con mapas de cada fuente
 ├── main_local.py             orquestador de línea de comandos
 ├── mapa_folium.py            mapa interactivo (Leaflet) de la tabla de alertas
 │
@@ -964,6 +964,9 @@ ancha final (`cell_id`, `d_2020_01`, ..., hasta el mes más reciente).
 
 ## 8. El mapa interactivo (`mapa_folium.py`)
 
+> `atenuar_mapa_base()` es pública porque también la usa
+> `catalogo_paneles.ipynb`: cualquier mapa del proyecto se ve igual.
+
 Genera un mapa Leaflet (vía `folium`) para inspeccionar visualmente el
 la tabla de alertas, sin abrir el CSV ni un SIG de escritorio:
 
@@ -998,7 +1001,8 @@ se puede leer el `.parquet`.
 ## 9. Análisis exploratorio (pendiente)
 
 Para una descripción rápida de qué contiene cada tabla —dimensiones,
-columnas, tipos y una muestra— está
+columnas, tipos, una muestra y dos mapas en folium que comparan el patrón
+espacial de las cuatro fuentes— está
 [`catalogo_paneles.ipynb`](catalogo_paneles.ipynb), que lee las cifras de
 los propios archivos y por tanto se mantiene al día. No sustituye al
 análisis exploratorio: solo describe las salidas.

@@ -200,9 +200,12 @@ def capa_marcadores(celdas: pd.DataFrame, umbral_ha: float, top_n: int,
 # =====================================================================
 # 3. ENSAMBLAJE
 # =====================================================================
-def _atenuar_mapa_base(mapa: folium.Map) -> None:
+def atenuar_mapa_base(mapa: folium.Map) -> None:
     """
     Vuelve el mapa base gris y tenue, con un filtro CSS del navegador.
+
+    Es publica porque tambien la usa catalogo_paneles.ipynb: cualquier
+    mapa del proyecto debe verse igual.
 
     Por que asi y no con otro proveedor de tiles: los mapas base grises
     "de fabrica" (CartoDB positron, Stamen toner-lite) hoy exigen API
@@ -246,7 +249,7 @@ def construir_mapa(celdas: pd.DataFrame, umbral_ha: float, top_n: int,
                       prefer_canvas=True)
 
     if atenuar:
-        _atenuar_mapa_base(mapa)
+        atenuar_mapa_base(mapa)
 
     capa_contexto(celdas).add_to(mapa)
     capa_calor(celdas).add_to(mapa)
