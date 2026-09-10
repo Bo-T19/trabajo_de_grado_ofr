@@ -60,6 +60,7 @@ trabajo_de_grado/
 ├── descargar_dtd.py          detecciones tempranas del SMByC (KML por trimestre)
 ├── panel_dtd.py              celda x trimestre, conteo de detecciones
 │
+├── catalogo_paneles.ipynb    describe las cuatro tablas y sus columnas
 ├── main_local.py             orquestador de línea de comandos
 ├── mapa_folium.py            mapa interactivo (Leaflet) de la tabla de alertas
 │
@@ -995,6 +996,12 @@ se puede leer el `.parquet`.
 ---
 
 ## 9. Análisis exploratorio (pendiente)
+
+Para una descripción rápida de qué contiene cada tabla —dimensiones,
+columnas, tipos y una muestra— está
+[`catalogo_paneles.ipynb`](catalogo_paneles.ipynb), que lee las cifras de
+los propios archivos y por tanto se mantiene al día. No sustituye al
+análisis exploratorio: solo describe las salidas.
 
 El análisis exploratorio sobre las cuatro tablas está pendiente de
 elaborar. Lo que debería cubrir:
