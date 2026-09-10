@@ -8,8 +8,8 @@ capas de cambio de bosque del SMByC (IDEAM).
 
 Salida: datos/panel/panel_ideam.csv (+ .parquet)
 
-    cell_id | periodo | def_ha | bosque_ideam_ha | sin_info_ha |
-            | bosque_base_ha | cod_dane | ...
+    cell_id | periodo | def_ha | bosque_ideam_ha | bosque_ideam_fin_ha |
+            | sin_info_ha | bosque_base_ha | cod_dane | ...
 
 QUE MIDE
 --------
@@ -39,10 +39,25 @@ DOS DENOMINADORES, Y CUAL USAR
 La tabla trae dos medidas del bosque disponible, y NO son intercambiables:
 
   bosque_ideam_ha  = bosque_estable_ha + def_ha. Es el bosque NATURAL al
-                     inicio del periodo, con la definicion nacional. Es el
-                     denominador CORRECTO para las tasas de esta tabla:
-                     def_ha cuenta solo bosque natural destruido, asi que
-                     dividirlo por otra cosa mezcla definiciones.
+                     INICIO del periodo, con la definicion nacional (lo
+                     que siguio siendo bosque, mas lo que se deforesto
+                     durante el periodo). Es el denominador CORRECTO para
+                     las tasas de esta tabla: def_ha cuenta solo bosque
+                     natural destruido, asi que dividirlo por otra cosa
+                     mezcla definiciones.
+
+  bosque_ideam_fin_ha = bosque_estable_ha + regeneracion_ha. Es el bosque
+                     al FINAL del periodo (lo que siguio siendo bosque,
+                     mas lo que se recupero). Sirve para responder cuanto
+                     bosque queda, no para normalizar la deforestacion
+                     del periodo. En el ultimo periodo disponible es la
+                     cobertura de bosque mas reciente que publica el
+                     IDEAM.
+
+                     Las dos columnas encadenan: el bosque al final de un
+                     periodo coincide con el del inicio del siguiente
+                     salvo diferencias del 0,01 % al 0,2 %, que provienen
+                     de que el IDEAM reprocesa cada capa por separado.
 
   bosque_base_ha   = la linea base de Hansen (dosel >= umbral_dosel), la
                      misma que usa la tabla de alertas. Se conserva para
@@ -170,6 +185,11 @@ def construir(cfg: Config) -> pd.DataFrame:
     # lo que siguio siendo bosque mas lo que se deforesto durante el
     # periodo. Es el denominador propio de esta tabla (ver encabezado).
     largo["bosque_ideam_ha"] = largo["bosque_estable_ha"] + largo["def_ha"]
+    # Y el bosque al FINAL: lo que siguio siendo bosque mas lo que se
+    # recupero. En el ultimo periodo es la cobertura mas reciente que
+    # publica el IDEAM.
+    largo["bosque_ideam_fin_ha"] = (largo["bosque_estable_ha"]
+                                    + largo["regeneracion_ha"])
 
     meta = grilla[["cell_id", "lon", "lat", "departamento"]].copy()
     meta["bosque_base_ha"] = bosque
@@ -204,7 +224,7 @@ def main() -> int:
         parquet = "no"
 
     resumen = tabla.groupby("periodo")[
-        ["def_ha", "sin_info_ha", "bosque_ideam_ha"]].sum()
+        ["def_ha", "sin_info_ha", "bosque_ideam_ha", "bosque_ideam_fin_ha"]].sum()
     logger.info("=" * 62)
     logger.info("TABLA IDEAM LISTA")
     logger.info("  archivo : %s (parquet: %s)", csv, parquet)
@@ -212,9 +232,10 @@ def main() -> int:
                 len(tabla), tabla["cell_id"].nunique(), tabla["periodo"].nunique())
     logger.info("  deforestacion oficial por periodo (ha):")
     for periodo, fila in resumen.iterrows():
-        logger.info("    %-10s def: %12s ha | bosque IDEAM: %14s ha | sin info: %10s ha",
+        logger.info("    %-10s def: %11s ha | bosque inicio: %13s | fin: %13s",
                     periodo, f"{fila['def_ha']:,.0f}",
-                    f"{fila['bosque_ideam_ha']:,.0f}", f"{fila['sin_info_ha']:,.0f}")
+                    f"{fila['bosque_ideam_ha']:,.0f}",
+                    f"{fila['bosque_ideam_fin_ha']:,.0f}")
     logger.info("=" * 62)
     return 0
 
