@@ -60,7 +60,7 @@ trabajo_de_grado/
 ├── descargar_dtd.py          detecciones tempranas del SMByC (KML por trimestre)
 ├── panel_dtd.py              celda x trimestre, conteo de detecciones
 │
-├── catalogo_paneles.ipynb    describe las cuatro tablas, con mapas de cada fuente
+├── catalogo_paneles.ipynb    describe las cuatro tablas y las mapea
 ├── main_local.py             orquestador de línea de comandos
 ├── mapa_folium.py            mapa interactivo (Leaflet) de la tabla de alertas
 │
@@ -1001,7 +1001,7 @@ se puede leer el `.parquet`.
 ## 9. Análisis exploratorio (pendiente)
 
 Para una descripción rápida de qué contiene cada tabla —dimensiones,
-columnas, tipos, una muestra y dos mapas en folium que comparan el patrón
+columnas, tipos, una muestra y un mapa en folium que compara el patrón
 espacial de las cuatro fuentes— está
 [`catalogo_paneles.ipynb`](catalogo_paneles.ipynb), que lee las cifras de
 los propios archivos y por tanto se mantiene al día. No sustituye al
