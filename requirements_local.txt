@@ -7,5 +7,6 @@ geopandas>=0.14            # exportar_grilla.py (grilla local), cruce municipal 
 shapely>=2.0               # se importa directamente (geometrias de celda); llega como dependencia de geopandas, pero se declara porque el codigo lo usa de forma explicita
 folium>=0.15               # mapa interactivo (mapa_folium.py)
 branca>=0.7                # escala de color del mapa; igual que shapely, llega con folium pero se importa directo
+scipy>=1.11               # componentes conexas para el filtro de parche (demo_landsat_caqueta.py)
 matplotlib>=3.7            # graficas del analisis exploratorio (pendiente de rehacer)
 jupyter>=1.0               # entorno del analisis exploratorio

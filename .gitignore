@@ -1,7 +1,7 @@
 # Las bases de datos son muy pesadas: se ignora TODO el contenido de
 # datos/, pero se conserva la ESTRUCTURA de carpetas (cada una trae un
 # .gitkeep) para que un clon nuevo del repo ya tenga el arbol listo
-# antes de correr nada -- ver config_local.py y GUIA_CODIGO.md seccion 10.
+# antes de correr nada -- ver config_local.py y GUIA_CODIGO.md seccion 11.
 /datos/*
 !/datos/grilla/
 !/datos/hansen/
@@ -13,6 +13,7 @@
 !/datos/logs/
 !/datos/ideam/
 !/datos/dtd/
+!/datos/demo/
 
 /datos/grilla/*
 !/datos/grilla/.gitkeep
@@ -34,6 +35,8 @@
 !/datos/ideam/.gitkeep
 /datos/dtd/*
 !/datos/dtd/.gitkeep
+/datos/demo/*
+!/datos/demo/.gitkeep
 
 # Archivos de credenciales y pruebas
 .dodsrc
