@@ -1010,6 +1010,10 @@ imágenes Landsat 8/9** sobre una zona piloto de Caquetá, y la contrasta
 con las alertas GLAD-L. Es una demostración metodológica: no reemplaza a
 GLAD-L como fuente del panel.
 
+> El recorrido línea por línea del módulo está en
+> [`GUIA_DEMO_LANDSAT.md`](GUIA_DEMO_LANDSAT.md). Esta sección resume qué
+> hace y qué dio; esa guía explica cómo y por qué.
+
 ```powershell
 python demo_landsat_caqueta.py
 ```
