@@ -436,6 +436,19 @@ python main_local.py panel-dtd
 Produce `datos/panel/panel_dtd.csv` y `.parquet`, una fila por celda y
 trimestre. Tarda menos de un minuto.
 
+### Paso 11 — subir las cuatro tablas a BigQuery (opcional, requiere credencial)
+
+```bash
+python main_local.py subir-bigquery
+```
+
+Sube las tablas que ya existan en `datos/panel/` al dataset `staging`
+del proyecto de BigQuery del equipo. Requiere haber copiado antes la
+llave de la cuenta de servicio `pipeline-satelital` en
+`datos/logs/bigquery-key.json` (ver sección 5.16). Se puede correr
+después de cada paso anterior, tantas veces como se quiera: siempre
+reemplaza la tabla completa en BigQuery, nunca duplica filas.
+
 ### Comando de estado (en cualquier momento)
 
 ```bash
@@ -832,6 +845,66 @@ arma la línea de comandos correcta y lanza el script correspondiente como subpr
 (`subprocess.call`), excepto `consolidar`, que importa la función
 directamente. `estado` es el único que no delega: lista lo que hay en
 disco en cada etapa y cuáles de las cuatro tablas ya existen.
+
+### 5.16 `subir_bigquery.py` — subir las cuatro tablas a BigQuery
+
+Sube cada tabla de `datos/panel/*.csv` que ya exista al dataset
+`staging` del proyecto de BigQuery del equipo (`ofr-credito-deforestacion`),
+en modo "reemplazar" (`WRITE_TRUNCATE`): como cada corrida de
+`consolidar.py`/`panel_hansen.py`/`panel_ideam.py`/`panel_dtd.py`
+reconstruye el CSV completo, subir en modo reemplazar mantiene
+BigQuery igual de sincronizado que el disco sin duplicar filas.
+
+Se autentica con la cuenta de servicio `pipeline-satelital` (permisos
+BigQuery Data Editor + BigQuery Job User, nada más), cuya llave `.json`
+se espera en `datos/logs/bigquery-key.json` (fuera del control de
+versiones, igual que `gfw_api_key.txt`) o en la variable de entorno
+`GOOGLE_APPLICATION_CREDENTIALS`. El esquema de cada tabla se detecta
+automáticamente a partir del CSV (`autodetect=True`), así que no hace
+falta declararlo a mano ni mantenerlo sincronizado con los cambios en
+las columnas del panel.
+
+#### ¿Por qué una cuenta de servicio con `key.json`, y no la cuenta de Gmail del equipo?
+
+La cuenta de Gmail (`trabajodegrado139@gmail.com`) es una **cuenta de
+usuario**: sirve para que una persona inicie sesión en la consola de
+Google Cloud desde un navegador (con su propio flujo de login, y
+verificación en dos pasos si está activada). No está pensada para que
+un script se autentique solo, sin nadie sentado frente al navegador
+cada vez que corre `subir_bigquery.py`.
+
+Una **cuenta de servicio** es distinta: es una identidad que pertenece
+al *proyecto* de Google Cloud, no a una persona, y existe justo para
+que código (scripts, notebooks, jobs programados) se autentique de
+forma automática. `pipeline-satelital` es una de esas identidades,
+creada solo para este pipeline, con exactamente dos permisos —cargar
+tablas en BigQuery y correr los jobs de carga— y ningún otro (no puede,
+por ejemplo, borrar el proyecto, tocar la facturación ni ver el bucket
+de Cloud Storage). Aunque la llave se filtrara, el daño posible queda
+acotado a esos dos permisos sobre este proyecto puntual.
+
+El archivo `bigquery-key.json` es la credencial que le permite al
+script "iniciar sesión" como esa cuenta de servicio sin pasar por un
+navegador ni una contraseña: contiene una llave privada que firma cada
+solicitud a la API de Google en nombre de `pipeline-satelital`. Por
+eso funciona exactamente como una contraseña —quien tenga el archivo
+puede actuar con esos permisos— y por eso vive en `datos/logs/`, fuera
+del control de versiones, siguiendo el mismo criterio que ya se usa
+con `gfw_api_key.txt` (sección 5.5): la credencial nunca se sube al
+repositorio ni se comparte por chat o correo, cada quien la copia una
+sola vez en su propia máquina.
+
+Tablas destino (todas en el dataset `staging`):
+
+| Alias    | Archivo local                          | Tabla en BigQuery          |
+|----------|------------------------------------------|-----------------------------|
+| `gfw`    | `panel_deforestacion_colombia.csv`        | `stg_gfw_alertas`           |
+| `hansen` | `panel_hansen.csv`                        | `stg_hansen_perdida`        |
+| `ideam`  | `panel_ideam.csv`                         | `stg_ideam_deforestacion`   |
+| `dtd`    | `panel_dtd.csv`                           | `stg_dtd_alertas`           |
+
+Uso: `python main_local.py subir-bigquery` (o `--solo gfw,hansen` para
+subir solo algunas). Ver el docstring del propio script para el detalle.
 
 ---
 

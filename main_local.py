@@ -57,6 +57,14 @@ USO — en este orden
 
     python main_local.py estado
         Que hay en disco y que falta.
+
+    python main_local.py subir-bigquery
+        Sube las tablas del panel que ya existan en datos/panel/ al
+        dataset "staging" del proyecto de BigQuery del equipo
+        (ofr-credito-deforestacion). Requiere la llave de la cuenta de
+        servicio "pipeline-satelital" en datos/logs/bigquery-key.json
+        (o en la variable de entorno GOOGLE_APPLICATION_CREDENTIALS).
+        Ver subir_bigquery.py y GUIA_CODIGO.md seccion 5.16.
 ======================================================================
 """
 from __future__ import annotations
@@ -144,6 +152,12 @@ def main() -> int:
     sub.add_parser("panel-dtd")
     sub.add_parser("estado")
 
+    pb = sub.add_parser("subir-bigquery")
+    pb.add_argument("--solo", default=None,
+                    help="Lista separada por comas: gfw,hansen,ideam,dtd (default: todas).")
+    pb.add_argument("--dataset", default=None,
+                    help="Dataset de BigQuery destino (default: staging, ver subir_bigquery.py).")
+
     pc = sub.add_parser("consolidar")
     pc.add_argument("--dane", default=None,
                     help=("Ruta a un shapefile/geojson municipal alterno. "
@@ -182,6 +196,14 @@ def main() -> int:
 
     if a.cmd == "panel-dtd":
         return _correr("panel_dtd.py")
+
+    if a.cmd == "subir-bigquery":
+        args = []
+        if a.solo:
+            args += ["--solo", a.solo]
+        if a.dataset:
+            args += ["--dataset", a.dataset]
+        return _correr("subir_bigquery.py", *args)
 
     if a.cmd == "consolidar":
         # A diferencia de los demas subcomandos, este SI importa la

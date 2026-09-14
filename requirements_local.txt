@@ -9,3 +9,4 @@ folium>=0.15               # mapa interactivo (mapa_folium.py)
 branca>=0.7                # escala de color del mapa; igual que shapely, llega con folium pero se importa directo
 matplotlib>=3.7            # graficas del analisis exploratorio (pendiente de rehacer)
 jupyter>=1.0               # entorno del analisis exploratorio
+google-cloud-bigquery>=3.25 # subir_bigquery.py: cargar las tablas del panel al proyecto de BigQuery del equipo
