@@ -23,11 +23,12 @@ se explica su implementación.
 6. [Cómo se calcula el bosque base, en código](#6-cómo-se-calcula-el-bosque-base-en-código)
 7. [Cómo se construye el panel, en código](#7-cómo-se-construye-el-panel-en-código)
 8. [El mapa interactivo (`mapa_folium.py`)](#8-el-mapa-interactivo-mapa_foliumpy)
-9. [Análisis exploratorio (pendiente)](#9-análisis-exploratorio-pendiente)
-10. [Estructura de `datos/`](#10-estructura-de-datos)
-11. [Cómo adaptar el pipeline](#11-cómo-adaptar-el-pipeline)
-12. [Solución de problemas](#12-solución-de-problemas)
-13. [Glosario de código](#13-glosario-de-código)
+9. [Prueba de concepto: derivar deforestación desde Landsat](#9-prueba-de-concepto-derivar-deforestación-desde-landsat)
+10. [Análisis exploratorio (pendiente)](#10-análisis-exploratorio-pendiente)
+11. [Estructura de `datos/`](#11-estructura-de-datos)
+12. [Cómo adaptar el pipeline](#12-cómo-adaptar-el-pipeline)
+13. [Solución de problemas](#13-solución-de-problemas)
+14. [Glosario de código](#14-glosario-de-código)
 
 ---
 
@@ -62,6 +63,9 @@ trabajo_de_grado/
 │
 ├── catalogo_paneles.ipynb    describe las cuatro tablas y las mapea
 ├── main_local.py             orquestador de línea de comandos
+│
+│   ── PRUEBA DE CONCEPTO: deforestación derivada de imagen cruda ──
+├── demo_landsat_caqueta.py   deriva pérdida de bosque desde Landsat
 ├── mapa_folium.py            mapa interactivo (Leaflet) de la tabla de alertas
 │
 ├── requirements_local.txt    dependencias de Python (pip)
@@ -73,10 +77,11 @@ trabajo_de_grado/
 ├── legacy/                   código archivado, fuera del pipeline activo
 │                              (ver legacy/README.md)
 │
-└── datos/                    TODO el output cae aquí (ver sección 10)
+└── datos/                    TODO el output cae aquí (ver sección 11)
     ├── grilla/  hansen/  gfw/  cache/  crudo/  limites/  panel/  logs/
     ├── ideam/                 capas de cambio de bosque del SMByC
-    └── dtd/                   detecciones tempranas del SMByC
+    ├── dtd/                   detecciones tempranas del SMByC
+    └── demo/                  salidas de la prueba de concepto
 ```
 
 ### Las cuatro tablas
@@ -1071,7 +1076,158 @@ se puede leer el `.parquet`.
 
 ---
 
-## 9. Análisis exploratorio (pendiente)
+## 9. Prueba de concepto: derivar deforestación desde Landsat
+
+`demo_landsat_caqueta.py` deriva pérdida de bosque **directamente de
+imágenes Landsat 8/9** sobre una zona piloto de Caquetá, y la contrasta
+con las alertas GLAD-L. Es una demostración metodológica: no reemplaza a
+GLAD-L como fuente del panel.
+
+> El recorrido línea por línea del módulo está en
+> [`GUIA_DEMO_LANDSAT.md`](GUIA_DEMO_LANDSAT.md). Esta sección resume qué
+> hace y qué dio; esa guía explica cómo y por qué.
+
+```powershell
+python demo_landsat_caqueta.py
+```
+
+No hace falta instalar nada adicional ni ninguna credencial nueva: usa la
+API key de GFW que el pipeline ya tiene. Tarda unos 13 minutos la primera
+vez y segundos las siguientes, porque los compuestos quedan en caché.
+
+### De dónde sale cada insumo, sin Earth Engine
+
+| Insumo | Origen | Credencial |
+|---|---|---|
+| Escenas Landsat | Catálogo STAC de Microsoft Planetary Computer | Ninguna |
+| Bosque base | Los gránulos de `datos/hansen/` que ya están en disco | Ninguna |
+| GLAD-L | Ráster `date_conf` del data-lake de GFW | La del pipeline |
+
+Los archivos de Landsat son **COG**, así que se lee solo el recorte de la
+zona piloto: se descargan megabytes en vez de las escenas completas de
+~1 GB. El módulo usa `requests` para el catálogo y `rasterio` para la
+lectura, de modo que no suma dependencias.
+
+> **Por qué no se usó Earth Engine.** El nivel gratuito de Earth Engine
+> es explícitamente para uso **no comercial**, y el destino declarado de
+> este trabajo incluye consultorías del Observatorio. Derivar la
+> detección sin esa plataforma mantiene el proyecto entero en terreno
+> utilizable, y de paso deja la demo dentro del pipeline reproducible en
+> vez de convertirla en una excepción.
+
+### El método, en tres condiciones
+
+Un píxel cuenta como pérdida si cumple las tres:
+
+1. **Era bosque al inicio de T1**, según Hansen GFC: dosel del año 2000
+   ≥ 30 % —el mismo umbral que usa el panel nacional— y sin pérdida
+   registrada antes de la ventana.
+2. **Su NBR cayó más que un umbral.** Se comparan compuestos de mediana
+   de la **misma temporada seca** en años consecutivos, para que la
+   diferencia no recoja estacionalidad fenológica.
+3. **Pertenece a un parche de al menos 1 ha**, el área mínima de la
+   definición del IDEAM. A 30 m cada píxel son 0,09 ha, así que 11
+   píxeles dan 0,99 ha: quedan justo por debajo. El módulo usa **12**, el
+   primer entero que la alcanza.
+
+### Por qué la ventana es 2022-2023
+
+El ráster de GLAD-L del data-lake de GFW es un producto **rodante**: la
+versión vigente arranca en enero de 2021 y no conserva los años
+anteriores. Se verificó la cobertura real sobre la zona antes de fijar
+las fechas. 2022 y 2023 son los dos primeros años consecutivos con
+alertas confirmadas completas, y ambos tienen escenas de Landsat 8 y 9.
+
+### Resultados de la corrida de referencia
+
+Zona de 2968 × 2581 píxeles de 30 m, con 330 600 ha de bosque inicial.
+38 escenas en T1 y 34 en T2.
+
+| Métrica (mitad este, no vista en la calibración) | Valor |
+|---|---|
+| **Pearson, hectáreas por celda de 5 km** | **0,909** |
+| Spearman, por celda | 0,795 |
+| Precisión, a nivel de píxel | 0,549 |
+| Sensibilidad, a nivel de píxel | 0,467 |
+| F1, a nivel de píxel | 0,505 |
+
+Esa diferencia entre escalas es el resultado central: **a nivel de píxel
+la coincidencia es moderada, pero a la escala de 5 km del modelo la
+correlación llega a 0,91**. Dos detectores pueden discrepar sobre qué
+píxel exacto marcaron y aun así coincidir muy bien en cuánta pérdida hay
+en cada celda, que es lo que el modelo necesita.
+
+Matriz de acuerdo, sobre 180 450 ha de dominio: 1 251 ha detectadas por
+ambos, 1 026 ha solo por el método propio, 1 430 ha solo por GLAD-L.
+
+> **La exactitud global fue 0,9864 y no significa nada.** El bosque
+> estable ocupa el 98 % del dominio, así que un detector que no marcara
+> nada obtendría una cifra parecida. El módulo la reporta porque suele
+> pedirse, y advierte en su propio docstring que no es informativa.
+
+### Lo que el diagnóstico de nubes reveló
+
+El porcentaje de bosque excluido por falta de observación fue **0,00 %**:
+con tres meses de Landsat 8 y 9, todos los píxeles alcanzaron al menos
+una lectura limpia en ambas ventanas.
+
+El problema de nubosidad está en otro número. De las 38 escenas
+disponibles en T1, el píxel mediano recibió **5 observaciones limpias**;
+en T2, **3 de 34**. Es decir, la nubosidad descarta la gran mayoría de
+las lecturas, y el compuesto descansa en muy pocas. El percentil 10 baja
+a 4 y 2 respectivamente.
+
+Por eso el diagnóstico reporta la distribución completa —mínimo,
+percentil 10, mediana, máximo— y no solo el porcentaje excluido: un píxel
+con una sola lectura entra al dominio, pero si esa lectura venía
+contaminada y la máscara no la atrapó, su dNBR es ruido.
+
+### Las dos decisiones que sostienen el resultado
+
+**El dominio excluye lo que no se pudo observar.** Contar un píxel
+nublado como "estable" lo convertiría en un verdadero negativo gratuito,
+inflando la exactitud y escondiendo la falta de observación.
+
+**La calibración y la validación no comparten píxeles.** El umbral de
+dNBR se calibra en la mitad **oeste** y se evalúa en la mitad **este**.
+
+### Cómo se iguala la comparación con GLAD-L
+
+A GLAD-L se le aplica exactamente el mismo tratamiento: la misma máscara
+de bosque, el mismo dominio, el mismo filtro de área mínima, y un filtro
+de fecha que acota las alertas a la ventana entre ambos compuestos. Sin
+esas cuatro igualaciones la comparación mediría diferencias de encuadre
+en lugar de diferencias de detección.
+
+### Salidas, en `datos/demo/`
+
+| Archivo | Qué trae |
+|---|---|
+| `diagnostico_nubes.csv` | Bosque, dominio y distribución de observaciones limpias |
+| `calibracion_umbral.csv` | Métricas por umbral, en la mitad oeste |
+| `evaluacion_validacion.csv` | Matriz de acuerdo y métricas, en la mitad este |
+| `comparacion_celdas.csv` | Hectáreas por celda de 5 km, ambas fuentes |
+| `muestra_validacion_visual.csv` | 200 puntos estratificados para interpretar a mano |
+| `mapa_revision.html` | Mapa con bosque, pérdida propia y pérdida GLAD-L |
+| `cache_nbr_*.npz` | Compuestos guardados; borrarlo fuerza recalcular |
+
+La muestra sigue la práctica de Olofsson et al. (2014): 50 puntos por
+cada una de las cuatro combinaciones propia/GLAD, con `etiqueta_visual`
+vacía para que la llene un intérprete sobre imagen de alta resolución. Es
+estratificada y no aleatoria simple porque las clases de cambio ocupan
+una fracción minúscula de la escena, y un muestreo simple dejaría los
+desacuerdos —que son lo que hay que revisar— casi sin puntos.
+
+### Qué reutiliza del pipeline
+
+`zonal.reproyectar_sobre_bloque()` para llevar los gránulos de Hansen a
+la rejilla de trabajo, `mapa_folium.atenuar_mapa_base()` para que el mapa
+se vea igual que los demás, y el `logger` de `config_local`. La demo no
+reimplementa la geometría del reparto: la hereda.
+
+---
+
+## 10. Análisis exploratorio (pendiente)
 
 Para una descripción rápida de qué contiene cada tabla —dimensiones,
 columnas, tipos, una muestra y un mapa en folium que compara el patrón
@@ -1101,7 +1257,7 @@ en `requirements_local.txt`.
 
 ---
 
-## 10. Estructura de `datos/`
+## 11. Estructura de `datos/`
 
 | Carpeta | Contenido | La genera |
 |---|---|---|
@@ -1113,6 +1269,7 @@ en `requirements_local.txt`.
 | `datos/limites/` | `municipios_dane_mgn2025.geojson` — límites municipales del DANE | `descargar_municipios.py` |
 | `datos/ideam/` | `cambio_<periodo>.img` — capas de cambio del SMByC (~53 MB c/u) | `descargar_ideam.py` |
 | `datos/dtd/` | `atd_<año>_<trim>.kml` — detecciones tempranas (~167 MB en total) | `descargar_dtd.py` |
+| `datos/demo/` | Salidas de la prueba de concepto con Landsat | `demo_landsat_caqueta.py` |
 | `datos/panel/` | **Las cuatro tablas** (`.csv` + `.parquet`) + `mapa_deforestacion.html` | `consolidar.py`, `panel_hansen.py`, `panel_ideam.py`, `panel_dtd.py`, `mapa_folium.py` |
 | `datos/logs/` | `gfw_api_key.txt` | `configurar_gfw.py` |
 
@@ -1127,7 +1284,7 @@ la API).
 
 ---
 
-## 11. Cómo adaptar el pipeline
+## 12. Cómo adaptar el pipeline
 
 ### Extender la ventana temporal (nuevos meses)
 
@@ -1165,7 +1322,7 @@ Se agrega como una columna nueva dentro de `derivar_variables()` en
 
 ---
 
-## 12. Solución de problemas
+## 13. Solución de problemas
 
 | Síntoma | Causa probable | Qué hacer |
 |---|---|---|
@@ -1192,7 +1349,7 @@ Se agrega como una columna nueva dentro de `derivar_variables()` en
 
 ---
 
-## 13. Glosario de código
+## 14. Glosario de código
 
 | Término | Significado |
 |---|---|

@@ -38,7 +38,7 @@ RAIZ = Path(__file__).resolve().parent
 DIR_DATOS = RAIZ / "datos"
 
 # Cada carpeta corresponde a UNA etapa del pipeline. Ver GUIA_CODIGO.md
-# seccion 10 para el detalle de que genera cada script y que contiene cada una.
+# seccion 11 para el detalle de que genera cada script y que contiene cada una.
 DIR_GRILLA = DIR_DATOS / "grilla"      # CSV de la grilla, generado localmente (una vez)
 DIR_GFW = DIR_DATOS / "gfw"            # cache de lotes de la API de GFW
 DIR_HANSEN = DIR_DATOS / "hansen"      # granulos 10x10 de Hansen GFC
