@@ -454,6 +454,32 @@ llave de la cuenta de servicio `pipeline-satelital` en
 después de cada paso anterior, tantas veces como se quiera: siempre
 reemplaza la tabla completa en BigQuery, nunca duplica filas.
 
+### Paso 12 — describir las siete fuentes (Paso 1 del EDA, requiere credencial)
+
+```bash
+python main_local.py describir-fuentes
+```
+
+Consulta en BigQuery las cuatro tablas propias y las tres del
+Observatorio, y deja columnas, tipos de dato, número de filas y una
+muestra de cada una en `DESCRIPCION_FUENTES.md`. Es el punto de
+partida del EDA (sección 5.17): antes de decidir el periodo de tiempo,
+declarar si hace falta limpieza o proponer KPIs, hay que revisar ese
+reporte para confirmar qué columnas trae cada fuente (por ejemplo, si
+ya existe población o área por municipio, o si hay que conseguirlas
+aparte).
+
+Si el profesor todavía no le ha dado acceso a la cuenta de servicio
+sobre las tres tablas de `prueba-ofr` (solo a las cuentas personales),
+usar en su lugar:
+
+```bash
+python main_local.py describir-fuentes --credenciales personal
+```
+
+Requiere `gcloud auth application-default login` una vez, con la cuenta
+de Google que el profesor autorizó. Ver sección 5.17 para el detalle.
+
 ### Comando de estado (en cualquier momento)
 
 ```bash
@@ -910,6 +936,55 @@ Tablas destino (todas en el dataset `staging`):
 
 Uso: `python main_local.py subir-bigquery` (o `--solo gfw,hansen` para
 subir solo algunas). Ver el docstring del propio script para el detalle.
+
+### 5.17 `describir_fuentes.py` — Paso 1 del EDA: describir las siete fuentes
+
+Corresponde al primer paso del EDA acordado con el tutor ("organizar
+la información: extracción" y "analizar datos y declarar si se
+necesita limpieza"): antes de poder decidir el periodo de tiempo,
+proponer KPIs o cruzar las tablas, hay que saber con certeza qué tiene
+cada una.
+
+Consulta directamente en BigQuery las siete fuentes que se van a
+cruzar —las cuatro tablas del panel propio (`staging`, sección 5.16) y
+las tres tablas de solo lectura del Observatorio en `prueba-ofr`— y
+para cada una obtiene columnas y tipos de dato, número de filas, y una
+muestra de 5 filas. Todo se obtiene corriendo consultas normales
+(`SELECT ...`), nunca pidiendo metadatos del dataset (`INFORMATION_SCHEMA`,
+listar tablas): las tablas del profesor solo tienen permiso de lectura
+a nivel de esa tabla puntual, y pedir metadatos del dataset da "Access
+Denied" con ese permiso (ver `GUIA_BIGQUERY.md`), mientras que correr
+una consulta sí funciona igual para las tablas propias y las ajenas.
+
+Usa la misma credencial que `subir-bigquery` (`datos/logs/bigquery-key.json`).
+Deja el resultado en `DESCRIPCION_FUENTES.md`, en la raíz del
+repositorio (no en `datos/`, para que sí quede versionado y visible
+para todo el equipo). Se regenera completo cada vez que se corre —no
+es incremental— así que basta con volver a correrlo cuando cambien las
+tablas de origen para mantenerlo al día.
+
+**Modo `--credenciales personal` (mientras se autoriza la cuenta de
+servicio).** El profesor le dio acceso de lectura a las tres tablas de
+`prueba-ofr` a las cuentas personales del equipo desde el principio,
+pero a la cuenta de servicio `pipeline-satelital` no (se le pidió por
+correo aparte, pendiente de respuesta). Mientras
+llega esa autorización, `python main_local.py describir-fuentes
+--credenciales personal` usa tu propia cuenta de Google en vez de la
+cuenta de servicio, vía Application Default Credentials (ADC), y con eso
+sí se pueden describir las 7 fuentes de una vez. Requiere:
+
+1. Tener instalado el Google Cloud CLI (`gcloud --version`; si no está,
+   instalarlo desde <https://cloud.google.com/sdk/docs/install>).
+2. Correr una sola vez por máquina: `gcloud auth application-default login`
+   — abre el navegador, hay que iniciar sesión con la MISMA cuenta de
+   Google que el profesor autorizó.
+
+El resto del script es idéntico en ambos modos (mismo `FUENTES`, mismo
+reporte). Cuando el profesor confirme el acceso de la cuenta de
+servicio, se vuelve a correr sin la bandera (`--credenciales servicio`,
+el valor por defecto) y no hay que tocar nada más del código.
+
+Uso: `python main_local.py describir-fuentes`.
 
 ---
 

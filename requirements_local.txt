@@ -10,4 +10,6 @@ branca>=0.7                # escala de color del mapa; igual que shapely, llega 
 scipy>=1.11               # componentes conexas para el filtro de parche (demo_landsat_caqueta.py)
 matplotlib>=3.7            # graficas del analisis exploratorio (pendiente de rehacer)
 jupyter>=1.0               # entorno del analisis exploratorio
-google-cloud-bigquery>=3.25 # subir_bigquery.py: cargar las tablas del panel al proyecto de BigQuery del equipo
+google-cloud-bigquery>=3.25 # subir_bigquery.py y describir_fuentes.py: leer/cargar tablas del proyecto de BigQuery del equipo
+db-dtypes>=1.2              # describir_fuentes.py: to_dataframe() de un resultado de BigQuery
+tabulate>=0.9               # describir_fuentes.py: DataFrame.to_markdown() para el reporte
