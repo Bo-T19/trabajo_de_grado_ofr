@@ -48,3 +48,7 @@
 # Entorno virtual (se recrea con "python -m venv .venv" + requirements_local.txt,
 # ver GUIA_CODIGO.md seccion 2.3-2.4 -- nunca debe subirse al repo)
 /.venv/
+
+# Checkpoints de Jupyter y carpeta local de la app de escritorio de Claude
+/.ipynb_checkpoints/
+/Claude outputs/
