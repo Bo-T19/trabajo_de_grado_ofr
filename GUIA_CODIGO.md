@@ -469,16 +469,16 @@ reporte para confirmar qué columnas trae cada fuente (por ejemplo, si
 ya existe población o área por municipio, o si hay que conseguirlas
 aparte).
 
-Si el profesor todavía no le ha dado acceso a la cuenta de servicio
-sobre las tres tablas de `prueba-ofr` (solo a las cuentas personales),
-usar en su lugar:
-
-```bash
-python main_local.py describir-fuentes --credenciales personal
-```
-
-Requiere `gcloud auth application-default login` una vez, con la cuenta
-de Google que el profesor autorizó. Ver sección 5.17 para el detalle.
+Mientras el profesor no le dé acceso a la cuenta de servicio sobre las
+tres tablas de `prueba-ofr`, el comando de arriba da 4/7 (las cuatro
+propias) de forma confiable, y eso es suficiente para seguir avanzando.
+Existe también un modo `--credenciales personal` (sección 5.17) para
+intentar las 7 de una vez usando tu cuenta personal en vez de la de
+servicio -- pero en la práctica requiere tener bien configurado
+`gcloud` y las credenciales ADC en tu máquina, y no siempre sale a la
+primera. No es necesario para seguir con el resto del EDA; queda como
+opción para quien quiera intentarlo mientras llega la respuesta del
+profesor.
 
 ### Comando de estado (en cualquier momento)
 
@@ -963,15 +963,23 @@ para todo el equipo). Se regenera completo cada vez que se corre —no
 es incremental— así que basta con volver a correrlo cuando cambien las
 tablas de origen para mantenerlo al día.
 
-**Modo `--credenciales personal` (mientras se autoriza la cuenta de
-servicio).** El profesor le dio acceso de lectura a las tres tablas de
-`prueba-ofr` a las cuentas personales del equipo desde el principio,
-pero a la cuenta de servicio `pipeline-satelital` no (se le pidió por
-correo aparte, pendiente de respuesta). Mientras
+**Modo `--credenciales personal` (opcional, mientras se autoriza la
+cuenta de servicio).** El profesor le dio acceso de lectura a las tres
+tablas de `prueba-ofr` a las cuentas personales del equipo desde el
+principio, pero a la cuenta de servicio `pipeline-satelital` no (se le
+pidió por correo aparte, pendiente de respuesta). En teoría, mientras
 llega esa autorización, `python main_local.py describir-fuentes
 --credenciales personal` usa tu propia cuenta de Google en vez de la
 cuenta de servicio, vía Application Default Credentials (ADC), y con eso
-sí se pueden describir las 7 fuentes de una vez. Requiere:
+se podrían describir las 7 fuentes de una vez. **En la práctica esto
+depende de que `gcloud` y las credenciales ADC de tu máquina estén bien
+configuradas, y puede fallar de formas no evidentes** (por ejemplo, si
+el navegador que abre el login usa una cuenta de Google distinta a la
+autorizada, o si el archivo de credenciales de ADC no queda guardado
+correctamente) — no es indispensable para avanzar con el resto del EDA,
+así que úsalo solo si quieres intentarlo; el comando normal (sección
+anterior) ya deja las 4 tablas propias completas, que es suficiente
+mientras tanto. Si lo intentas, requiere:
 
 1. Tener instalado el Google Cloud CLI (`gcloud --version`; si no está,
    instalarlo desde <https://cloud.google.com/sdk/docs/install>).
