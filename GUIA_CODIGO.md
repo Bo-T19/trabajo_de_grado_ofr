@@ -24,7 +24,7 @@ se explica su implementación.
 7. [Cómo se construye el panel, en código](#7-cómo-se-construye-el-panel-en-código)
 8. [El mapa interactivo (`mapa_folium.py`)](#8-el-mapa-interactivo-mapa_foliumpy)
 9. [Prueba de concepto: derivar deforestación desde Landsat](#9-prueba-de-concepto-derivar-deforestación-desde-landsat)
-10. [Análisis exploratorio (pendiente)](#10-análisis-exploratorio-pendiente)
+10. [Análisis exploratorio](#10-análisis-exploratorio)
 11. [Estructura de `datos/`](#11-estructura-de-datos)
 12. [Cómo adaptar el pipeline](#12-cómo-adaptar-el-pipeline)
 13. [Solución de problemas](#13-solución-de-problemas)
@@ -61,8 +61,13 @@ trabajo_de_grado/
 ├── descargar_dtd.py          detecciones tempranas del SMByC (KML por trimestre)
 ├── panel_dtd.py              celda x trimestre, conteo de detecciones
 │
-├── catalogo_paneles.ipynb    describe las cuatro tablas y las mapea
+├── catalogo_paneles.ipynb    describe las cuatro tablas y las mapea (seccion 10: EDA)
 ├── main_local.py             orquestador de línea de comandos
+│
+│   ── BIGQUERY Y EDA (Paso 1) ──────────────────────────────────────
+├── subir_bigquery.py         sube las cuatro tablas propias a BigQuery (opcional)
+├── describir_fuentes.py      Paso 1 del EDA: describe las 7 fuentes -> DESCRIPCION_FUENTES.md
+├── DESCRIPCION_FUENTES.md    salida de describir_fuentes.py (se regenera cada corrida)
 │
 │   ── PRUEBA DE CONCEPTO: deforestación derivada de imagen cruda ──
 ├── demo_landsat_caqueta.py   deriva pérdida de bosque desde Landsat
@@ -73,6 +78,8 @@ trabajo_de_grado/
 │
 ├── METODOLOGIA.md            ← el "qué y por qué" (léalo primero)
 ├── GUIA_CODIGO.md            ← este documento, el "cómo"
+├── GUIA_BIGQUERY.md          ← acceso y arquitectura de BigQuery (equipo + Observatorio)
+├── GUIA_DEMO_LANDSAT.md      ← detalle de la prueba de concepto con Landsat (sección 9)
 │
 ├── legacy/                   código archivado, fuera del pipeline activo
 │                              (ver legacy/README.md)
@@ -175,9 +182,17 @@ geopandas>=0.14            # exportar_grilla.py (grilla local), cruce municipal 
 shapely>=2.0               # se importa directamente (geometrias de celda); llega como dependencia de geopandas, pero se declara porque el codigo lo usa de forma explicita
 folium>=0.15               # mapa interactivo (mapa_folium.py)
 branca>=0.7                # escala de color del mapa; igual que shapely, llega con folium pero se importa directo
-matplotlib>=3.7            # graficas del analisis exploratorio (pendiente de rehacer)
+scipy>=1.11                # componentes conexas para el filtro de parche (demo_landsat_caqueta.py, seccion 9)
+matplotlib>=3.7            # graficas del analisis exploratorio (seccion 10)
 jupyter>=1.0               # entorno del analisis exploratorio
+google-cloud-bigquery>=3.25 # subir_bigquery.py y describir_fuentes.py: leer/cargar tablas de BigQuery (opcional)
+db-dtypes>=1.2              # describir_fuentes.py: to_dataframe() de un resultado de BigQuery
+tabulate>=0.9               # describir_fuentes.py: DataFrame.to_markdown() para el reporte
 ```
+
+Las últimas tres (`google-cloud-bigquery`, `db-dtypes`, `tabulate`) solo
+hacen falta si va a correr `subir-bigquery` o `describir-fuentes`
+(sección 2.5 y 5.16-5.17) — el resto del pipeline funciona sin ellas.
 
 `rasterio` en particular puede requerir GDAL como dependencia binaria del
 sistema; en Windows, instalarlo con `pip` normalmente ya trae las
@@ -188,8 +203,8 @@ gdal-bin libgdal-dev`) y después `pip install rasterio`.
 
 ### 2.5 Cuenta y credencial necesaria
 
-Este pipeline necesita **una sola** credencial: una API key gratuita de
-Global Forest Watch.
+Para construir las cuatro tablas (Pasos 1-10) este pipeline necesita
+**una sola** credencial: una API key gratuita de Global Forest Watch.
 
 ```bash
 python configurar_gfw.py signup --nombre "Su Nombre" --email correo@ejemplo.com
@@ -200,6 +215,11 @@ python configurar_gfw.py apikey --email correo@ejemplo.com --password "la-del-co
 La API key queda en `datos/logs/gfw_api_key.txt` (fuera de control de
 versiones) o puede definirse en la variable de entorno `GFW_API_KEY`, si
 se prefiere no dejarla en disco.
+
+Adicionalmente, y solo si va a subir las tablas a BigQuery o correr el
+Paso 1 del EDA (Pasos 11-12), hace falta una segunda credencial: la
+llave de la cuenta de servicio `pipeline-satelital` en
+`datos/logs/bigquery-key.json`. Ver sección 5.16 para cómo conseguirla.
 
 ### 2.6 Verificar la instalación (antes de lanzar nada largo)
 
@@ -469,16 +489,16 @@ reporte para confirmar qué columnas trae cada fuente (por ejemplo, si
 ya existe población o área por municipio, o si hay que conseguirlas
 aparte).
 
-Mientras el profesor no le dé acceso a la cuenta de servicio sobre las
-tres tablas de `prueba-ofr`, el comando de arriba da 4/7 (las cuatro
-propias) de forma confiable, y eso es suficiente para seguir avanzando.
-Existe también un modo `--credenciales personal` (sección 5.17) para
-intentar las 7 de una vez usando tu cuenta personal en vez de la de
-servicio -- pero en la práctica requiere tener bien configurado
-`gcloud` y las credenciales ADC en tu máquina, y no siempre sale a la
-primera. No es necesario para seguir con el resto del EDA; queda como
-opción para quien quiera intentarlo mientras llega la respuesta del
-profesor.
+Si el profesor todavía no le ha dado acceso a la cuenta de servicio
+sobre las tres tablas de `prueba-ofr` (solo a las cuentas personales),
+usar en su lugar:
+
+```bash
+python main_local.py describir-fuentes --credenciales personal
+```
+
+Requiere `gcloud auth application-default login` una vez, con la cuenta
+de Google que el profesor autorizó. Ver sección 5.17 para el detalle.
 
 ### Comando de estado (en cualquier momento)
 
@@ -871,8 +891,9 @@ mismo lugar caen en la misma celda. Emite un panel balanceado.
 ### 5.15 `main_local.py` — orquestador
 
 Cada subcomando (`grilla`, `hansen`, `gfw`, `municipios`, `consolidar`,
-`panel-hansen`, `ideam`, `panel-ideam`, `dtd`, `panel-dtd`, `estado`)
-arma la línea de comandos correcta y lanza el script correspondiente como subproceso
+`panel-hansen`, `ideam`, `panel-ideam`, `dtd`, `panel-dtd`,
+`subir-bigquery`, `describir-fuentes`, `estado`) arma la línea de
+comandos correcta y lanza el script correspondiente como subproceso
 (`subprocess.call`), excepto `consolidar`, que importa la función
 directamente. `estado` es el único que no delega: lista lo que hay en
 disco en cada etapa y cuáles de las cuatro tablas ya existen.
@@ -963,23 +984,15 @@ para todo el equipo). Se regenera completo cada vez que se corre —no
 es incremental— así que basta con volver a correrlo cuando cambien las
 tablas de origen para mantenerlo al día.
 
-**Modo `--credenciales personal` (opcional, mientras se autoriza la
-cuenta de servicio).** El profesor le dio acceso de lectura a las tres
-tablas de `prueba-ofr` a las cuentas personales del equipo desde el
-principio, pero a la cuenta de servicio `pipeline-satelital` no (se le
-pidió por correo aparte, pendiente de respuesta). En teoría, mientras
+**Modo `--credenciales personal` (mientras se autoriza la cuenta de
+servicio).** El profesor le dio acceso de lectura a las tres tablas de
+`prueba-ofr` a las cuentas personales del equipo desde el principio,
+pero a la cuenta de servicio `pipeline-satelital` no (se le pidió por
+correo aparte, pendiente de respuesta). Mientras
 llega esa autorización, `python main_local.py describir-fuentes
 --credenciales personal` usa tu propia cuenta de Google en vez de la
 cuenta de servicio, vía Application Default Credentials (ADC), y con eso
-se podrían describir las 7 fuentes de una vez. **En la práctica esto
-depende de que `gcloud` y las credenciales ADC de tu máquina estén bien
-configuradas, y puede fallar de formas no evidentes** (por ejemplo, si
-el navegador que abre el login usa una cuenta de Google distinta a la
-autorizada, o si el archivo de credenciales de ADC no queda guardado
-correctamente) — no es indispensable para avanzar con el resto del EDA,
-así que úsalo solo si quieres intentarlo; el comando normal (sección
-anterior) ya deja las 4 tablas propias completas, que es suficiente
-mientras tanto. Si lo intentas, requiere:
+sí se pueden describir las 7 fuentes de una vez. Requiere:
 
 1. Tener instalado el Google Cloud CLI (`gcloud --version`; si no está,
    instalarlo desde <https://cloud.google.com/sdk/docs/install>).
@@ -1310,30 +1323,41 @@ reimplementa la geometría del reparto: la hereda.
 
 ---
 
-## 10. Análisis exploratorio (pendiente)
+## 10. Análisis exploratorio
 
 Para una descripción rápida de qué contiene cada tabla —dimensiones,
 columnas, tipos, una muestra y un mapa en folium que compara el patrón
 espacial de las cuatro fuentes— está
 [`catalogo_paneles.ipynb`](catalogo_paneles.ipynb), que lee las cifras de
-los propios archivos y por tanto se mantiene al día. No sustituye al
-análisis exploratorio: solo describe las salidas.
+los propios archivos y por tanto se mantiene al día.
 
-El análisis exploratorio sobre las cuatro tablas está pendiente de
-elaborar. Lo que debería cubrir:
+El EDA propiamente dicho (acordado con el tutor) ya arrancó, en dos
+piezas:
+
+1. **Paso 1 — inventario de las 7 fuentes** (sección 5.17): columnas,
+   tipos, número de filas y una muestra de cada una, incluidas las tres
+   tablas del Observatorio. Ver `DESCRIPCION_FUENTES.md`.
+2. **Distribución de cada fuente** (sección "5. Distribución de cada
+   fuente" dentro de `catalogo_paneles.ipynb`): % de ceros, histogramas
+   de la medida principal a nivel celda y por municipio, y un boxplot de
+   dispersión departamental, con la sección de "Hallazgos" ya completada
+   -- declara explícitamente que el sesgo observado es una característica
+   del fenómeno (no un problema de calidad) y qué implica para el
+   modelado.
+
+Lo que todavía está pendiente de elaborar sobre las cuatro tablas:
 
 - **Panel de alertas**: balance del panel (`filas = celdas × periodos`),
-  desbalance de la variable `evento`, evolución temporal, estacionalidad,
-  distribución de `tasa_def`, ranking departamental, concentración
-  espacial y autocorrelación temporal.
+  evolución temporal, estacionalidad, y autocorrelación temporal.
 - **Panel de Hansen**: serie anual de pérdida de cobertura y su relación
-  con la cifra oficial, año a año.
-- **Panel del IDEAM**: serie por periodo contra la cifra oficial, ranking
-  municipal de deforestación, y tasas calculadas con `bosque_ideam_ha`
-  (ver sección 4).
-- **Comparación entre los tres**: las razones Hansen/IDEAM y GFW/IDEAM
-  por año y por región, y los municipios que aparecen señalados por las
-  tres fuentes a la vez.
+  con la cifra oficial, año a año (ya iniciado con los totales de la
+  sección "Las tres fuentes en hectáreas, lado a lado" del notebook).
+- **Comparación entre las tres**: las razones Hansen/IDEAM y GFW/IDEAM
+  por región (por año ya está en el notebook), y los municipios que
+  aparecen señalados por las tres fuentes a la vez.
+- **Periodo de tiempo a usar y por qué** (pendiente del tutor) y
+  **KPIs propuestos** (ver METODOLOGIA.md y las notas de reunión) --
+  ninguno de los dos depende de código, son decisiones a documentar.
 
 Las dependencias para hacerlo (`matplotlib`, `jupyter`) están declaradas
 en `requirements_local.txt`.
