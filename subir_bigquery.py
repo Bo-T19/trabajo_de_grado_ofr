@@ -106,7 +106,13 @@ def _subir_tabla(client, dataset: str, archivo: Path, tabla: str) -> bool:
             archivo.name)
         return False
 
-    df = pd.read_csv(archivo)
+    # cod_dane hay que leerlo como texto: los codigos DANE llevan cero a
+    # la izquierda en Antioquia (05001) y Atlantico (08001), y si pandas
+    # lo infiere como entero (lo hace por defecto, porque el texto del
+    # CSV "parece" numerico) ese cero desaparece -- y luego autodetect=True
+    # de BigQuery hereda ese tipo INTEGER al crear/reemplazar la tabla.
+    # Mismo criterio que cargar() en catalogo_paneles.ipynb.
+    df = pd.read_csv(archivo, dtype={"cod_dane": "string"})
     destino = f"{PROYECTO}.{dataset}.{tabla}"
     job_config = bigquery.LoadJobConfig(
         autodetect=True,

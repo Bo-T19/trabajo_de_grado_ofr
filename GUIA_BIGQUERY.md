@@ -59,10 +59,9 @@ crédito agropecuario y producción.
 **Ubicación `US` (multi-región) en ambos datasets.** Es la ubicación
 por defecto más simple para el nivel gratuito de BigQuery (Sandbox) y
 no tiene costo de almacenamiento en el rango que maneja este proyecto.
-**Importante:** si el proyecto del profesor/Observatorio usa una
-ubicación distinta, un `JOIN` directo entre sus tablas y las nuestras
-puede fallar o requerir copiar datos primero — ver el pendiente en la
-sección 7.
+**Importante:** el proyecto del profesor/Observatorio (`prueba-ofr`)
+resultó compatible -- las consultas cross-project ya corren sin error
+de ubicación (ver sección 7).
 
 **Una cuenta de servicio (`pipeline-satelital`), no la cuenta de
 Gmail del equipo.** La cuenta de Gmail es una *cuenta de usuario*: sirve
@@ -237,21 +236,31 @@ llaves activas a la vez, cada una revocable por separado.
 - **Bucket de Cloud Storage**: bloqueado hasta activar una cuenta de
   facturación (tarjeta propia o institucional de la Javeriana). Ver
   sección 3.6 para los pasos una vez esté disponible.
-- **Ubicación del proyecto del profesor/Observatorio**: falta
-  confirmar en qué ubicación (`US`, `EU`, una región puntual) están sus
-  datasets de BigQuery. Si no coincide con `US`, un `JOIN` directo
-  entre sus tablas (Finagro, UPRA, Superfinanciera) y las de este
-  proyecto puede no funcionar sin copiar datos a una ubicación común —
-  hay que revisarlo apenas se confirme el acceso de lectura.
-- **Acceso de lectura al proyecto del profesor**: sigue pendiente de
-  que lo otorgue (ver seguimiento por correo aparte). Una vez
-  concedido, **no** hace falta copiar sus tablas a este proyecto: se
-  pueden consultar directamente con su `proyecto.dataset.tabla`
-  completo en cualquier `JOIN`, siempre que las ubicaciones coincidan
-  (punto anterior).
+- ~~Ubicación del proyecto del profesor/Observatorio~~ — **resuelto**:
+  las consultas cross-project contra `prueba-ofr` (`describir_fuentes_profesor.py`,
+  GUIA_CODIGO.md sección 5.18) corren sin error de ubicación, así que
+  las regiones son compatibles y no hace falta copiar datos primero.
+- **Acceso de la cuenta de servicio al proyecto del profesor**: el
+  profesor le dio acceso de lectura a las tres tablas puntuales
+  (`FINAGRO_Desembolsos_EFECTIVA`, `SFC414_DASH`, `Municipios.CODIGO`)
+  a las **cuentas personales** del equipo desde el 14/09/2026 -- ya
+  verificado y en uso (ver `describir_fuentes_profesor.py`). Lo que
+  sigue pendiente es que también se lo dé a la **cuenta de servicio**
+  `pipeline-satelital` (se le pidió por correo aparte, sin respuesta
+  aún); mientras tanto, `describir_fuentes_profesor.py` usa la cuenta
+  personal vía ADC como solución temporal (ver GUIA_CODIGO.md sección
+  5.18). Una vez concedido a la cuenta de servicio, **no** hace falta
+  copiar sus tablas a este proyecto: se pueden consultar directamente
+  con su `proyecto.dataset.tabla` completo en cualquier `JOIN`.
 - **Tablas de `analitica`**: todavía no existen. Se crearán cuando el
   equipo defina el cruce municipal entre el índice de deforestación
-  (`staging`) y las variables financieras del Observatorio.
+  (`staging`) y las variables financieras del Observatorio. La
+  compatibilidad de la llave municipal (`cod_dane`) ya se verificó por
+  separado -- ver `catalogo_paneles.ipynb` sección 6 y GUIA_CODIGO.md
+  sección 10: 99.9% de match tratando `cod_dane` como texto de 5
+  caracteres con cero a la izquierda (la tabla `staging.*` de este
+  proyecto lo guarda como INTEGER, así que un `JOIN` directo en
+  BigQuery necesita `LPAD(CAST(cod_dane AS STRING), 5, '0')` primero).
 
 ## 8. Solución de problemas
 

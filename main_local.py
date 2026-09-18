@@ -67,22 +67,23 @@ USO — en este orden
         Ver subir_bigquery.py y GUIA_CODIGO.md seccion 5.16.
 
     python main_local.py describir-fuentes
-        Paso 1 del EDA: describe las siete fuentes que se van a cruzar
-        (las cuatro tablas del panel propio en BigQuery + las tres
-        tablas de solo lectura del Observatorio en prueba-ofr) --
-        columnas, tipos de dato, numero de filas y una muestra de 5
-        filas por tabla. Requiere la misma credencial que
+        Paso 1 del EDA: describe las cuatro tablas del panel propio en
+        BigQuery -- columnas, tipos de dato, numero de filas y una
+        muestra de 5 filas por tabla. Requiere la misma credencial que
         subir-bigquery. Genera/actualiza DESCRIPCION_FUENTES.md en la
         raiz del repositorio. Ver describir_fuentes.py.
 
-    python main_local.py describir-fuentes --credenciales personal
-        Igual, pero usando tu propia cuenta de Google (ADC) en vez de la
-        cuenta de servicio -- solucion temporal mientras el profesor le
-        da acceso a la cuenta de servicio sobre las tres tablas de
-        prueba-ofr. Requiere "gcloud auth application-default login" una
-        vez, iniciando sesion con la cuenta que el profesor autorizo.
-        Cuando el profesor confirme el acceso de la cuenta de servicio,
-        se vuelve a correr sin esta bandera. Ver describir_fuentes.py.
+    python main_local.py describir-fuentes-profesor
+        Igual, pero para las tres tablas de solo lectura del
+        Observatorio en prueba-ofr, usando tu cuenta personal de
+        Google (ADC) en vez de la cuenta de servicio -- solucion
+        temporal mientras el profesor le da acceso a la cuenta de
+        servicio sobre esas tres tablas. Requiere "gcloud auth
+        application-default login" una vez, iniciando sesion con la
+        cuenta que el profesor autorizo. Genera
+        DESCRIPCION_FUENTES_PROFESOR.md aparte. Cuando el profesor
+        confirme el acceso de la cuenta de servicio, este comando deja
+        de ser necesario. Ver describir_fuentes_profesor.py.
 ======================================================================
 """
 from __future__ import annotations
@@ -176,11 +177,8 @@ def main() -> int:
     pb.add_argument("--dataset", default=None,
                     help="Dataset de BigQuery destino (default: staging, ver subir_bigquery.py).")
 
-    pf = sub.add_parser("describir-fuentes")
-    pf.add_argument("--credenciales", choices=["servicio", "personal"], default="servicio",
-                    help=("'servicio' (default) o 'personal' (tu cuenta de Google via "
-                          "ADC, mientras se autoriza la cuenta de servicio). Ver "
-                          "describir_fuentes.py."))
+    sub.add_parser("describir-fuentes")
+    sub.add_parser("describir-fuentes-profesor")
 
     pc = sub.add_parser("consolidar")
     pc.add_argument("--dane", default=None,
@@ -230,10 +228,10 @@ def main() -> int:
         return _correr("subir_bigquery.py", *args)
 
     if a.cmd == "describir-fuentes":
-        args = []
-        if a.credenciales != "servicio":
-            args += ["--credenciales", a.credenciales]
-        return _correr("describir_fuentes.py", *args)
+        return _correr("describir_fuentes.py")
+
+    if a.cmd == "describir-fuentes-profesor":
+        return _correr("describir_fuentes_profesor.py")
 
     if a.cmd == "consolidar":
         # A diferencia de los demas subcomandos, este SI importa la

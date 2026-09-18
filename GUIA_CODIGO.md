@@ -66,8 +66,10 @@ trabajo_de_grado/
 │
 │   ── BIGQUERY Y EDA (Paso 1) ──────────────────────────────────────
 ├── subir_bigquery.py         sube las cuatro tablas propias a BigQuery (opcional)
-├── describir_fuentes.py      Paso 1 del EDA: describe las 7 fuentes -> DESCRIPCION_FUENTES.md
+├── describir_fuentes.py      Paso 1 del EDA: describe las 4 tablas propias -> DESCRIPCION_FUENTES.md
 ├── DESCRIPCION_FUENTES.md    salida de describir_fuentes.py (se regenera cada corrida)
+├── describir_fuentes_profesor.py  igual, para las 3 tablas del profesor (cuenta personal)
+├── DESCRIPCION_FUENTES_PROFESOR.md  salida de describir_fuentes_profesor.py
 │
 │   ── PRUEBA DE CONCEPTO: deforestación derivada de imagen cruda ──
 ├── demo_landsat_caqueta.py   deriva pérdida de bosque desde Landsat
@@ -185,9 +187,10 @@ branca>=0.7                # escala de color del mapa; igual que shapely, llega 
 scipy>=1.11                # componentes conexas para el filtro de parche (demo_landsat_caqueta.py, seccion 9)
 matplotlib>=3.7            # graficas del analisis exploratorio (seccion 10)
 jupyter>=1.0               # entorno del analisis exploratorio
-google-cloud-bigquery>=3.25 # subir_bigquery.py y describir_fuentes.py: leer/cargar tablas de BigQuery (opcional)
-db-dtypes>=1.2              # describir_fuentes.py: to_dataframe() de un resultado de BigQuery
-tabulate>=0.9               # describir_fuentes.py: DataFrame.to_markdown() para el reporte
+google-cloud-bigquery>=3.25 # subir_bigquery.py y describir_fuentes(_profesor).py: leer/cargar tablas de BigQuery (opcional)
+db-dtypes>=1.2              # describir_fuentes(_profesor).py: to_dataframe() de un resultado de BigQuery
+tabulate>=0.9               # describir_fuentes(_profesor).py: DataFrame.to_markdown() para el reporte
+google-auth>=2.23           # describir_fuentes_profesor.py: credenciales personales (ADC), ver seccion 5.18
 ```
 
 Las últimas tres (`google-cloud-bigquery`, `db-dtypes`, `tabulate`) solo
@@ -220,6 +223,12 @@ Adicionalmente, y solo si va a subir las tablas a BigQuery o correr el
 Paso 1 del EDA (Pasos 11-12), hace falta una segunda credencial: la
 llave de la cuenta de servicio `pipeline-satelital` en
 `datos/logs/bigquery-key.json`. Ver sección 5.16 para cómo conseguirla.
+
+Si además quiere describir las tres tablas del profesor mientras la
+cuenta de servicio no tiene acceso a ellas (Paso 13), hace falta una
+tercera credencial, pero sin archivo que guardar: su propia cuenta
+personal de Google, vía `gcloud auth application-default login` (una
+sola vez por máquina). Ver sección 5.18.
 
 ### 2.6 Verificar la instalación (antes de lanzar nada largo)
 
@@ -474,31 +483,38 @@ llave de la cuenta de servicio `pipeline-satelital` en
 después de cada paso anterior, tantas veces como se quiera: siempre
 reemplaza la tabla completa en BigQuery, nunca duplica filas.
 
-### Paso 12 — describir las siete fuentes (Paso 1 del EDA, requiere credencial)
+### Paso 12 — describir las cuatro tablas propias (Paso 1 del EDA, requiere credencial)
 
 ```bash
 python main_local.py describir-fuentes
 ```
 
-Consulta en BigQuery las cuatro tablas propias y las tres del
-Observatorio, y deja columnas, tipos de dato, número de filas y una
-muestra de cada una en `DESCRIPCION_FUENTES.md`. Es el punto de
-partida del EDA (sección 5.17): antes de decidir el periodo de tiempo,
-declarar si hace falta limpieza o proponer KPIs, hay que revisar ese
-reporte para confirmar qué columnas trae cada fuente (por ejemplo, si
-ya existe población o área por municipio, o si hay que conseguirlas
-aparte).
+Consulta en BigQuery las cuatro tablas del panel propio, y deja
+columnas, tipos de dato, número de filas y una muestra de cada una en
+`DESCRIPCION_FUENTES.md`. Es el punto de partida del EDA (sección
+5.17): antes de decidir el periodo de tiempo, declarar si hace falta
+limpieza o proponer KPIs, hay que revisar ese reporte para confirmar
+qué columnas trae cada fuente (por ejemplo, si ya existe población o
+área por municipio, o si hay que conseguirlas aparte).
 
-Si el profesor todavía no le ha dado acceso a la cuenta de servicio
-sobre las tres tablas de `prueba-ofr` (solo a las cuentas personales),
-usar en su lugar:
+### Paso 13 — describir las tres tablas del profesor (cuenta personal)
 
 ```bash
-python main_local.py describir-fuentes --credenciales personal
+python main_local.py describir-fuentes-profesor
 ```
 
-Requiere `gcloud auth application-default login` una vez, con la cuenta
-de Google que el profesor autorizó. Ver sección 5.17 para el detalle.
+Igual que el paso anterior, pero para las tres tablas de solo lectura
+del Observatorio (`prueba-ofr`), y usando tu cuenta personal de Google
+en vez de la cuenta de servicio -- solución temporal mientras el
+profesor le da acceso a la cuenta de servicio sobre esas tres tablas
+(se le pidió por correo, pendiente de respuesta). Requiere
+`gcloud auth application-default login` una vez, iniciando sesión con
+la MISMA cuenta de Google que el profesor autorizó. Deja el resultado
+en `DESCRIPCION_FUENTES_PROFESOR.md`, aparte de `DESCRIPCION_FUENTES.md`.
+Ver sección 5.18 para el detalle. Cuando el profesor confirme el acceso
+de la cuenta de servicio, este paso deja de ser necesario: esas tres
+tablas se agregan de vuelta a `describir_fuentes.py` y el Paso 12 solo
+vuelve a cubrir las siete de una vez.
 
 ### Comando de estado (en cualquier momento)
 
@@ -892,8 +908,9 @@ mismo lugar caen en la misma celda. Emite un panel balanceado.
 
 Cada subcomando (`grilla`, `hansen`, `gfw`, `municipios`, `consolidar`,
 `panel-hansen`, `ideam`, `panel-ideam`, `dtd`, `panel-dtd`,
-`subir-bigquery`, `describir-fuentes`, `estado`) arma la línea de
-comandos correcta y lanza el script correspondiente como subproceso
+`subir-bigquery`, `describir-fuentes`, `describir-fuentes-profesor`,
+`estado`) arma la línea de comandos correcta y lanza el script
+correspondiente como subproceso
 (`subprocess.call`), excepto `consolidar`, que importa la función
 directamente. `estado` es el único que no delega: lista lo que hay en
 disco en cada etapa y cuáles de las cuatro tablas ya existen.
@@ -958,7 +975,7 @@ Tablas destino (todas en el dataset `staging`):
 Uso: `python main_local.py subir-bigquery` (o `--solo gfw,hansen` para
 subir solo algunas). Ver el docstring del propio script para el detalle.
 
-### 5.17 `describir_fuentes.py` — Paso 1 del EDA: describir las siete fuentes
+### 5.17 `describir_fuentes.py` — Paso 1 del EDA: describir las cuatro tablas propias
 
 Corresponde al primer paso del EDA acordado con el tutor ("organizar
 la información: extracción" y "analizar datos y declarar si se
@@ -966,16 +983,14 @@ necesita limpieza"): antes de poder decidir el periodo de tiempo,
 proponer KPIs o cruzar las tablas, hay que saber con certeza qué tiene
 cada una.
 
-Consulta directamente en BigQuery las siete fuentes que se van a
-cruzar —las cuatro tablas del panel propio (`staging`, sección 5.16) y
-las tres tablas de solo lectura del Observatorio en `prueba-ofr`— y
-para cada una obtiene columnas y tipos de dato, número de filas, y una
-muestra de 5 filas. Todo se obtiene corriendo consultas normales
-(`SELECT ...`), nunca pidiendo metadatos del dataset (`INFORMATION_SCHEMA`,
-listar tablas): las tablas del profesor solo tienen permiso de lectura
-a nivel de esa tabla puntual, y pedir metadatos del dataset da "Access
-Denied" con ese permiso (ver `GUIA_BIGQUERY.md`), mientras que correr
-una consulta sí funciona igual para las tablas propias y las ajenas.
+Consulta directamente en BigQuery las cuatro tablas del panel propio
+(`staging`, sección 5.16) y para cada una obtiene columnas y tipos de
+dato, número de filas, y una muestra de 5 filas. Todo se obtiene
+corriendo consultas normales (`SELECT ...`), nunca pidiendo metadatos
+del dataset (`INFORMATION_SCHEMA`, listar tablas) -- ver el porqué en
+`describir_fuentes_profesor.py` (sección 5.18), que reutiliza esta
+misma lógica (`_describir_tabla()`) para las tablas del profesor, cuyo
+permiso sí depende de eso.
 
 Usa la misma credencial que `subir-bigquery` (`datos/logs/bigquery-key.json`).
 Deja el resultado en `DESCRIPCION_FUENTES.md`, en la raíz del
@@ -984,28 +999,59 @@ para todo el equipo). Se regenera completo cada vez que se corre —no
 es incremental— así que basta con volver a correrlo cuando cambien las
 tablas de origen para mantenerlo al día.
 
-**Modo `--credenciales personal` (mientras se autoriza la cuenta de
-servicio).** El profesor le dio acceso de lectura a las tres tablas de
-`prueba-ofr` a las cuentas personales del equipo desde el principio,
-pero a la cuenta de servicio `pipeline-satelital` no (se le pidió por
-correo aparte, pendiente de respuesta). Mientras
-llega esa autorización, `python main_local.py describir-fuentes
---credenciales personal` usa tu propia cuenta de Google en vez de la
-cuenta de servicio, vía Application Default Credentials (ADC), y con eso
-sí se pueden describir las 7 fuentes de una vez. Requiere:
+Las tres tablas de solo lectura del Observatorio (`prueba-ofr`) NO
+están en este script: la cuenta de servicio todavía no tiene acceso a
+ellas. Se describen aparte, con la cuenta personal, en
+`describir_fuentes_profesor.py` (sección 5.18). Cuando el profesor
+autorice la cuenta de servicio, esas tres tablas se pueden agregar de
+vuelta a `FUENTES` aquí y dejar de necesitar el script aparte.
+
+Uso: `python main_local.py describir-fuentes`.
+
+### 5.18 `describir_fuentes_profesor.py` — Paso 1 del EDA: las tres tablas del profesor
+
+Hace exactamente lo mismo que `describir_fuentes.py` (columnas y tipos
+de dato, número de filas, muestra de 5 filas) pero solo para las tres
+tablas de solo lectura del Observatorio (`prueba-ofr.Inclusion_Financiera.FINAGRO_Desembolsos_EFECTIVA`,
+`prueba-ofr.Inclusion_Financiera.SFC414_DASH`, `prueba-ofr.Municipios.CODIGO`),
+y deja el resultado en un reporte aparte: `DESCRIPCION_FUENTES_PROFESOR.md`.
+Reutiliza `_describir_tabla()` de `describir_fuentes.py` (mismo import),
+así que la lógica de consulta -- siempre `SELECT`, nunca metadatos del
+dataset, porque el permiso del profesor es solo a nivel de tabla
+puntual (ver `GUIA_BIGQUERY.md`) -- es una sola, compartida entre los
+dos scripts.
+
+**Por qué un script aparte, y no una bandera dentro de `describir_fuentes.py`.**
+El profesor le dio acceso de lectura a estas tres tablas a las cuentas
+personales del equipo desde el 14/09/2026, pero todavía NO a la cuenta
+de servicio `pipeline-satelital` (se le pidió por correo, pendiente de
+respuesta). Este script por eso usa SIEMPRE la cuenta personal
+(Application Default Credentials / ADC) -- no tiene modo "servicio" ni
+bandera que elegir, para no repetir la confusión de tener dos flujos de
+credenciales mezclados en el mismo comando (así estaba antes, con
+`describir-fuentes --credenciales personal`, y costó bastante depurar).
+
+Requiere:
 
 1. Tener instalado el Google Cloud CLI (`gcloud --version`; si no está,
    instalarlo desde <https://cloud.google.com/sdk/docs/install>).
 2. Correr una sola vez por máquina: `gcloud auth application-default login`
    — abre el navegador, hay que iniciar sesión con la MISMA cuenta de
-   Google que el profesor autorizó.
+   Google que el profesor autorizó. En la pantalla de permisos, marcar
+   **todos** los checkboxes (o "Select all") antes de continuar -- si
+   queda alguno sin marcar da el error "cloud-platform scope is
+   required but not consented".
+3. Si el navegador por defecto no es donde tienes esa cuenta iniciada
+   (por ejemplo PowerShell abre Edge pero la cuenta está validada en
+   Chrome), copiar la URL que imprime el comando y pegarla en el
+   navegador correcto, o usar `gcloud auth application-default login --no-browser`.
 
-El resto del script es idéntico en ambos modos (mismo `FUENTES`, mismo
-reporte). Cuando el profesor confirme el acceso de la cuenta de
-servicio, se vuelve a correr sin la bandera (`--credenciales servicio`,
-el valor por defecto) y no hay que tocar nada más del código.
+Cuando el profesor confirme el acceso de la cuenta de servicio, este
+script deja de ser necesario: las tres tablas se agregan de vuelta a
+`describir_fuentes.py` y `python main_local.py describir-fuentes`
+vuelve a cubrir las siete de una vez.
 
-Uso: `python main_local.py describir-fuentes`.
+Uso: `python main_local.py describir-fuentes-profesor`.
 
 ---
 
@@ -1331,12 +1377,14 @@ espacial de las cuatro fuentes— está
 [`catalogo_paneles.ipynb`](catalogo_paneles.ipynb), que lee las cifras de
 los propios archivos y por tanto se mantiene al día.
 
-El EDA propiamente dicho (acordado con el tutor) ya arrancó, en dos
+El EDA propiamente dicho (acordado con el tutor) ya arrancó, en tres
 piezas:
 
-1. **Paso 1 — inventario de las 7 fuentes** (sección 5.17): columnas,
-   tipos, número de filas y una muestra de cada una, incluidas las tres
-   tablas del Observatorio. Ver `DESCRIPCION_FUENTES.md`.
+1. **Paso 1 — inventario de las 7 fuentes** (secciones 5.17 y 5.18):
+   columnas, tipos, número de filas y una muestra de cada una. Las
+   cuatro propias en `DESCRIPCION_FUENTES.md`; las tres del Observatorio,
+   con la cuenta personal mientras se autoriza la de servicio, en
+   `DESCRIPCION_FUENTES_PROFESOR.md`.
 2. **Distribución de cada fuente** (sección "5. Distribución de cada
    fuente" dentro de `catalogo_paneles.ipynb`): % de ceros, histogramas
    de la medida principal a nivel celda y por municipio, y un boxplot de
@@ -1344,6 +1392,17 @@ piezas:
    -- declara explícitamente que el sesgo observado es una característica
    del fenómeno (no un problema de calidad) y qué implica para el
    modelado.
+3. **Llave municipal vs. las tablas del Observatorio** (sección "6.
+   Llave municipal" del notebook): ya resuelto -- 1,113 de 1,114
+   municipios propios (99.9%) cruzan bien contra `Municipios.CODIGO`
+   del profesor al tratar `cod_dane` como texto de 5 caracteres con
+   cero a la izquierda. El único caso sin match (`27493`, Chocó) no es
+   un problema de formato y queda por revisar aparte. La tabla
+   `staging.*` en BigQuery guardó `cod_dane` como INTEGER (pierde el
+   cero), así que un cruce hecho directamente en BigQuery necesita
+   `LPAD(CAST(cod_dane AS STRING), 5, '0')` primero; en pandas, usando
+   siempre `cargar()` (celda inicial del notebook), el cruce ya es
+   seguro tal cual.
 
 Lo que todavía está pendiente de elaborar sobre las cuatro tablas:
 

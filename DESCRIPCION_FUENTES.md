@@ -27,7 +27,7 @@ Filas: **3,524,664** -- Columnas: **19**
 | media_movil_3 | FLOAT |
 | anio | INTEGER |
 | mes | INTEGER |
-| cod_dane | INTEGER |
+| cod_dane | STRING |
 | municipio | STRING |
 
 Muestra (primeras 5 filas):
@@ -55,7 +55,7 @@ Filas: **267,696** -- Columnas: **9**
 | lat | FLOAT |
 | departamento | STRING |
 | bosque_base_ha | FLOAT |
-| cod_dane | INTEGER |
+| cod_dane | STRING |
 | municipio | STRING |
 
 Muestra (primeras 5 filas):
@@ -89,7 +89,7 @@ Filas: **223,080** -- Columnas: **15**
 | lat | FLOAT |
 | departamento | STRING |
 | bosque_base_ha | FLOAT |
-| cod_dane | INTEGER |
+| cod_dane | STRING |
 | municipio | STRING |
 
 Muestra (primeras 5 filas):
@@ -122,7 +122,7 @@ Filas: **1,115,400** -- Columnas: **14**
 | lat | FLOAT |
 | departamento | STRING |
 | bosque_base_ha | FLOAT |
-| cod_dane | INTEGER |
+| cod_dane | STRING |
 | municipio | STRING |
 
 Muestra (primeras 5 filas):
@@ -134,33 +134,3 @@ Muestra (primeras 5 filas):
 | -668857_13075 | 2020-01-01 | 2020-T1         |   2020 |           1 |           0 |                 0 | True               | -66.8857 | 1.30752 | Guainía        |          2111.56 |      94885 | La Guadalupe |
 | -668859_12627 | 2020-01-01 | 2020-T1         |   2020 |           1 |           0 |                 0 | True               | -66.8859 | 1.26266 | Guainía        |          2016.19 |      94885 | La Guadalupe |
 | -669296_15320 | 2020-01-01 | 2020-T1         |   2020 |           1 |           0 |                 0 | True               | -66.9296 | 1.53197 | Guainía        |          1928.25 |      94885 | La Guadalupe |
-
-## FINAGRO - desembolsos de credito (Observatorio, solo lectura)
-
-Tabla: `prueba-ofr.Inclusion_Financiera.FINAGRO_Desembolsos_EFECTIVA`
-
-**No se pudo leer esta tabla:** 403 Access Denied: Table prueba-ofr:Inclusion_Financiera.FINAGRO_Desembolsos_EFECTIVA: User does not have permission to query table prueba-ofr:Inclusion_Financiera.FINAGRO_Desembolsos_EFECTIVA, or perhaps it does not exist.; reason: accessDenied, message: Access Denied: Table prueba-ofr:Inclusion_Financiera.FINAGRO_Desembolsos_EFECTIVA: User does not have permission to query table prueba-ofr:Inclusion_Financiera.FINAGRO_Desembolsos_EFECTIVA, or perhaps it does not exist.
-
-Location: US
-Job ID: 09634ac1-7dfa-4503-b6c2-79297ac45ddc
-
-
-## SFC414 (Observatorio, solo lectura)
-
-Tabla: `prueba-ofr.Inclusion_Financiera.SFC414_DASH`
-
-**No se pudo leer esta tabla:** 403 Access Denied: Table prueba-ofr:Inclusion_Financiera.SFC414_DASH: User does not have permission to query table prueba-ofr:Inclusion_Financiera.SFC414_DASH, or perhaps it does not exist.; reason: accessDenied, message: Access Denied: Table prueba-ofr:Inclusion_Financiera.SFC414_DASH: User does not have permission to query table prueba-ofr:Inclusion_Financiera.SFC414_DASH, or perhaps it does not exist.
-
-Location: US
-Job ID: e325c006-d3f7-4d03-ac46-5378104c8207
-
-
-## Municipios - codigo (Observatorio, solo lectura)
-
-Tabla: `prueba-ofr.Municipios.CODIGO`
-
-**No se pudo leer esta tabla:** 403 Access Denied: Table prueba-ofr:Municipios.CODIGO: User does not have permission to query table prueba-ofr:Municipios.CODIGO, or perhaps it does not exist.; reason: accessDenied, message: Access Denied: Table prueba-ofr:Municipios.CODIGO: User does not have permission to query table prueba-ofr:Municipios.CODIGO, or perhaps it does not exist.
-
-Location: US
-Job ID: ac18f538-0617-426e-96ec-f55f9d124962
-
