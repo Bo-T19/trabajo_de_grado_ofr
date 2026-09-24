@@ -30,7 +30,8 @@ sección 1.2, donde se explica qué mide cada fuente del proyecto.
 17. [Paso 12 — La comparación por celda](#paso-12--la-comparación-por-celda)
 18. [Paso 13 — La muestra para validación visual](#paso-13--la-muestra-para-validación-visual)
 19. [Los resultados, interpretados](#los-resultados-interpretados)
-20. [Lo que esta demo no demuestra](#lo-que-esta-demo-no-demuestra)
+20. [Por qué los resultados son como son](#por-qué-los-resultados-son-como-son)
+21. [Lo que esta demo no demuestra](#lo-que-esta-demo-no-demuestra)
 ---
 
 ## 1. Qué problema resuelve
@@ -926,6 +927,186 @@ varias cosas:
 - Errores genuinos de cualquiera de los dos.
 
 Para distinguir cuál es cuál hace falta la validación visual del paso 13.
+
+---
+
+## Por qué los resultados son como son
+
+El F1 por píxel es 0,505 y la correlación por celda de 5 km es 0,909. Esa
+diferencia no es un accidente de las cifras: tiene causas concretas, y
+tres de ellas se pueden medir.
+
+### El fondo del asunto
+
+El método le pide a un solo número —el dNBR— que conteste una pregunta de
+sí o no. Eso funcionaría si el bosque diera valores bajos y la tala
+valores altos, con un hueco en el medio donde poner la raya.
+
+No pasa eso. Hay bosque intacto con dNBR alto y hay tala real con dNBR
+bajo. Los dos grupos **se traslapan**, y dentro del traslape cualquier
+umbral se equivoca. Lo que sigue explica de dónde sale ese traslape.
+
+### Causa 1 — Los bordes de un claro son mitad y mitad
+
+Cada píxel es un cuadro de 30 × 30 m, y el satélite entrega **un solo
+valor por cuadro**: el promedio de todo lo que hay dentro.
+
+Cuando se tumba monte, el claro no queda alineado con la cuadrícula. Su
+orilla parte varios píxeles por la mitad, y esos píxeles quedan con mitad
+árboles y mitad suelo desnudo.
+
+Con cifras redondas: si un píxel de puro bosque marca 0,85 y uno de puro
+claro marca 0,15, entonces tumbar el píxel completo lo hace caer 0,70 —
+muy por encima de la raya de 0,35. Pero un píxel partido por la mitad cae
+aproximadamente la mitad: **0,35 justo**.
+
+Ahí no hay respuesta correcta. Contarlo entero sobreestima el área;
+descartarlo la subestima. El umbral tiene que elegir una de las dos.
+
+Como esos píxeles de orilla caen justo por encima de la raya, el método
+los cuenta, y **cada claro sale con un anillo de más**. GLAD-L no los
+cuenta, porque exige confirmación en varias fechas y la orilla es
+dudosa.
+
+### Causa 2 — La mediana de tres lecturas no es confiable
+
+De las 38 escenas del trimestre, el píxel mediano tuvo **5 observaciones
+limpias en T1 y 3 en T2**: la nubosidad descartó el 85 %.
+
+Sacar la mediana de tres valores es frágil. Si uno de los tres traía nube
+residual que la máscara no atrapó, el dNBR de ese píxel es ruido, y nada
+lo delata.
+
+Esto es lo que más pesa, y se mide en `curva_observabilidad.csv`, que
+trae la misma cuenta leída de dos formas.
+
+**Por tramo exacto**, o sea mirando solo los píxeles que tuvieron
+exactamente ese número de lecturas:
+
+| Observaciones | Cobertura | F1 |
+|---|---|---|
+| 3 | 24,2 % | **0,285** |
+| 4–5 | 28,3 % | 0,362 |
+| 6–9 | 39,3 % | 0,529 |
+| 10 o más | 4,1 % | **0,693** |
+
+Mismo método, mismo umbral, misma zona. Lo único que cambia es cuántas
+veces se pudo ver el píxel, y el F1 se multiplica por dos y medio. Las
+44 000 ha que solo alcanzaron tres lecturas son las que arrastran el
+promedio general hacia 0,505.
+
+**Por tramo acumulado**, o sea qué pasaría si el dominio subiera su barra:
+
+| Exige al menos | Cobertura | F1 |
+|---|---|---|
+| 1 (el dominio actual) | 100 % | 0,505 |
+| 4 | 71,7 % | 0,526 |
+| 6 | 43,4 % | **0,562** |
+| 10 | 4,1 % | 0,693 |
+
+> **Las filas exactas de pocas observaciones hay que leerlas con
+> cuidado.** Recortar el dominio a esos píxeles los deja dispersos, y el
+> filtro de parche exige 12 píxeles conexos *dentro* del dominio. Con una
+> sola observación no se forma ningún parche y el F1 sale 0,000 por
+> construcción, no porque el método falle ahí. El efecto se diluye a
+> medida que el tramo cubre más área, así que las filas de 4 en adelante
+> son las fiables.
+
+### Causa 3 — Un solo umbral para toda la zona
+
+El 0,35 se aplica igual en los 7,6 millones de píxeles. Pero tumbar
+bosque tupido produce una caída grande, y tumbar bosque ya degradado
+produce una caída pequeña.
+
+Un umbral único no puede servir para los dos casos: el que funciona en el
+bosque denso deja pasar la tala en el degradado, y al revés. Un
+clasificador entrenado sobre varias variables sí podría distinguirlos,
+pero para eso hacen falta etiquetas (ver el paso 13).
+
+### Y una causa que no es del método
+
+GLAD-L tampoco acierta siempre. Parte de lo que aquí se cuenta como error
+propio es error suyo. Cuáles son cuáles no se sabe sin interpretar las
+imágenes a mano.
+
+---
+
+### Comprobación 1: las capas no están corridas
+
+La explicación fácil sería un desajuste geométrico entre las fuentes. Se
+descarta desplazando la capa propia y midiendo el F1 en cada posición:
+
+| | −2 | −1 | **0** | +1 | +2 |
+|---|---|---|---|---|---|
+| **−2** | 0,398 | 0,424 | 0,440 | 0,436 | 0,416 |
+| **−1** | 0,421 | 0,456 | 0,479 | 0,477 | 0,450 |
+| **0** | 0,433 | 0,475 | **0,505** | 0,503 | 0,469 |
+| **+1** | 0,427 | 0,467 | 0,498 | 0,496 | 0,465 |
+| **+2** | 0,409 | 0,443 | 0,465 | 0,465 | 0,443 |
+
+El máximo está exactamente en (0, 0) y cae en todas direcciones. Con un
+corrimiento de un píxel, el pico aparecería desplazado. **No hay
+desajuste de alineación**, y la reproyección común sobre la rejilla de
+trabajo está haciendo su trabajo.
+
+### Comprobación 2: los dos tipos de error tienen forma distinta
+
+Midiendo a qué distancia está cada píxel en desacuerdo del píxel de
+acuerdo más cercano:
+
+| Distancia al acuerdo más cercano | Solo propia | Solo GLAD-L |
+|---|---|---|
+| Pegado (1 px) | 399,5 ha | 162,7 ha |
+| 2–3 px | 116,9 ha | 71,9 ha |
+| 3–6 px | 95,3 ha | 84,7 ha |
+| 6–16 px | 113,0 ha | 211,7 ha |
+| Más de 16 px | 301,6 ha | **899,3 ha** |
+| **En el borde (≤ 3 px)** | **50 %** | **16 %** |
+
+Los dos errores son cosas diferentes:
+
+- **Lo que marco de más está pegado a claros reales.** La mitad, a tres
+  píxeles o menos de un acuerdo. Es la causa 1: el anillo de orilla.
+- **Lo que se me escapa son claros enteros.** 899 ha —el 63 %— a más de
+  medio kilómetro de cualquier acuerdo. No son bordes mal cortados: son
+  eventos que no vi, en su mayoría por la causa 2.
+
+### Comprobación 3: a 5 km los errores se cancelan
+
+| | Hectáreas |
+|---|---|
+| Desacuerdo bruto (solo propia + solo GLAD) | 2 457 |
+| Error neto por celda (\|mi total − total GLAD\|) | 1 222 |
+| **Se cancela dentro de las celdas** | **50 %** |
+
+Por celda con desacuerdo, la mediana del desacuerdo bruto es 14,3 ha y la
+del error neto 7,4 ha.
+
+Ahí está la explicación de la brecha entre escalas. Sobredetecto 1 026 ha
+y subdetecto 1 430 ha; dentro de una celda de 2 500 ha esas dos cosas se
+compensan, y el anillo que le sobro a un claro tapa el claro vecino que
+se me escapó. A nivel de píxel esa compensación no existe: un píxel está
+bien o está mal.
+
+> **Esa cancelación es una propiedad de esta zona, no una virtud del
+> método.** Funciona porque los dos tipos de error andan parecidos en
+> magnitud. En una región donde la sobredetección dominara, el total por
+> celda se iría hacia arriba y la correlación caería aunque el F1 por
+> píxel fuera el mismo. Lo defendible es decir que *en esta zona los
+> errores se compensan y el agregado por celda queda bien*.
+
+### Qué se puede arreglar
+
+| Causa | ¿Arreglable? | Cómo |
+|---|---|---|
+| Bordes mitad y mitad | No del todo | Es el tamaño del píxel. Se reduce con sensores de 10 m (Sentinel-2) |
+| Pocas lecturas limpias | Sí, con costo | Componer más meses difumina el cuándo; el radar lo resuelve sin ese costo |
+| Umbral único | Sí | Un clasificador sobre varias variables, una vez haya etiquetas |
+| Errores de GLAD-L | No aplica | Solo se separan con interpretación visual |
+
+La causa 2 es la que más pesa y la que explica por qué los sistemas
+operativos integran radar: Sentinel-1 atraviesa la nube, así que RADD no
+necesita acumular meses para conseguir una lectura limpia.
 
 ---
 

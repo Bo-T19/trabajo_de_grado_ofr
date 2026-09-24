@@ -882,20 +882,42 @@ def curva_observabilidad(propia_fn, glad_raw, bosque, obs_t1, obs_t2,
     ha = (ESCALA_M ** 2) / 10_000.0
     base = float((bosque & (nobs >= 1) & region).sum()) * ha
 
+    # Dos lecturas de lo mismo, y no son intercambiables:
+    #   acumulado -- "exige al menos k": es lo que pasaria si el dominio
+    #                subiera su barra, con la cobertura de area que queda.
+    #   exacto    -- "solo los pixeles con k observaciones": aisla el
+    #                efecto, porque no mezcla los bien observados con los
+    #                mal observados. Es la lectura que muestra de verdad
+    #                cuanto pesa la nubosidad.
+    #
+    # Las filas exactas de N bajo hay que leerlas con cuidado: recortar el
+    # dominio a esos pixeles los deja dispersos, y filtrar_parches() pide
+    # 12 pixeles conexos DENTRO del dominio. Con N=1 no se forma ningun
+    # parche y el F1 sale 0,000 por construccion, no porque el metodo
+    # falle ahi. El efecto se diluye a medida que el tramo cubre mas area.
+    tramos = [("acumulado", k, nobs >= k, str(k)) for k in minimos]
+    tramos += [("exacto", lo, (nobs >= lo) & (nobs <= hi), et)
+               for lo, hi, et in ((1, 1, "1"), (2, 2, "2"), (3, 3, "3"),
+                                  (4, 5, "4-5"), (6, 9, "6-9"), (10, 999, "10+"))]
+
     filas = []
-    for k in minimos:
-        dom = bosque & (nobs >= k)
+    for modo, k, cond, etiqueta in tramos:
+        dom = bosque & cond
+        sel = dom & region
+        area = float(sel.sum()) * ha
+        if area == 0:
+            continue
         gp = perdida_glad(glad_raw, dom)
         pp = propia_fn(dom, umbral)
         m = matriz_acuerdo(pp, gp, dom, region)
-        sel = dom & region
-        area = float(sel.sum()) * ha
         en_norte = float((sel & norte).sum()) * ha
         filas.append({
+            "modo": modo,
+            "obs": etiqueta,
             "obs_minimas": k,
             "dominio_ha": round(area, 1),
             "cobertura_pct": round(100 * area / base, 1) if base else 0.0,
-            "reparto_ns": round(100 * en_norte / area, 1) if area else 0.0,
+            "reparto_ns": round(100 * en_norte / area, 1),
             **m, **metricas(m),
         })
     return pd.DataFrame(filas)
@@ -1164,11 +1186,14 @@ def main() -> int:
             lambda dom, u: perdida_propia(dnbr, dom, u),
             glad_bruta, bosque, obs_t1, obs_t2, este, mejor)
         curva.to_csv(DIR_DEMO / "curva_observabilidad.csv", index=False)
-        logger.info("  obs  cobertura   norte   precision  sensib      F1")
-        for _, f in curva.iterrows():
-            logger.info("  %3d %8.1f%% %6.1f%% %10.3f %7.3f %7.3f",
-                        f.obs_minimas, f.cobertura_pct, f.reparto_ns,
-                        f.precision, f.sensibilidad, f.f1)
+        for modo, et in (("acumulado", "exige al menos N observaciones"),
+                         ("exacto", "solo los pixeles con N observaciones")):
+            logger.info("  -- %s (%s)", modo, et)
+            logger.info("     obs  cobertura   norte  precision  sensib      F1")
+            for _, f in curva[curva.modo == modo].iterrows():
+                logger.info("    %4s %8.1f%% %6.1f%% %9.3f %7.3f %7.3f",
+                            f.obs, f.cobertura_pct, f.reparto_ns,
+                            f.precision, f.sensibilidad, f.f1)
 
         # --- celdas de 5 km ------------------------------------------------
         logger.info("=" * 62)
