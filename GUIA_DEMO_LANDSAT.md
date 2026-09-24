@@ -26,11 +26,11 @@ sección 1.2, donde se explica qué mide cada fuente del proyecto.
 13. [Paso 9 — Del dNBR a la detección](#paso-9--del-dnbr-a-la-detección)
 14. [Paso 10 — Calibrar sin hacer trampa](#paso-10--calibrar-sin-hacer-trampa)
 15. [Paso 11 — Las métricas](#paso-11--las-métricas)
-16. [Paso 12 — La comparación por celda](#paso-12--la-comparación-por-celda)
-17. [Paso 13 — La muestra para validación visual](#paso-13--la-muestra-para-validación-visual)
-18. [Los resultados, interpretados](#los-resultados-interpretados)
-19. [Lo que esta demo no demuestra](#lo-que-esta-demo-no-demuestra)
-
+16. [La curva de observabilidad](#la-curva-de-observabilidad)
+17. [Paso 12 — La comparación por celda](#paso-12--la-comparación-por-celda)
+18. [Paso 13 — La muestra para validación visual](#paso-13--la-muestra-para-validación-visual)
+19. [Los resultados, interpretados](#los-resultados-interpretados)
+20. [Lo que esta demo no demuestra](#lo-que-esta-demo-no-demuestra)
 ---
 
 ## 1. Qué problema resuelve
@@ -754,6 +754,63 @@ cifra parecida.
 
 Se reporta porque suele pedirse, con ese nombre para que nadie la cite
 por descuido.
+
+---
+
+### La curva de observabilidad
+
+Un solo F1 esconde de qué depende el resultado. El dominio exige al menos
+una observación limpia; si se sube esa barra, la concordancia mejora:
+
+| Obs. mínimas | Cobertura | En el norte | Precisión | Sensibilidad | F1 |
+|---|---|---|---|---|---|
+| **1** (el dominio actual) | 100 % | 36,4 % | 0,549 | 0,467 | **0,505** |
+| 2 | 99,5 % | 36,1 % | 0,550 | 0,467 | 0,505 |
+| 3 | 95,9 % | 34,4 % | 0,556 | 0,464 | 0,506 |
+| 4 | 71,7 % | 29,2 % | 0,570 | 0,489 | 0,526 |
+| **6** | 43,4 % | 26,9 % | 0,590 | 0,537 | **0,562** |
+| 8 | 15,9 % | 5,3 % | 0,635 | 0,650 | 0,642 |
+| 10 | 4,1 % | **0,0 %** | 0,682 | 0,703 | **0,693** |
+
+Se lee así: sobre el área completa el F1 es 0,505, y sobre el 43 % mejor
+observado sube a 0,562. El método rinde donde tiene datos suficientes,
+y el promedio general lo arrastran las 44 000 ha que solo alcanzaron tres
+lecturas limpias.
+
+El filtro es por **observabilidad** —cuántas veces se pudo ver el píxel—
+y nunca por resultado. Filtrar por resultado sería quedarse con los
+aciertos, que es otra cosa.
+
+**La columna "en el norte" es la advertencia.** El número de
+observaciones lo manda la geometría orbital: en el sur de la zona se
+traslapan dos órbitas de Landsat y llegan 38 escenas, contra 19 en el
+norte. Por eso, al exigir 10 observaciones, la proporción de área en el
+norte cae a **cero**: esa fila ya no describe la zona, describe el tercio
+sur.
+
+Hasta 6 observaciones el área sigue repartida entre norte y sur, así que
+el 0,562 se puede citar. El 0,693 solo se puede citar diciendo de qué
+región se está hablando.
+
+### Por qué la ventana se queda en tres meses
+
+Más observaciones se consiguen componiendo más meses, y eso tiene un
+costo: la pérdida que ocurre **dentro** de la ventana se promedia con el
+estado anterior, y el dNBR sale intermedio.
+
+Según las fechas de GLAD en esta zona, la pérdida de 2022-2023 se reparte
+así: enero-marzo concentra el **13,6 %** del año, y enero-junio el
+**29,8 %**. Pasar de tres a seis meses duplicaría la fracción de eventos
+que se difuminan.
+
+El intervalo entre compuestos no cambia —sigue siendo de doce meses,
+porque ambos se corren igual— pero cada extremo pierde definición.
+
+Este es un límite propio de los sensores ópticos en el trópico húmedo:
+para ver hay que acumular meses, y acumular meses difumina el cuándo. Es
+la razón por la que los sistemas operativos suman radar: Sentinel-1
+atraviesa la nube, así que RADD no necesita componer medio año para
+conseguir una lectura limpia.
 
 ---
 

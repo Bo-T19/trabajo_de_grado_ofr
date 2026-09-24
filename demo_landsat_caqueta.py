@@ -102,6 +102,9 @@ SALIDAS (datos/demo/)
                                 bosque sin datos
   calibracion_umbral.csv        metricas por umbral, en la mitad OESTE
   evaluacion_validacion.csv     matriz de acuerdo y metricas, mitad ESTE
+  curva_observabilidad.csv      concordancia segun cuantas observaciones
+                                limpias se exijan, con la cobertura de
+                                area que queda en cada caso
   comparacion_celdas.csv        hectareas por celda de 5 km, ambas fuentes
   muestra_validacion_visual.csv muestra estratificada para interpretar a
                                 mano (Olofsson et al., 2014)
@@ -846,6 +849,58 @@ def calibrar_umbral(dnbr, dominio, glad_p, oeste) -> pd.DataFrame:
 # =====================================================================
 # 8. AGREGACION A CELDAS DE 5 KM
 # =====================================================================
+def curva_observabilidad(propia_fn, glad_raw, bosque, obs_t1, obs_t2,
+                         region, umbral: float,
+                         minimos=(1, 2, 3, 4, 6, 8, 10)) -> pd.DataFrame:
+    """
+    Concordancia contra GLAD-L segun cuantas observaciones limpias exija
+    el dominio.
+
+    El dominio de la demo pide al menos UNA observacion limpia en cada
+    ventana. Subir esa barra deja fuera los pixeles peor observados, y
+    la concordancia mejora: con 3 observaciones el F1 ronda 0,29 y con
+    10 o mas llega a 0,69. Reportar un solo numero esconde eso.
+
+    La curva se reporta entera porque el valor util depende de para que
+    se use: quien necesite cobertura completa lee la primera fila, quien
+    pueda restringirse a zonas bien observadas lee las de abajo.
+
+    Se filtra por OBSERVABILIDAD (cuantas veces se pudo ver el pixel),
+    nunca por resultado. Filtrar por resultado seria elegir los aciertos.
+
+    Cuidado al leer las filas exigentes: el numero de observaciones lo
+    manda la geometria orbital, y en esta zona el traslape entre orbitas
+    cae en el sur. Pedir 10 observaciones equivale a quedarse con el
+    tercio sur, asi que esa fila describe una region, no la zona. La
+    columna cobertura_pct dice cuanta area queda, y reparto_ns cuan
+    repartida esta entre el norte y el sur.
+    """
+    nobs = np.minimum(obs_t1, obs_t2)
+    alto = bosque.shape[0]
+    norte = np.zeros_like(bosque)
+    norte[:alto // 2] = True
+    ha = (ESCALA_M ** 2) / 10_000.0
+    base = float((bosque & (nobs >= 1) & region).sum()) * ha
+
+    filas = []
+    for k in minimos:
+        dom = bosque & (nobs >= k)
+        gp = perdida_glad(glad_raw, dom)
+        pp = propia_fn(dom, umbral)
+        m = matriz_acuerdo(pp, gp, dom, region)
+        sel = dom & region
+        area = float(sel.sum()) * ha
+        en_norte = float((sel & norte).sum()) * ha
+        filas.append({
+            "obs_minimas": k,
+            "dominio_ha": round(area, 1),
+            "cobertura_pct": round(100 * area / base, 1) if base else 0.0,
+            "reparto_ns": round(100 * en_norte / area, 1) if area else 0.0,
+            **m, **metricas(m),
+        })
+    return pd.DataFrame(filas)
+
+
 def comparar_celdas(propia, glad, dominio, region, perfil) -> pd.DataFrame:
     """
     Hectareas perdidas por celda de 5 x 5 km, segun cada fuente.
@@ -1101,6 +1156,19 @@ def main() -> int:
                     e.precision, e.sensibilidad, e.f1)
         logger.info("  (exactitud global %.4f -- no informativa, ver docstring)",
                     e.exactitud_global_no_informativa)
+
+        # --- curva de observabilidad ---------------------------------------
+        logger.info("=" * 62)
+        logger.info("CONCORDANCIA SEGUN OBSERVACIONES EXIGIDAS (mitad ESTE)")
+        curva = curva_observabilidad(
+            lambda dom, u: perdida_propia(dnbr, dom, u),
+            glad_bruta, bosque, obs_t1, obs_t2, este, mejor)
+        curva.to_csv(DIR_DEMO / "curva_observabilidad.csv", index=False)
+        logger.info("  obs  cobertura   norte   precision  sensib      F1")
+        for _, f in curva.iterrows():
+            logger.info("  %3d %8.1f%% %6.1f%% %10.3f %7.3f %7.3f",
+                        f.obs_minimas, f.cobertura_pct, f.reparto_ns,
+                        f.precision, f.sensibilidad, f.f1)
 
         # --- celdas de 5 km ------------------------------------------------
         logger.info("=" * 62)
