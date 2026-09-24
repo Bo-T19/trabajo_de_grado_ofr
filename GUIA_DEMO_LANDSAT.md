@@ -31,7 +31,8 @@ sección 1.2, donde se explica qué mide cada fuente del proyecto.
 18. [Paso 13 — La muestra para validación visual](#paso-13--la-muestra-para-validación-visual)
 19. [Los resultados, interpretados](#los-resultados-interpretados)
 20. [Por qué los resultados son como son](#por-qué-los-resultados-son-como-son)
-21. [Lo que esta demo no demuestra](#lo-que-esta-demo-no-demuestra)
+21. [Dónde se ubica este método](#dónde-se-ubica-este-método)
+22. [Lo que esta demo no demuestra](#lo-que-esta-demo-no-demuestra)
 ---
 
 ## 1. Qué problema resuelve
@@ -1178,6 +1179,84 @@ una cifra agregada son los claros grandes, no los de hectárea y media.
 La causa 2 es la que más pesa y la que explica por qué los sistemas
 operativos integran radar: Sentinel-1 atraviesa la nube, así que RADD no
 necesita acumular meses para conseguir una lectura limpia.
+
+---
+
+## Dónde se ubica este método
+
+Hay muchas formas de detectar pérdida de bosque con satélite. Conviene
+verlas como un espectro, con dos extremos:
+
+| | Regla simple sobre un índice | Modelo entrenado |
+|---|---|---|
+| **Ejemplo** | Esta demo: NBR con un umbral | GLAD-L: árboles de decisión |
+| **Qué usa por píxel** | Un número (el dNBR) | Muchas variables espectrales y temporales |
+| **Qué aprende** | Un parámetro: dónde va la raya | Cientos de reglas combinadas |
+| **Con qué aprende** | Comparando contra un producto publicado | Muestras interpretadas a mano |
+| **Fechas que mira** | Dos compuestos, uno por año | La serie de tiempo completa |
+
+Entre los dos extremos, y a los lados, hay otros enfoques: modelos de
+serie temporal que ajustan la trayectoria completa de cada píxel
+(LandTrendr, CCDC, BFAST), detección con radar que atraviesa la nube
+(RADD) y redes neuronales entrenadas sobre imágenes. Esta demo está en el
+extremo más simple.
+
+### Las dos diferencias con GLAD-L
+
+**El tipo de modelo.** La demo decide con una sola raya sobre un solo
+número. GLAD-L combina muchas variables con árboles de decisión. Un
+umbral sobre el dNBR equivale a un árbol de un solo nodo: es el miembro
+más simple de la misma familia.
+
+**Las fechas.** La demo compara dos compuestos. GLAD-L sigue cada píxel en
+todas las pasadas del satélite y confirma cada alerta con varias
+observaciones.
+
+La segunda diferencia pesa tanto como la primera. El problema principal
+de la demo resultó ser la falta de observaciones limpias (ver
+[Por qué los resultados son como son](#por-qué-los-resultados-son-como-son)),
+y eso GLAD-L lo resuelve con la serie temporal, no con los árboles.
+
+### Qué cuesta cada extremo
+
+En tiempo de computador, casi nada en ambos casos. Entrenar un bosque
+aleatorio de 300 árboles sobre 2 000 puntos toma 0,4 segundos, y
+aplicarlo a los 7,6 millones de píxeles de la zona toma unos 11 segundos.
+La demo ya gasta 13 minutos descargando imágenes.
+
+El costo del modelo entrenado son **las etiquetas**: alguien tiene que
+mirar imagen de alta resolución y decidir, píxel por píxel, si hubo tala.
+Para 200 puntos son unas horas. Para un producto como GLAD-L, que cubre
+todo el trópico húmedo y se mantiene durante años, es el trabajo de un
+equipo.
+
+Esta demo no usa etiquetas propias, pero tampoco trabaja sin referencia:
+el umbral de 0,35 se calibró contra GLAD-L en la mitad oeste. Tiene un
+solo parámetro, y ese parámetro se ajustó con datos.
+
+### Por qué no se entrenó un modelo con GLAD-L como etiqueta
+
+Sería circular. El modelo aprendería a reproducir GLAD-L, y después
+compararlo contra GLAD-L no mediría nada.
+
+Con un solo parámetro esa circularidad queda acotada: la partición
+este/oeste evita el sobreajuste, y lo que se mide es cuánto se acerca un
+método de un parámetro a un clasificador operativo. Con cientos de
+parámetros, el modelo simplemente copiaría.
+
+El camino limpio es etiquetar a mano la muestra de `muestra_validacion_visual.csv`
+y entrenar sobre esas etiquetas. Así el modelo nunca ve a GLAD-L, y la
+comparación vuelve a significar algo.
+
+### En resumen
+
+> Hay un espectro de métodos. En un extremo está una regla simple sobre
+> un índice espectral; en el otro, modelos entrenados con muestras
+> etiquetadas a mano y con la serie temporal completa, como GLAD-L. Esta
+> demo usa el extremo simple: el NBR con un umbral calibrado contra
+> GLAD-L. No requiere etiquetas, y el precio es que pierde los claros
+> pequeños y depende mucho de cuántas imágenes sin nube haya. Donde hubo
+> suficientes observaciones, el desempeño mejora bastante.
 
 ---
 
