@@ -586,6 +586,36 @@ alertas desde 2021), y por eso hubo que mover la ventana del análisis.
 Si la ventana pedida cae fuera del rango disponible, el módulo se
 detiene con un mensaje claro. Devolver cero alertas sería peor.
 
+### Cuando la API responde a medias
+
+Antes de bajar el ráster hay que preguntarle a GFW cuál es la versión
+vigente del dataset. Esa consulta puede responder **200 con el cuerpo
+incompleto**, sin el campo `data`, mientras GFW está publicando una
+versión nueva.
+
+Nos pasó: la corrida murió con `KeyError: 'data'` y, al repetirla un
+minuto después, funcionó. GFW estaba publicando `v20260923` justo en ese
+momento.
+
+`_version_glad()` separa las fallas que se arreglan reintentando de las
+que no:
+
+| Qué responde el servidor | Qué hace |
+|---|---|
+| 200 con `data.version` | Sigue |
+| **200 sin `data`** | Reintenta, hasta 3 veces cada 10 s |
+| 500 u otro error del servidor | Reintenta |
+| Sin respuesta (red caída) | Reintenta |
+| **401 o 403** | **Se detiene de una** y dice cómo renovar la key |
+
+Una key vencida no mejora por insistir, así que ese caso corta de
+inmediato y nombra el comando que la renueva. Los demás esperan, porque
+suelen resolverse solos.
+
+Si se agotan los intentos, el mensaje dice cuál fue el último motivo y
+sugiere volver a correr más tarde cuando la causa fue una respuesta
+incompleta.
+
 ---
 
 ## Paso 9 — Del dNBR a la detección

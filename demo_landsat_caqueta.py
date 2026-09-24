@@ -118,6 +118,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import os
+import time
 import warnings
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -540,6 +541,55 @@ def _api_key() -> str:
         "  python configurar_gfw.py apikey --email ... --password ...")
 
 
+def _version_glad(clave: str, intentos: int = 3, espera_s: int = 10) -> str:
+    """
+    Version vigente de GLAD-L, reintentando ante respuestas incompletas.
+
+    El endpoint /latest puede responder 200 con un cuerpo sin el campo
+    "data" mientras GFW publica una version nueva del dataset. Dura poco
+    y se resuelve solo, pero antes reventaba con un KeyError sin
+    explicacion. Aqui se separa ese caso de los que NO se arreglan
+    reintentando -- una key invalida, por ejemplo -- y solo se reintenta
+    cuando tiene sentido hacerlo.
+    """
+    u = f"{GFW_API}/dataset/{GLAD_DATASET}/latest"
+    motivo = "sin intentos"
+    for intento in range(1, intentos + 1):
+        try:
+            r = requests.get(u, headers={"x-api-key": clave},
+                             timeout=TIEMPO_ESPERA)
+        except requests.RequestException as e:
+            motivo = f"no hubo respuesta del servidor ({e})"
+        else:
+            if r.status_code in (401, 403):
+                raise SystemExit(
+                    f"GFW rechazo la API key (HTTP {r.status_code}).\n"
+                    "  Renuevela con:\n"
+                    "  python configurar_gfw.py apikey "
+                    "--email ... --password ...")
+            if r.status_code != 200:
+                motivo = f"HTTP {r.status_code}"
+            else:
+                try:
+                    return r.json()["data"]["version"]
+                except (ValueError, KeyError, TypeError):
+                    motivo = ("respuesta 200 sin el campo data.version; "
+                              "GFW suele estar publicando una version nueva")
+
+        if intento < intentos:
+            logger.warning("  no se pudo resolver la version (%s); "
+                           "reintento %d de %d en %d s",
+                           motivo, intento, intentos - 1, espera_s)
+            time.sleep(espera_s)
+
+    raise SystemExit(
+        f"No se pudo resolver la version de {GLAD_DATASET} tras "
+        f"{intentos} intentos.\n"
+        f"  Ultimo motivo: {motivo}\n"
+        "  Si fue una respuesta incompleta, suele bastar con volver a "
+        "correr en unos minutos.")
+
+
 def _url_glad(clave: str) -> str:
     """
     URL firmada del raster date_conf de GLAD-L.
@@ -548,12 +598,7 @@ def _url_glad(clave: str) -> str:
     AccessDenied. Hay que pasar por el endpoint de la API con la key,
     que responde 307 hacia una URL de S3 ya firmada.
     """
-    try:
-        v = requests.get(f"{GFW_API}/dataset/{GLAD_DATASET}/latest",
-                         headers={"x-api-key": clave},
-                         timeout=TIEMPO_ESPERA).json()["data"]["version"]
-    except Exception as e:
-        raise SystemExit(f"No se pudo consultar {GLAD_DATASET}:\n  {e}")
+    v = _version_glad(clave)
 
     u = (f"{GFW_API}/dataset/{GLAD_DATASET}/{v}/download/geotiff"
          f"?grid=10/100000&tile_id={GLAD_TILE}&pixel_meaning=date_conf")
