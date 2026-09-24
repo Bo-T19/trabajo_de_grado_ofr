@@ -165,8 +165,11 @@ GLAD_CONF_MIN = 3                        # 3 = alerta confirmada
 UMBRAL_DOSEL = 30                        # mismo valor que config_local.py
 ANIO_CORTE_PERDIDA = 21                  # lossyear <= 21 = perdida previa a 2022
 
-# Deteccion propia.
-UMBRALES_DNBR = [0.10, 0.15, 0.20, 0.25, 0.30, 0.35]
+# Deteccion propia. La rejilla llega hasta 0,70: con el tope en 0,35 el F1
+# todavia venia subiendo en el ultimo valor probado, asi que el optimo
+# quedaba fuera del rango y el umbral elegido era el borde de la busqueda.
+UMBRALES_DNBR = [0.10, 0.15, 0.20, 0.25, 0.30, 0.35,
+                 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70]
 
 # Area minima de parche. A 30 m cada pixel son 900 m2 = 0,09 ha, asi que
 # 11 pixeles son 0,99 ha: se quedan JUSTO por debajo de la hectarea. 12

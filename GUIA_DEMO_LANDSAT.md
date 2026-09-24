@@ -154,6 +154,15 @@ mismos términos. El 21 corresponde a `lossyear <= 21` = pérdida ocurrida
 antes de 2022.
 
 ```python
+UMBRALES_DNBR = [0.10, 0.15, 0.20, 0.25, 0.30, 0.35,
+                 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70]
+```
+
+Los candidatos que prueba la calibración. La rejilla llega hasta 0,70
+para que el óptimo quede **dentro** del rango y no en su borde. Ver el
+paso 10.
+
+```python
 PIXELES_MIN_PARCHE = 12
 ```
 
@@ -652,21 +661,39 @@ no ha visto.
 umbral se ajusta al ruido de esos píxeles y la métrica sale inflada. Es
 de las primeras cosas que un jurado revisa.
 
-### Un problema del resultado
+### El barrido completo
+
+Se prueban trece umbrales, de 0,10 a 0,70:
 
 | Umbral | Precisión | Sensibilidad | F1 |
 |---|---|---|---|
 | 0,10 | 0,057 | 0,613 | 0,105 |
+| 0,15 | 0,107 | 0,560 | 0,180 |
 | 0,20 | 0,160 | 0,505 | 0,242 |
+| 0,25 | 0,199 | 0,447 | 0,276 |
 | 0,30 | 0,243 | 0,418 | 0,307 |
 | **0,35** | 0,279 | 0,377 | **0,321** |
+| 0,40 | 0,299 | 0,331 | 0,314 |
+| 0,45 | 0,317 | 0,267 | 0,290 |
+| 0,50 | 0,355 | 0,213 | 0,266 |
+| 0,55 | 0,420 | 0,184 | 0,256 |
+| 0,60 | 0,444 | 0,155 | 0,230 |
+| 0,65 | 0,478 | 0,115 | 0,186 |
+| 0,70 | 0,431 | 0,074 | 0,126 |
 
-El F1 **seguía subiendo** al llegar a 0,35, que es el último valor
-probado. El óptimo probablemente está más allá, así que la grilla de
-búsqueda quedó corta.
+**El F1 hace pico en 0,35 y baja.** Pasado ese punto la precisión sigue
+mejorando, de 0,28 a 0,48, pero la sensibilidad se cae de 0,38 a 0,12: se
+marcan cada vez menos píxeles, los que quedan son más confiables, y se
+pierde la mayor parte de la tala. El F1 castiga ese desbalance.
 
-Conviene extender `UMBRALES_DNBR` hacia 0,40-0,50 y volver a correr.
-Ahora cuesta segundos, gracias al caché.
+Que la curva suba, haga pico y baje es lo que permite afirmar que 0,35 es
+el óptimo. Un máximo en el último valor probado no diría nada, porque el
+verdadero óptimo podría estar más allá del rango.
+
+> La primera versión del módulo probaba solo hasta 0,35 y por eso el
+> umbral elegido caía en el borde de la búsqueda. Extender la rejilla
+> hasta 0,70 no cambió el valor elegido, y sí volvió defendible la
+> elección.
 
 ---
 
@@ -830,8 +857,10 @@ cobertura continua y una escala de confianza validada.
 Compararla contra la capa `cambio_2022-2023` del panel sería un buen
 siguiente paso, aunque quedaría anual y no por píxel.
 
-**El umbral óptimo quedó en el borde de la grilla.** Hay que ampliar la
-búsqueda antes de reportar el 0,35 como valor elegido.
+**Un umbral único para toda la zona.** El 0,35 se aplica igual en los
+2968 × 2581 píxeles. Un bosque más seco o con otra estructura responde
+distinto, así que el valor que sirve aquí no necesariamente sirve en otra
+región del país.
 
 **Un solo índice y una sola fecha por año.** Los productos operativos
 usan series temporales completas y varios índices. Esta demo usa dos
