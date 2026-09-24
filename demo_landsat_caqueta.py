@@ -105,6 +105,8 @@ SALIDAS (datos/demo/)
   curva_observabilidad.csv      concordancia segun cuantas observaciones
                                 limpias se exijan, con la cobertura de
                                 area que queda en cada caso
+  deteccion_por_parche.csv      cuantos claros se detectan por tramo de
+                                tamano, en ambas direcciones
   comparacion_celdas.csv        hectareas por celda de 5 km, ambas fuentes
   muestra_validacion_visual.csv muestra estratificada para interpretar a
                                 mano (Olofsson et al., 2014)
@@ -849,6 +851,71 @@ def calibrar_umbral(dnbr, dominio, glad_p, oeste) -> pd.DataFrame:
 # =====================================================================
 # 8. AGREGACION A CELDAS DE 5 KM
 # =====================================================================
+def deteccion_por_parche(propia, glad, region) -> pd.DataFrame:
+    """
+    Cuantos claros se detectan, en vez de cuantos pixeles se aciertan.
+
+    El F1 por pixel castiga igual dos errores muy distintos: inventarse
+    un claro donde no lo hay, y encontrar el claro correcto con el
+    contorno un poco ancho. Para un panel que tamiza municipios, lo
+    segundo importa poco: lo que se necesita saber es si el evento
+    quedo senalado.
+
+    Esta funcion agrupa cada capa en claros (componentes conexas, misma
+    vecindad de 8 que filtrar_parches) y cuenta cuantos de una capa son
+    tocados por al menos un pixel de la otra. Un claro cuenta como
+    detectado si hay cualquier traslape, sin exigir que coincida el
+    contorno.
+
+    Se reportan las dos direcciones porque responden preguntas
+    distintas:
+      glad_vs_propia -- de los claros que reporta GLAD-L, cuantos
+                        encuentro (omision).
+      propia_vs_glad -- de los claros que reporto yo, cuantos confirma
+                        GLAD-L (comision).
+
+    Y se reportan dos totales, que no son intercambiables: el conteo
+    simple trata igual un claro de 1 ha y uno de 100, mientras que el
+    ponderado por area dice cuanta hectarea queda cubierta. En esta zona
+    los claros pequenos son la mayoria en numero y poca area, asi que el
+    conteo simple sale mucho mas bajo que el ponderado.
+    """
+    est = np.ones((3, 3), dtype=bool)
+    ha = (ESCALA_M ** 2) / 10_000.0
+    tramos = [(12, 33, "1-3 ha"), (33, 111, "3-10 ha"),
+              (111, 333, "10-30 ha"), (333, 10 ** 9, "mas de 30 ha")]
+
+    filas = []
+    for nombre, ref, otro in (("glad_vs_propia", glad, propia),
+                              ("propia_vs_glad", propia, glad)):
+        lab, n = ndimage.label(ref & region, structure=est)
+        if n == 0:
+            continue
+        tam = np.bincount(lab.ravel())
+        tam[0] = 0
+        tocado = np.bincount(lab[otro & region].ravel(), minlength=n + 1)
+        tocado[0] = 0
+
+        for lo, hi, etiqueta in tramos + [(1, 10 ** 9, "TODOS")]:
+            ids = np.flatnonzero((tam >= lo) & (tam < hi))
+            if not len(ids):
+                continue
+            det = ids[tocado[ids] > 0]
+            area = float(tam[ids].sum()) * ha
+            area_det = float(tam[det].sum()) * ha
+            filas.append({
+                "direccion": nombre,
+                "tamano": etiqueta,
+                "parches": len(ids),
+                "parches_detectados": len(det),
+                "pct_parches": round(100 * len(det) / len(ids), 1),
+                "area_ha": round(area, 1),
+                "area_detectada_ha": round(area_det, 1),
+                "pct_area": round(100 * area_det / area, 1) if area else 0.0,
+            })
+    return pd.DataFrame(filas)
+
+
 def curva_observabilidad(propia_fn, glad_raw, bosque, obs_t1, obs_t2,
                          region, umbral: float,
                          minimos=(1, 2, 3, 4, 6, 8, 10)) -> pd.DataFrame:
@@ -1194,6 +1261,22 @@ def main() -> int:
                 logger.info("    %4s %8.1f%% %6.1f%% %9.3f %7.3f %7.3f",
                             f.obs, f.cobertura_pct, f.reparto_ns,
                             f.precision, f.sensibilidad, f.f1)
+
+        # --- deteccion por claro, no por pixel -----------------------------
+        logger.info("=" * 62)
+        logger.info("DETECCION POR CLARO (traslape, sin exigir contorno)")
+        par = deteccion_por_parche(propia, glad_p, este)
+        par.to_csv(DIR_DEMO / "deteccion_por_parche.csv", index=False)
+        for direccion, et in (
+                ("glad_vs_propia", "claros de GLAD-L que la demo encuentra"),
+                ("propia_vs_glad", "claros de la demo que GLAD-L confirma")):
+            logger.info("  -- %s", et)
+            logger.info("     %-14s %8s %10s %7s %7s", "tamano", "claros",
+                        "detectad.", "%", "% area")
+            for _, f in par[par.direccion == direccion].iterrows():
+                logger.info("     %-14s %8d %10d %6.0f%% %6.0f%%",
+                            f.tamano, f.parches, f.parches_detectados,
+                            f.pct_parches, f.pct_area)
 
         # --- celdas de 5 km ------------------------------------------------
         logger.info("=" * 62)

@@ -1095,6 +1095,77 @@ bien o está mal.
 > píxel fuera el mismo. Lo defendible es decir que *en esta zona los
 > errores se compensan y el agregado por celda queda bien*.
 
+### Cuántos claros se detectan, no cuántos píxeles
+
+El F1 por píxel castiga igual dos errores que no son iguales: inventarse
+un claro donde no lo hay, y encontrar el claro correcto con el contorno
+un poco ancho. Para un panel que tamiza municipios, lo segundo importa
+poco — lo que se necesita saber es si el evento quedó señalado.
+
+`deteccion_por_parche.csv` mide eso: agrupa cada capa en claros y cuenta
+cuántos de una son tocados por al menos un píxel de la otra, sin exigir
+que coincida el contorno.
+
+**De los claros que reporta GLAD-L, cuántos encuentra la demo:**
+
+| Tamaño del claro | Claros | Encontrados | % | % del área |
+|---|---|---|---|---|
+| 1–3 ha | 292 | 66 | **23 %** | 25 % |
+| 3–10 ha | 164 | 71 | 43 % | 46 % |
+| 10–30 ha | 48 | 37 | **77 %** | 80 % |
+| Más de 30 ha | 8 | 7 | **88 %** | 94 % |
+| **Todos** | **512** | **181** | **35 %** | **62 %** |
+
+**De los claros que reporta la demo, cuántos confirma GLAD-L:**
+
+| Tamaño del claro | Claros | Confirmados | % | % del área |
+|---|---|---|---|---|
+| 1–3 ha | 108 | 49 | 45 % | 49 % |
+| 3–10 ha | 81 | 56 | 69 % | 70 % |
+| 10–30 ha | 48 | 41 | 85 % | 86 % |
+| Más de 30 ha | 15 | 15 | **100 %** | 100 % |
+| **Todos** | **252** | **161** | **64 %** | **86 %** |
+
+### Cómo se leen esas tablas
+
+**Los claros grandes se detectan de forma confiable.** 7 de los 8 claros
+de más de 30 ha, y 37 de los 48 de 10 a 30 ha. En la otra dirección, los
+15 claros propios de más de 30 ha están todos confirmados.
+
+**Los pequeños se escapan.** De 292 claros de 1 a 3 ha, la demo encuentra
+66. Esos claros miden entre 12 y 33 píxeles: es justo el tamaño donde
+tres observaciones limpias no bastan para separar la señal del ruido.
+
+**Los dos totales dicen cosas distintas y los dos son ciertos.** El
+conteo simple da 35 % porque trata igual un claro de 1 ha y uno de 100, y
+los pequeños son mayoría en número. El ponderado por área da 62 % porque
+los pequeños aportan poca hectárea. Citar uno sin el otro engaña.
+
+### Qué corrige esto sobre el F1
+
+**El F1 es injustamente duro en un aspecto.** El anillo de orilla lo
+cuenta como claro inventado, cuando es un claro real con el contorno
+ancho. Por eso el 86 % del área que marca la demo queda confirmada por
+GLAD-L: casi todo lo que señala corresponde a algo que existe.
+
+**Y es justo en el otro.** La demo no vio 331 de los 512 claros, y 319 de
+esos son menores de 10 ha. Son omisiones reales, y ahí el F1 tiene razón
+en castigar.
+
+La forma correcta de enunciar el resultado, entonces, no es que el F1 sea
+mejor de lo que parece, sino esto:
+
+> La demo **encuentra los claros grandes de forma confiable** —88 % de
+> los de más de 30 ha, 77 % de los de 10 a 30 ha— y **se le escapan los
+> pequeños**, porque con tres observaciones limpias no hay señal
+> suficiente para distinguirlos del ruido. Por área captura el 62 % de la
+> pérdida que reporta GLAD-L, y el 86 % de lo que detecta queda
+> confirmado.
+
+Para un panel cuya unidad es la celda de 5 km, eso alcanza: lo que mueve
+una cifra agregada son los claros grandes, no los de hectárea y media.
+
+---
 ### Qué se puede arreglar
 
 | Causa | ¿Arreglable? | Cómo |
