@@ -61,7 +61,7 @@ trabajo_de_grado/
 ├── descargar_dtd.py          detecciones tempranas del SMByC (KML por trimestre)
 ├── panel_dtd.py              celda x trimestre, conteo de detecciones
 │
-├── catalogo_paneles.ipynb    describe las cuatro tablas y las mapea (seccion 10: EDA)
+├── catalogo_paneles.ipynb    describe las cuatro tablas propias y las mapea (seccion 10: EDA)
 ├── main_local.py             orquestador de línea de comandos
 │
 │   ── BIGQUERY Y EDA (Paso 1) ──────────────────────────────────────
@@ -1375,10 +1375,12 @@ Para una descripción rápida de qué contiene cada tabla —dimensiones,
 columnas, tipos, una muestra y un mapa en folium que compara el patrón
 espacial de las cuatro fuentes— está
 [`catalogo_paneles.ipynb`](catalogo_paneles.ipynb), que lee las cifras de
-los propios archivos y por tanto se mantiene al día.
+los propios archivos y por tanto se mantiene al día. Cubre únicamente las
+cuatro tablas propias de deforestación (GFW, Hansen, IDEAM, DTD).
 
-El EDA propiamente dicho (acordado con el tutor) ya arrancó, en tres
-piezas:
+El EDA acordado con el tutor (puntos 1, 2, 5 y 6 de su lista) ya está
+completo sobre las cuatro tablas propias, en cinco piezas dentro del
+notebook:
 
 1. **Paso 1 — inventario de las 7 fuentes** (secciones 5.17 y 5.18):
    columnas, tipos, número de filas y una muestra de cada una. Las
@@ -1386,40 +1388,64 @@ piezas:
    con la cuenta personal mientras se autoriza la de servicio, en
    `DESCRIPCION_FUENTES_PROFESOR.md`.
 2. **Distribución de cada fuente** (sección "5. Distribución de cada
-   fuente" dentro de `catalogo_paneles.ipynb`): % de ceros, histogramas
-   de la medida principal a nivel celda y por municipio, y un boxplot de
-   dispersión departamental, con la sección de "Hallazgos" ya completada
-   -- declara explícitamente que el sesgo observado es una característica
-   del fenómeno (no un problema de calidad) y qué implica para el
-   modelado.
+   fuente" del notebook): % de ceros, histogramas de la medida principal
+   a nivel celda y por municipio, y un boxplot de dispersión
+   departamental. Hallazgos: el sesgo observado es una característica del
+   fenómeno (no un problema de calidad) y qué implica para el modelado.
 3. **Llave municipal vs. las tablas del Observatorio** (sección "6.
-   Llave municipal" del notebook): ya resuelto -- 1,113 de 1,114
-   municipios propios (99.9%) cruzan bien contra `Municipios.CODIGO`
-   del profesor al tratar `cod_dane` como texto de 5 caracteres con
-   cero a la izquierda. El único caso sin match (`27493`, Chocó) no es
-   un problema de formato y queda por revisar aparte. La tabla
-   `staging.*` en BigQuery guardó `cod_dane` como INTEGER (pierde el
-   cero), así que un cruce hecho directamente en BigQuery necesita
-   `LPAD(CAST(cod_dane AS STRING), 5, '0')` primero; en pandas, usando
-   siempre `cargar()` (celda inicial del notebook), el cruce ya es
-   seguro tal cual.
+   Llave municipal" del notebook): 1,113 de 1,114 municipios propios
+   (99.9%) cruzan bien contra `Municipios.CODIGO` del profesor al tratar
+   `cod_dane` como texto de 5 caracteres con cero a la izquierda. El
+   único caso sin match (`27493`, Chocó) no es un problema de formato y
+   queda por revisar aparte. **La tabla `staging.*` de BigQuery guardaba
+   `cod_dane` como INTEGER (perdía el cero) -- se corrigió en
+   `subir_bigquery.py` el 17/09/2026 (sección 5.16), forzando
+   `dtype={"cod_dane": "string"}` al leer el CSV; tras volver a correr
+   `subir-bigquery`, las cuatro tablas ya quedan como STRING también en
+   BigQuery** (confirmado en `DESCRIPCION_FUENTES.md`), así que el
+   `LPAD(CAST(cod_dane AS STRING), 5, '0')` ya no hace falta para un
+   cruce hecho directamente ahí.
+4. **Correlación entre fuentes** (sección "7. Correlación entre fuentes
+   de deforestación" del notebook): Pearson y Spearman, en el tiempo
+   (nacional, año a año) y en el espacio (por municipio). GFW, Hansen e
+   IDEAM concuerdan bien en ambos cortes; DTD concuerda en el espacio
+   pero se correlaciona negativo en el tiempo (más detecciones no
+   significa más área -- es sensible al esfuerzo de monitoreo del SMByC).
+   En el corte espacial, las cuatro fuentes señalan consistentemente los
+   mismos municipios extremos (Cartagena del Chairá, San Vicente del
+   Caguán).
+5. **Calidad de datos: faltantes, duplicados y outliers** (sección "8.
+   Calidad de datos" del notebook): los faltantes son todos estructurales
+   (rezagos de GFW, trimestres sin reporte del SMByC en DTD), cero
+   duplicados en las cuatro fuentes, y los outliers (p99 entre
+   celda-periodo con evento) se concentran de forma consistente e
+   independiente en los mismos municipios en las cuatro fuentes --
+   evidencia de que es un fenómeno real (el "arco de deforestación"), no
+   un error de datos. Conclusión: no hace falta limpieza; las decisiones
+   de imputación/transformación quedan para la fase de modelado.
 
-Lo que todavía está pendiente de elaborar sobre las cuatro tablas:
+Las tres tablas del profesor (FINAGRO, SFC414, Municipios.CODIGO) se
+describen en el Paso 1 (`DESCRIPCION_FUENTES_PROFESOR.md`), pero no
+tienen un EDA equivalente en este notebook -- este cuaderno no va más
+allá del inventario para esas tres tablas.
 
-- **Panel de alertas**: balance del panel (`filas = celdas × periodos`),
-  evolución temporal, estacionalidad, y autocorrelación temporal.
-- **Panel de Hansen**: serie anual de pérdida de cobertura y su relación
-  con la cifra oficial, año a año (ya iniciado con los totales de la
-  sección "Las tres fuentes en hectáreas, lado a lado" del notebook).
-- **Comparación entre las tres**: las razones Hansen/IDEAM y GFW/IDEAM
-  por región (por año ya está en el notebook), y los municipios que
-  aparecen señalados por las tres fuentes a la vez.
+Lo que todavía está pendiente de elaborar sobre las cuatro tablas propias:
+
+- **`27493` (Chocó)**: el único municipio del panel propio sin match en
+  `Municipios.CODIGO`, por revisar aparte (sección 6, Hallazgos).
+- **Columnas de fecha**: parte 2/2 del punto 1 de la lista del tutor --
+  revisar sección 2.5 y las columnas de fecha.
 - **Periodo de tiempo a usar y por qué** (pendiente del tutor) y
   **KPIs propuestos** (ver METODOLOGIA.md y las notas de reunión) --
   ninguno de los dos depende de código, son decisiones a documentar.
+- **Cruce e integración con las variables financieras del profesor**
+  (Fase 3 del proyecto, Preparación de datos, semanas 11-12): una vez
+  definido el periodo, cruzar FINAGRO/SFC414 con el panel de
+  deforestación por `cod_dane` y periodo.
 
-Las dependencias para hacerlo (`matplotlib`, `jupyter`) están declaradas
-en `requirements_local.txt`.
+Las dependencias para hacerlo (`matplotlib`, `jupyter`, `scipy`,
+`google-cloud-bigquery`, `db-dtypes`, `tabulate`, `google-auth`) están
+declaradas en `requirements_local.txt`.
 
 ---
 

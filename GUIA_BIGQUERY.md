@@ -254,13 +254,17 @@ llaves activas a la vez, cada una revocable por separado.
   con su `proyecto.dataset.tabla` completo en cualquier `JOIN`.
 - **Tablas de `analitica`**: todavía no existen. Se crearán cuando el
   equipo defina el cruce municipal entre el índice de deforestación
-  (`staging`) y las variables financieras del Observatorio. La
-  compatibilidad de la llave municipal (`cod_dane`) ya se verificó por
-  separado -- ver `catalogo_paneles.ipynb` sección 6 y GUIA_CODIGO.md
-  sección 10: 99.9% de match tratando `cod_dane` como texto de 5
-  caracteres con cero a la izquierda (la tabla `staging.*` de este
-  proyecto lo guarda como INTEGER, así que un `JOIN` directo en
-  BigQuery necesita `LPAD(CAST(cod_dane AS STRING), 5, '0')` primero).
+  (`staging`) y las variables financieras del Observatorio (Fase 3 del
+  proyecto). La compatibilidad de la llave municipal (`cod_dane`) ya se
+  verificó por separado -- ver `catalogo_paneles.ipynb` sección 6 y
+  GUIA_CODIGO.md sección 10: 99.9% de match tratando `cod_dane` como
+  texto de 5 caracteres con cero a la izquierda. La tabla `staging.*` de
+  este proyecto guardaba `cod_dane` como INTEGER (perdía el cero) hasta
+  que se corrigió en `subir_bigquery.py` el 17/09/2026 (forzando
+  `dtype={"cod_dane": "string"}` al leer el CSV) -- tras volver a subir
+  las cuatro tablas, ya quedan como STRING también en BigQuery, así que
+  un `JOIN` directo ahí con las tablas del profesor ya no necesita
+  `LPAD` primero.
 
 ## 8. Solución de problemas
 
