@@ -26,11 +26,13 @@ sección 1.2, donde se explica qué mide cada fuente del proyecto.
 13. [Paso 9 — Del dNBR a la detección](#paso-9--del-dnbr-a-la-detección)
 14. [Paso 10 — Calibrar sin hacer trampa](#paso-10--calibrar-sin-hacer-trampa)
 15. [Paso 11 — Las métricas](#paso-11--las-métricas)
-16. [Paso 12 — La comparación por celda](#paso-12--la-comparación-por-celda)
-17. [Paso 13 — La muestra para validación visual](#paso-13--la-muestra-para-validación-visual)
-18. [Los resultados, interpretados](#los-resultados-interpretados)
-19. [Lo que esta demo no demuestra](#lo-que-esta-demo-no-demuestra)
-
+16. [La curva de observabilidad](#la-curva-de-observabilidad)
+17. [Paso 12 — La comparación por celda](#paso-12--la-comparación-por-celda)
+18. [Paso 13 — La muestra para validación visual](#paso-13--la-muestra-para-validación-visual)
+19. [Los resultados, interpretados](#los-resultados-interpretados)
+20. [Por qué los resultados son como son](#por-qué-los-resultados-son-como-son)
+21. [Dónde se ubica este método](#dónde-se-ubica-este-método)
+22. [Lo que esta demo no demuestra](#lo-que-esta-demo-no-demuestra)
 ---
 
 ## 1. Qué problema resuelve
@@ -152,6 +154,15 @@ El 30 % es el mismo umbral que usa el panel nacional
 (`config_local.umbral_dosel`), para que la demo hable de "bosque" en los
 mismos términos. El 21 corresponde a `lossyear <= 21` = pérdida ocurrida
 antes de 2022.
+
+```python
+UMBRALES_DNBR = [0.10, 0.15, 0.20, 0.25, 0.30, 0.35,
+                 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70]
+```
+
+Los candidatos que prueba la calibración. La rejilla llega hasta 0,70
+para que el óptimo quede **dentro** del rango y no en su borde. Ver el
+paso 10.
 
 ```python
 PIXELES_MIN_PARCHE = 12
@@ -577,6 +588,36 @@ alertas desde 2021), y por eso hubo que mover la ventana del análisis.
 Si la ventana pedida cae fuera del rango disponible, el módulo se
 detiene con un mensaje claro. Devolver cero alertas sería peor.
 
+### Cuando la API responde a medias
+
+Antes de bajar el ráster hay que preguntarle a GFW cuál es la versión
+vigente del dataset. Esa consulta puede responder **200 con el cuerpo
+incompleto**, sin el campo `data`, mientras GFW está publicando una
+versión nueva.
+
+Nos pasó: la corrida murió con `KeyError: 'data'` y, al repetirla un
+minuto después, funcionó. GFW estaba publicando `v20260923` justo en ese
+momento.
+
+`_version_glad()` separa las fallas que se arreglan reintentando de las
+que no:
+
+| Qué responde el servidor | Qué hace |
+|---|---|
+| 200 con `data.version` | Sigue |
+| **200 sin `data`** | Reintenta, hasta 3 veces cada 10 s |
+| 500 u otro error del servidor | Reintenta |
+| Sin respuesta (red caída) | Reintenta |
+| **401 o 403** | **Se detiene de una** y dice cómo renovar la key |
+
+Una key vencida no mejora por insistir, así que ese caso corta de
+inmediato y nombra el comando que la renueva. Los demás esperan, porque
+suelen resolverse solos.
+
+Si se agotan los intentos, el mensaje dice cuál fue el último motivo y
+sugiere volver a correr más tarde cuando la causa fue una respuesta
+incompleta.
+
 ---
 
 ## Paso 9 — Del dNBR a la detección
@@ -652,21 +693,39 @@ no ha visto.
 umbral se ajusta al ruido de esos píxeles y la métrica sale inflada. Es
 de las primeras cosas que un jurado revisa.
 
-### Un problema del resultado
+### El barrido completo
+
+Se prueban trece umbrales, de 0,10 a 0,70:
 
 | Umbral | Precisión | Sensibilidad | F1 |
 |---|---|---|---|
 | 0,10 | 0,057 | 0,613 | 0,105 |
+| 0,15 | 0,107 | 0,560 | 0,180 |
 | 0,20 | 0,160 | 0,505 | 0,242 |
+| 0,25 | 0,199 | 0,447 | 0,276 |
 | 0,30 | 0,243 | 0,418 | 0,307 |
 | **0,35** | 0,279 | 0,377 | **0,321** |
+| 0,40 | 0,299 | 0,331 | 0,314 |
+| 0,45 | 0,317 | 0,267 | 0,290 |
+| 0,50 | 0,355 | 0,213 | 0,266 |
+| 0,55 | 0,420 | 0,184 | 0,256 |
+| 0,60 | 0,444 | 0,155 | 0,230 |
+| 0,65 | 0,478 | 0,115 | 0,186 |
+| 0,70 | 0,431 | 0,074 | 0,126 |
 
-El F1 **seguía subiendo** al llegar a 0,35, que es el último valor
-probado. El óptimo probablemente está más allá, así que la grilla de
-búsqueda quedó corta.
+**El F1 hace pico en 0,35 y baja.** Pasado ese punto la precisión sigue
+mejorando, de 0,28 a 0,48, pero la sensibilidad se cae de 0,38 a 0,12: se
+marcan cada vez menos píxeles, los que quedan son más confiables, y se
+pierde la mayor parte de la tala. El F1 castiga ese desbalance.
 
-Conviene extender `UMBRALES_DNBR` hacia 0,40-0,50 y volver a correr.
-Ahora cuesta segundos, gracias al caché.
+Que la curva suba, haga pico y baje es lo que permite afirmar que 0,35 es
+el óptimo. Un máximo en el último valor probado no diría nada, porque el
+verdadero óptimo podría estar más allá del rango.
+
+> La primera versión del módulo probaba solo hasta 0,35 y por eso el
+> umbral elegido caía en el borde de la búsqueda. Extender la rejilla
+> hasta 0,70 no cambió el valor elegido, y sí volvió defendible la
+> elección.
 
 ---
 
@@ -697,6 +756,63 @@ cifra parecida.
 
 Se reporta porque suele pedirse, con ese nombre para que nadie la cite
 por descuido.
+
+---
+
+### La curva de observabilidad
+
+Un solo F1 esconde de qué depende el resultado. El dominio exige al menos
+una observación limpia; si se sube esa barra, la concordancia mejora:
+
+| Obs. mínimas | Cobertura | En el norte | Precisión | Sensibilidad | F1 |
+|---|---|---|---|---|---|
+| **1** (el dominio actual) | 100 % | 36,4 % | 0,549 | 0,467 | **0,505** |
+| 2 | 99,5 % | 36,1 % | 0,550 | 0,467 | 0,505 |
+| 3 | 95,9 % | 34,4 % | 0,556 | 0,464 | 0,506 |
+| 4 | 71,7 % | 29,2 % | 0,570 | 0,489 | 0,526 |
+| **6** | 43,4 % | 26,9 % | 0,590 | 0,537 | **0,562** |
+| 8 | 15,9 % | 5,3 % | 0,635 | 0,650 | 0,642 |
+| 10 | 4,1 % | **0,0 %** | 0,682 | 0,703 | **0,693** |
+
+Se lee así: sobre el área completa el F1 es 0,505, y sobre el 43 % mejor
+observado sube a 0,562. El método rinde donde tiene datos suficientes,
+y el promedio general lo arrastran las 44 000 ha que solo alcanzaron tres
+lecturas limpias.
+
+El filtro es por **observabilidad** —cuántas veces se pudo ver el píxel—
+y nunca por resultado. Filtrar por resultado sería quedarse con los
+aciertos, que es otra cosa.
+
+**La columna "en el norte" es la advertencia.** El número de
+observaciones lo manda la geometría orbital: en el sur de la zona se
+traslapan dos órbitas de Landsat y llegan 38 escenas, contra 19 en el
+norte. Por eso, al exigir 10 observaciones, la proporción de área en el
+norte cae a **cero**: esa fila ya no describe la zona, describe el tercio
+sur.
+
+Hasta 6 observaciones el área sigue repartida entre norte y sur, así que
+el 0,562 se puede citar. El 0,693 solo se puede citar diciendo de qué
+región se está hablando.
+
+### Por qué la ventana se queda en tres meses
+
+Más observaciones se consiguen componiendo más meses, y eso tiene un
+costo: la pérdida que ocurre **dentro** de la ventana se promedia con el
+estado anterior, y el dNBR sale intermedio.
+
+Según las fechas de GLAD en esta zona, la pérdida de 2022-2023 se reparte
+así: enero-marzo concentra el **13,6 %** del año, y enero-junio el
+**29,8 %**. Pasar de tres a seis meses duplicaría la fracción de eventos
+que se difuminan.
+
+El intervalo entre compuestos no cambia —sigue siendo de doce meses,
+porque ambos se corren igual— pero cada extremo pierde definición.
+
+Este es un límite propio de los sensores ópticos en el trópico húmedo:
+para ver hay que acumular meses, y acumular meses difumina el cuándo. Es
+la razón por la que los sistemas operativos suman radar: Sentinel-1
+atraviesa la nube, así que RADD no necesita componer medio año para
+conseguir una lectura limpia.
 
 ---
 
@@ -815,6 +931,335 @@ Para distinguir cuál es cuál hace falta la validación visual del paso 13.
 
 ---
 
+## Por qué los resultados son como son
+
+El F1 por píxel es 0,505 y la correlación por celda de 5 km es 0,909. Esa
+diferencia no es un accidente de las cifras: tiene causas concretas, y
+tres de ellas se pueden medir.
+
+### El fondo del asunto
+
+El método le pide a un solo número —el dNBR— que conteste una pregunta de
+sí o no. Eso funcionaría si el bosque diera valores bajos y la tala
+valores altos, con un hueco en el medio donde poner la raya.
+
+No pasa eso. Hay bosque intacto con dNBR alto y hay tala real con dNBR
+bajo. Los dos grupos **se traslapan**, y dentro del traslape cualquier
+umbral se equivoca. Lo que sigue explica de dónde sale ese traslape.
+
+### Causa 1 — Los bordes de un claro son mitad y mitad
+
+Cada píxel es un cuadro de 30 × 30 m, y el satélite entrega **un solo
+valor por cuadro**: el promedio de todo lo que hay dentro.
+
+Cuando se tumba monte, el claro no queda alineado con la cuadrícula. Su
+orilla parte varios píxeles por la mitad, y esos píxeles quedan con mitad
+árboles y mitad suelo desnudo.
+
+Con cifras redondas: si un píxel de puro bosque marca 0,85 y uno de puro
+claro marca 0,15, entonces tumbar el píxel completo lo hace caer 0,70 —
+muy por encima de la raya de 0,35. Pero un píxel partido por la mitad cae
+aproximadamente la mitad: **0,35 justo**.
+
+Ahí no hay respuesta correcta. Contarlo entero sobreestima el área;
+descartarlo la subestima. El umbral tiene que elegir una de las dos.
+
+Como esos píxeles de orilla caen justo por encima de la raya, el método
+los cuenta, y **cada claro sale con un anillo de más**. GLAD-L no los
+cuenta, porque exige confirmación en varias fechas y la orilla es
+dudosa.
+
+### Causa 2 — La mediana de tres lecturas no es confiable
+
+De las 38 escenas del trimestre, el píxel mediano tuvo **5 observaciones
+limpias en T1 y 3 en T2**: la nubosidad descartó el 85 %.
+
+Sacar la mediana de tres valores es frágil. Si uno de los tres traía nube
+residual que la máscara no atrapó, el dNBR de ese píxel es ruido, y nada
+lo delata.
+
+Esto es lo que más pesa, y se mide en `curva_observabilidad.csv`, que
+trae la misma cuenta leída de dos formas.
+
+**Por tramo exacto**, o sea mirando solo los píxeles que tuvieron
+exactamente ese número de lecturas:
+
+| Observaciones | Cobertura | F1 |
+|---|---|---|
+| 3 | 24,2 % | **0,285** |
+| 4–5 | 28,3 % | 0,362 |
+| 6–9 | 39,3 % | 0,529 |
+| 10 o más | 4,1 % | **0,693** |
+
+Mismo método, mismo umbral, misma zona. Lo único que cambia es cuántas
+veces se pudo ver el píxel, y el F1 se multiplica por dos y medio. Las
+44 000 ha que solo alcanzaron tres lecturas son las que arrastran el
+promedio general hacia 0,505.
+
+**Por tramo acumulado**, o sea qué pasaría si el dominio subiera su barra:
+
+| Exige al menos | Cobertura | F1 |
+|---|---|---|
+| 1 (el dominio actual) | 100 % | 0,505 |
+| 4 | 71,7 % | 0,526 |
+| 6 | 43,4 % | **0,562** |
+| 10 | 4,1 % | 0,693 |
+
+> **Las filas exactas de pocas observaciones hay que leerlas con
+> cuidado.** Recortar el dominio a esos píxeles los deja dispersos, y el
+> filtro de parche exige 12 píxeles conexos *dentro* del dominio. Con una
+> sola observación no se forma ningún parche y el F1 sale 0,000 por
+> construcción, no porque el método falle ahí. El efecto se diluye a
+> medida que el tramo cubre más área, así que las filas de 4 en adelante
+> son las fiables.
+
+### Causa 3 — Un solo umbral para toda la zona
+
+El 0,35 se aplica igual en los 7,6 millones de píxeles. Pero tumbar
+bosque tupido produce una caída grande, y tumbar bosque ya degradado
+produce una caída pequeña.
+
+Un umbral único no puede servir para los dos casos: el que funciona en el
+bosque denso deja pasar la tala en el degradado, y al revés. Un
+clasificador entrenado sobre varias variables sí podría distinguirlos,
+pero para eso hacen falta etiquetas (ver el paso 13).
+
+### Y una causa que no es del método
+
+GLAD-L tampoco acierta siempre. Parte de lo que aquí se cuenta como error
+propio es error suyo. Cuáles son cuáles no se sabe sin interpretar las
+imágenes a mano.
+
+---
+
+### Comprobación 1: las capas no están corridas
+
+La explicación fácil sería un desajuste geométrico entre las fuentes. Se
+descarta desplazando la capa propia y midiendo el F1 en cada posición:
+
+| | −2 | −1 | **0** | +1 | +2 |
+|---|---|---|---|---|---|
+| **−2** | 0,398 | 0,424 | 0,440 | 0,436 | 0,416 |
+| **−1** | 0,421 | 0,456 | 0,479 | 0,477 | 0,450 |
+| **0** | 0,433 | 0,475 | **0,505** | 0,503 | 0,469 |
+| **+1** | 0,427 | 0,467 | 0,498 | 0,496 | 0,465 |
+| **+2** | 0,409 | 0,443 | 0,465 | 0,465 | 0,443 |
+
+El máximo está exactamente en (0, 0) y cae en todas direcciones. Con un
+corrimiento de un píxel, el pico aparecería desplazado. **No hay
+desajuste de alineación**, y la reproyección común sobre la rejilla de
+trabajo está haciendo su trabajo.
+
+### Comprobación 2: los dos tipos de error tienen forma distinta
+
+Midiendo a qué distancia está cada píxel en desacuerdo del píxel de
+acuerdo más cercano:
+
+| Distancia al acuerdo más cercano | Solo propia | Solo GLAD-L |
+|---|---|---|
+| Pegado (1 px) | 399,5 ha | 162,7 ha |
+| 2–3 px | 116,9 ha | 71,9 ha |
+| 3–6 px | 95,3 ha | 84,7 ha |
+| 6–16 px | 113,0 ha | 211,7 ha |
+| Más de 16 px | 301,6 ha | **899,3 ha** |
+| **En el borde (≤ 3 px)** | **50 %** | **16 %** |
+
+Los dos errores son cosas diferentes:
+
+- **Lo que marco de más está pegado a claros reales.** La mitad, a tres
+  píxeles o menos de un acuerdo. Es la causa 1: el anillo de orilla.
+- **Lo que se me escapa son claros enteros.** 899 ha —el 63 %— a más de
+  medio kilómetro de cualquier acuerdo. No son bordes mal cortados: son
+  eventos que no vi, en su mayoría por la causa 2.
+
+### Comprobación 3: a 5 km los errores se cancelan
+
+| | Hectáreas |
+|---|---|
+| Desacuerdo bruto (solo propia + solo GLAD) | 2 457 |
+| Error neto por celda (\|mi total − total GLAD\|) | 1 222 |
+| **Se cancela dentro de las celdas** | **50 %** |
+
+Por celda con desacuerdo, la mediana del desacuerdo bruto es 14,3 ha y la
+del error neto 7,4 ha.
+
+Ahí está la explicación de la brecha entre escalas. Sobredetecto 1 026 ha
+y subdetecto 1 430 ha; dentro de una celda de 2 500 ha esas dos cosas se
+compensan, y el anillo que le sobro a un claro tapa el claro vecino que
+se me escapó. A nivel de píxel esa compensación no existe: un píxel está
+bien o está mal.
+
+> **Esa cancelación es una propiedad de esta zona, no una virtud del
+> método.** Funciona porque los dos tipos de error andan parecidos en
+> magnitud. En una región donde la sobredetección dominara, el total por
+> celda se iría hacia arriba y la correlación caería aunque el F1 por
+> píxel fuera el mismo. Lo defendible es decir que *en esta zona los
+> errores se compensan y el agregado por celda queda bien*.
+
+### Cuántos claros se detectan, no cuántos píxeles
+
+El F1 por píxel castiga igual dos errores que no son iguales: inventarse
+un claro donde no lo hay, y encontrar el claro correcto con el contorno
+un poco ancho. Para un panel que tamiza municipios, lo segundo importa
+poco — lo que se necesita saber es si el evento quedó señalado.
+
+`deteccion_por_parche.csv` mide eso: agrupa cada capa en claros y cuenta
+cuántos de una son tocados por al menos un píxel de la otra, sin exigir
+que coincida el contorno.
+
+**De los claros que reporta GLAD-L, cuántos encuentra la demo:**
+
+| Tamaño del claro | Claros | Encontrados | % | % del área |
+|---|---|---|---|---|
+| 1–3 ha | 292 | 66 | **23 %** | 25 % |
+| 3–10 ha | 164 | 71 | 43 % | 46 % |
+| 10–30 ha | 48 | 37 | **77 %** | 80 % |
+| Más de 30 ha | 8 | 7 | **88 %** | 94 % |
+| **Todos** | **512** | **181** | **35 %** | **62 %** |
+
+**De los claros que reporta la demo, cuántos confirma GLAD-L:**
+
+| Tamaño del claro | Claros | Confirmados | % | % del área |
+|---|---|---|---|---|
+| 1–3 ha | 108 | 49 | 45 % | 49 % |
+| 3–10 ha | 81 | 56 | 69 % | 70 % |
+| 10–30 ha | 48 | 41 | 85 % | 86 % |
+| Más de 30 ha | 15 | 15 | **100 %** | 100 % |
+| **Todos** | **252** | **161** | **64 %** | **86 %** |
+
+### Cómo se leen esas tablas
+
+**Los claros grandes se detectan de forma confiable.** 7 de los 8 claros
+de más de 30 ha, y 37 de los 48 de 10 a 30 ha. En la otra dirección, los
+15 claros propios de más de 30 ha están todos confirmados.
+
+**Los pequeños se escapan.** De 292 claros de 1 a 3 ha, la demo encuentra
+66. Esos claros miden entre 12 y 33 píxeles: es justo el tamaño donde
+tres observaciones limpias no bastan para separar la señal del ruido.
+
+**Los dos totales dicen cosas distintas y los dos son ciertos.** El
+conteo simple da 35 % porque trata igual un claro de 1 ha y uno de 100, y
+los pequeños son mayoría en número. El ponderado por área da 62 % porque
+los pequeños aportan poca hectárea. Citar uno sin el otro engaña.
+
+### Qué corrige esto sobre el F1
+
+**El F1 es injustamente duro en un aspecto.** El anillo de orilla lo
+cuenta como claro inventado, cuando es un claro real con el contorno
+ancho. Por eso el 86 % del área que marca la demo queda confirmada por
+GLAD-L: casi todo lo que señala corresponde a algo que existe.
+
+**Y es justo en el otro.** La demo no vio 331 de los 512 claros, y 319 de
+esos son menores de 10 ha. Son omisiones reales, y ahí el F1 tiene razón
+en castigar.
+
+La forma correcta de enunciar el resultado, entonces, no es que el F1 sea
+mejor de lo que parece, sino esto:
+
+> La demo **encuentra los claros grandes de forma confiable** —88 % de
+> los de más de 30 ha, 77 % de los de 10 a 30 ha— y **se le escapan los
+> pequeños**, porque con tres observaciones limpias no hay señal
+> suficiente para distinguirlos del ruido. Por área captura el 62 % de la
+> pérdida que reporta GLAD-L, y el 86 % de lo que detecta queda
+> confirmado.
+
+Para un panel cuya unidad es la celda de 5 km, eso alcanza: lo que mueve
+una cifra agregada son los claros grandes, no los de hectárea y media.
+
+---
+### Qué se puede arreglar
+
+| Causa | ¿Arreglable? | Cómo |
+|---|---|---|
+| Bordes mitad y mitad | No del todo | Es el tamaño del píxel. Se reduce con sensores de 10 m (Sentinel-2) |
+| Pocas lecturas limpias | Sí, con costo | Componer más meses difumina el cuándo; el radar lo resuelve sin ese costo |
+| Umbral único | Sí | Un clasificador sobre varias variables, una vez haya etiquetas |
+| Errores de GLAD-L | No aplica | Solo se separan con interpretación visual |
+
+La causa 2 es la que más pesa y la que explica por qué los sistemas
+operativos integran radar: Sentinel-1 atraviesa la nube, así que RADD no
+necesita acumular meses para conseguir una lectura limpia.
+
+---
+
+## Dónde se ubica este método
+
+Hay muchas formas de detectar pérdida de bosque con satélite. Conviene
+verlas como un espectro, con dos extremos:
+
+| | Regla simple sobre un índice | Modelo entrenado |
+|---|---|---|
+| **Ejemplo** | Esta demo: NBR con un umbral | GLAD-L: árboles de decisión |
+| **Qué usa por píxel** | Un número (el dNBR) | Muchas variables espectrales y temporales |
+| **Qué aprende** | Un parámetro: dónde va la raya | Cientos de reglas combinadas |
+| **Con qué aprende** | Comparando contra un producto publicado | Muestras interpretadas a mano |
+| **Fechas que mira** | Dos compuestos, uno por año | La serie de tiempo completa |
+
+Entre los dos extremos, y a los lados, hay otros enfoques: modelos de
+serie temporal que ajustan la trayectoria completa de cada píxel
+(LandTrendr, CCDC, BFAST), detección con radar que atraviesa la nube
+(RADD) y redes neuronales entrenadas sobre imágenes. Esta demo está en el
+extremo más simple.
+
+### Las dos diferencias con GLAD-L
+
+**El tipo de modelo.** La demo decide con una sola raya sobre un solo
+número. GLAD-L combina muchas variables con árboles de decisión. Un
+umbral sobre el dNBR equivale a un árbol de un solo nodo: es el miembro
+más simple de la misma familia.
+
+**Las fechas.** La demo compara dos compuestos. GLAD-L sigue cada píxel en
+todas las pasadas del satélite y confirma cada alerta con varias
+observaciones.
+
+La segunda diferencia pesa tanto como la primera. El problema principal
+de la demo resultó ser la falta de observaciones limpias (ver
+[Por qué los resultados son como son](#por-qué-los-resultados-son-como-son)),
+y eso GLAD-L lo resuelve con la serie temporal, no con los árboles.
+
+### Qué cuesta cada extremo
+
+En tiempo de computador, casi nada en ambos casos. Entrenar un bosque
+aleatorio de 300 árboles sobre 2 000 puntos toma 0,4 segundos, y
+aplicarlo a los 7,6 millones de píxeles de la zona toma unos 11 segundos.
+La demo ya gasta 13 minutos descargando imágenes.
+
+El costo del modelo entrenado son **las etiquetas**: alguien tiene que
+mirar imagen de alta resolución y decidir, píxel por píxel, si hubo tala.
+Para 200 puntos son unas horas. Para un producto como GLAD-L, que cubre
+todo el trópico húmedo y se mantiene durante años, es el trabajo de un
+equipo.
+
+Esta demo no usa etiquetas propias, pero tampoco trabaja sin referencia:
+el umbral de 0,35 se calibró contra GLAD-L en la mitad oeste. Tiene un
+solo parámetro, y ese parámetro se ajustó con datos.
+
+### Por qué no se entrenó un modelo con GLAD-L como etiqueta
+
+Sería circular. El modelo aprendería a reproducir GLAD-L, y después
+compararlo contra GLAD-L no mediría nada.
+
+Con un solo parámetro esa circularidad queda acotada: la partición
+este/oeste evita el sobreajuste, y lo que se mide es cuánto se acerca un
+método de un parámetro a un clasificador operativo. Con cientos de
+parámetros, el modelo simplemente copiaría.
+
+El camino limpio es etiquetar a mano la muestra de `muestra_validacion_visual.csv`
+y entrenar sobre esas etiquetas. Así el modelo nunca ve a GLAD-L, y la
+comparación vuelve a significar algo.
+
+### En resumen
+
+> Hay un espectro de métodos. En un extremo está una regla simple sobre
+> un índice espectral; en el otro, modelos entrenados con muestras
+> etiquetadas a mano y con la serie temporal completa, como GLAD-L. Esta
+> demo usa el extremo simple: el NBR con un umbral calibrado contra
+> GLAD-L. No requiere etiquetas, y el precio es que pierde los claros
+> pequeños y depende mucho de cuántas imágenes sin nube haya. Donde hubo
+> suficientes observaciones, el desempeño mejora bastante.
+
+---
+
 ## Lo que esta demo no demuestra
 
 Conviene tenerlo claro antes de presentarla:
@@ -830,8 +1275,10 @@ cobertura continua y una escala de confianza validada.
 Compararla contra la capa `cambio_2022-2023` del panel sería un buen
 siguiente paso, aunque quedaría anual y no por píxel.
 
-**El umbral óptimo quedó en el borde de la grilla.** Hay que ampliar la
-búsqueda antes de reportar el 0,35 como valor elegido.
+**Un umbral único para toda la zona.** El 0,35 se aplica igual en los
+2968 × 2581 píxeles. Un bosque más seco o con otra estructura responde
+distinto, así que el valor que sirve aquí no necesariamente sirve en otra
+región del país.
 
 **Un solo índice y una sola fecha por año.** Los productos operativos
 usan series temporales completas y varios índices. Esta demo usa dos

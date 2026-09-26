@@ -102,6 +102,11 @@ SALIDAS (datos/demo/)
                                 bosque sin datos
   calibracion_umbral.csv        metricas por umbral, en la mitad OESTE
   evaluacion_validacion.csv     matriz de acuerdo y metricas, mitad ESTE
+  curva_observabilidad.csv      concordancia segun cuantas observaciones
+                                limpias se exijan, con la cobertura de
+                                area que queda en cada caso
+  deteccion_por_parche.csv      cuantos claros se detectan por tramo de
+                                tamano, en ambas direcciones
   comparacion_celdas.csv        hectareas por celda de 5 km, ambas fuentes
   muestra_validacion_visual.csv muestra estratificada para interpretar a
                                 mano (Olofsson et al., 2014)
@@ -118,6 +123,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import os
+import time
 import warnings
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -165,8 +171,11 @@ GLAD_CONF_MIN = 3                        # 3 = alerta confirmada
 UMBRAL_DOSEL = 30                        # mismo valor que config_local.py
 ANIO_CORTE_PERDIDA = 21                  # lossyear <= 21 = perdida previa a 2022
 
-# Deteccion propia.
-UMBRALES_DNBR = [0.10, 0.15, 0.20, 0.25, 0.30, 0.35]
+# Deteccion propia. La rejilla llega hasta 0,70: con el tope en 0,35 el F1
+# todavia venia subiendo en el ultimo valor probado, asi que el optimo
+# quedaba fuera del rango y el umbral elegido era el borde de la busqueda.
+UMBRALES_DNBR = [0.10, 0.15, 0.20, 0.25, 0.30, 0.35,
+                 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70]
 
 # Area minima de parche. A 30 m cada pixel son 900 m2 = 0,09 ha, asi que
 # 11 pixeles son 0,99 ha: se quedan JUSTO por debajo de la hectarea. 12
@@ -537,6 +546,55 @@ def _api_key() -> str:
         "  python configurar_gfw.py apikey --email ... --password ...")
 
 
+def _version_glad(clave: str, intentos: int = 3, espera_s: int = 10) -> str:
+    """
+    Version vigente de GLAD-L, reintentando ante respuestas incompletas.
+
+    El endpoint /latest puede responder 200 con un cuerpo sin el campo
+    "data" mientras GFW publica una version nueva del dataset. Dura poco
+    y se resuelve solo, pero antes reventaba con un KeyError sin
+    explicacion. Aqui se separa ese caso de los que NO se arreglan
+    reintentando -- una key invalida, por ejemplo -- y solo se reintenta
+    cuando tiene sentido hacerlo.
+    """
+    u = f"{GFW_API}/dataset/{GLAD_DATASET}/latest"
+    motivo = "sin intentos"
+    for intento in range(1, intentos + 1):
+        try:
+            r = requests.get(u, headers={"x-api-key": clave},
+                             timeout=TIEMPO_ESPERA)
+        except requests.RequestException as e:
+            motivo = f"no hubo respuesta del servidor ({e})"
+        else:
+            if r.status_code in (401, 403):
+                raise SystemExit(
+                    f"GFW rechazo la API key (HTTP {r.status_code}).\n"
+                    "  Renuevela con:\n"
+                    "  python configurar_gfw.py apikey "
+                    "--email ... --password ...")
+            if r.status_code != 200:
+                motivo = f"HTTP {r.status_code}"
+            else:
+                try:
+                    return r.json()["data"]["version"]
+                except (ValueError, KeyError, TypeError):
+                    motivo = ("respuesta 200 sin el campo data.version; "
+                              "GFW suele estar publicando una version nueva")
+
+        if intento < intentos:
+            logger.warning("  no se pudo resolver la version (%s); "
+                           "reintento %d de %d en %d s",
+                           motivo, intento, intentos - 1, espera_s)
+            time.sleep(espera_s)
+
+    raise SystemExit(
+        f"No se pudo resolver la version de {GLAD_DATASET} tras "
+        f"{intentos} intentos.\n"
+        f"  Ultimo motivo: {motivo}\n"
+        "  Si fue una respuesta incompleta, suele bastar con volver a "
+        "correr en unos minutos.")
+
+
 def _url_glad(clave: str) -> str:
     """
     URL firmada del raster date_conf de GLAD-L.
@@ -545,12 +603,7 @@ def _url_glad(clave: str) -> str:
     AccessDenied. Hay que pasar por el endpoint de la API con la key,
     que responde 307 hacia una URL de S3 ya firmada.
     """
-    try:
-        v = requests.get(f"{GFW_API}/dataset/{GLAD_DATASET}/latest",
-                         headers={"x-api-key": clave},
-                         timeout=TIEMPO_ESPERA).json()["data"]["version"]
-    except Exception as e:
-        raise SystemExit(f"No se pudo consultar {GLAD_DATASET}:\n  {e}")
+    v = _version_glad(clave)
 
     u = (f"{GFW_API}/dataset/{GLAD_DATASET}/{v}/download/geotiff"
          f"?grid=10/100000&tile_id={GLAD_TILE}&pixel_meaning=date_conf")
@@ -798,6 +851,145 @@ def calibrar_umbral(dnbr, dominio, glad_p, oeste) -> pd.DataFrame:
 # =====================================================================
 # 8. AGREGACION A CELDAS DE 5 KM
 # =====================================================================
+def deteccion_por_parche(propia, glad, region) -> pd.DataFrame:
+    """
+    Cuantos claros se detectan, en vez de cuantos pixeles se aciertan.
+
+    El F1 por pixel castiga igual dos errores muy distintos: inventarse
+    un claro donde no lo hay, y encontrar el claro correcto con el
+    contorno un poco ancho. Para un panel que tamiza municipios, lo
+    segundo importa poco: lo que se necesita saber es si el evento
+    quedo senalado.
+
+    Esta funcion agrupa cada capa en claros (componentes conexas, misma
+    vecindad de 8 que filtrar_parches) y cuenta cuantos de una capa son
+    tocados por al menos un pixel de la otra. Un claro cuenta como
+    detectado si hay cualquier traslape, sin exigir que coincida el
+    contorno.
+
+    Se reportan las dos direcciones porque responden preguntas
+    distintas:
+      glad_vs_propia -- de los claros que reporta GLAD-L, cuantos
+                        encuentro (omision).
+      propia_vs_glad -- de los claros que reporto yo, cuantos confirma
+                        GLAD-L (comision).
+
+    Y se reportan dos totales, que no son intercambiables: el conteo
+    simple trata igual un claro de 1 ha y uno de 100, mientras que el
+    ponderado por area dice cuanta hectarea queda cubierta. En esta zona
+    los claros pequenos son la mayoria en numero y poca area, asi que el
+    conteo simple sale mucho mas bajo que el ponderado.
+    """
+    est = np.ones((3, 3), dtype=bool)
+    ha = (ESCALA_M ** 2) / 10_000.0
+    tramos = [(12, 33, "1-3 ha"), (33, 111, "3-10 ha"),
+              (111, 333, "10-30 ha"), (333, 10 ** 9, "mas de 30 ha")]
+
+    filas = []
+    for nombre, ref, otro in (("glad_vs_propia", glad, propia),
+                              ("propia_vs_glad", propia, glad)):
+        lab, n = ndimage.label(ref & region, structure=est)
+        if n == 0:
+            continue
+        tam = np.bincount(lab.ravel())
+        tam[0] = 0
+        tocado = np.bincount(lab[otro & region].ravel(), minlength=n + 1)
+        tocado[0] = 0
+
+        for lo, hi, etiqueta in tramos + [(1, 10 ** 9, "TODOS")]:
+            ids = np.flatnonzero((tam >= lo) & (tam < hi))
+            if not len(ids):
+                continue
+            det = ids[tocado[ids] > 0]
+            area = float(tam[ids].sum()) * ha
+            area_det = float(tam[det].sum()) * ha
+            filas.append({
+                "direccion": nombre,
+                "tamano": etiqueta,
+                "parches": len(ids),
+                "parches_detectados": len(det),
+                "pct_parches": round(100 * len(det) / len(ids), 1),
+                "area_ha": round(area, 1),
+                "area_detectada_ha": round(area_det, 1),
+                "pct_area": round(100 * area_det / area, 1) if area else 0.0,
+            })
+    return pd.DataFrame(filas)
+
+
+def curva_observabilidad(propia_fn, glad_raw, bosque, obs_t1, obs_t2,
+                         region, umbral: float,
+                         minimos=(1, 2, 3, 4, 6, 8, 10)) -> pd.DataFrame:
+    """
+    Concordancia contra GLAD-L segun cuantas observaciones limpias exija
+    el dominio.
+
+    El dominio de la demo pide al menos UNA observacion limpia en cada
+    ventana. Subir esa barra deja fuera los pixeles peor observados, y
+    la concordancia mejora: con 3 observaciones el F1 ronda 0,29 y con
+    10 o mas llega a 0,69. Reportar un solo numero esconde eso.
+
+    La curva se reporta entera porque el valor util depende de para que
+    se use: quien necesite cobertura completa lee la primera fila, quien
+    pueda restringirse a zonas bien observadas lee las de abajo.
+
+    Se filtra por OBSERVABILIDAD (cuantas veces se pudo ver el pixel),
+    nunca por resultado. Filtrar por resultado seria elegir los aciertos.
+
+    Cuidado al leer las filas exigentes: el numero de observaciones lo
+    manda la geometria orbital, y en esta zona el traslape entre orbitas
+    cae en el sur. Pedir 10 observaciones equivale a quedarse con el
+    tercio sur, asi que esa fila describe una region, no la zona. La
+    columna cobertura_pct dice cuanta area queda, y reparto_ns cuan
+    repartida esta entre el norte y el sur.
+    """
+    nobs = np.minimum(obs_t1, obs_t2)
+    alto = bosque.shape[0]
+    norte = np.zeros_like(bosque)
+    norte[:alto // 2] = True
+    ha = (ESCALA_M ** 2) / 10_000.0
+    base = float((bosque & (nobs >= 1) & region).sum()) * ha
+
+    # Dos lecturas de lo mismo, y no son intercambiables:
+    #   acumulado -- "exige al menos k": es lo que pasaria si el dominio
+    #                subiera su barra, con la cobertura de area que queda.
+    #   exacto    -- "solo los pixeles con k observaciones": aisla el
+    #                efecto, porque no mezcla los bien observados con los
+    #                mal observados. Es la lectura que muestra de verdad
+    #                cuanto pesa la nubosidad.
+    #
+    # Las filas exactas de N bajo hay que leerlas con cuidado: recortar el
+    # dominio a esos pixeles los deja dispersos, y filtrar_parches() pide
+    # 12 pixeles conexos DENTRO del dominio. Con N=1 no se forma ningun
+    # parche y el F1 sale 0,000 por construccion, no porque el metodo
+    # falle ahi. El efecto se diluye a medida que el tramo cubre mas area.
+    tramos = [("acumulado", k, nobs >= k, str(k)) for k in minimos]
+    tramos += [("exacto", lo, (nobs >= lo) & (nobs <= hi), et)
+               for lo, hi, et in ((1, 1, "1"), (2, 2, "2"), (3, 3, "3"),
+                                  (4, 5, "4-5"), (6, 9, "6-9"), (10, 999, "10+"))]
+
+    filas = []
+    for modo, k, cond, etiqueta in tramos:
+        dom = bosque & cond
+        sel = dom & region
+        area = float(sel.sum()) * ha
+        if area == 0:
+            continue
+        gp = perdida_glad(glad_raw, dom)
+        pp = propia_fn(dom, umbral)
+        m = matriz_acuerdo(pp, gp, dom, region)
+        en_norte = float((sel & norte).sum()) * ha
+        filas.append({
+            "modo": modo,
+            "obs": etiqueta,
+            "obs_minimas": k,
+            "dominio_ha": round(area, 1),
+            "cobertura_pct": round(100 * area / base, 1) if base else 0.0,
+            "reparto_ns": round(100 * en_norte / area, 1),
+            **m, **metricas(m),
+        })
+    return pd.DataFrame(filas)
+
+
 def comparar_celdas(propia, glad, dominio, region, perfil) -> pd.DataFrame:
     """
     Hectareas perdidas por celda de 5 x 5 km, segun cada fuente.
@@ -1053,6 +1245,38 @@ def main() -> int:
                     e.precision, e.sensibilidad, e.f1)
         logger.info("  (exactitud global %.4f -- no informativa, ver docstring)",
                     e.exactitud_global_no_informativa)
+
+        # --- curva de observabilidad ---------------------------------------
+        logger.info("=" * 62)
+        logger.info("CONCORDANCIA SEGUN OBSERVACIONES EXIGIDAS (mitad ESTE)")
+        curva = curva_observabilidad(
+            lambda dom, u: perdida_propia(dnbr, dom, u),
+            glad_bruta, bosque, obs_t1, obs_t2, este, mejor)
+        curva.to_csv(DIR_DEMO / "curva_observabilidad.csv", index=False)
+        for modo, et in (("acumulado", "exige al menos N observaciones"),
+                         ("exacto", "solo los pixeles con N observaciones")):
+            logger.info("  -- %s (%s)", modo, et)
+            logger.info("     obs  cobertura   norte  precision  sensib      F1")
+            for _, f in curva[curva.modo == modo].iterrows():
+                logger.info("    %4s %8.1f%% %6.1f%% %9.3f %7.3f %7.3f",
+                            f.obs, f.cobertura_pct, f.reparto_ns,
+                            f.precision, f.sensibilidad, f.f1)
+
+        # --- deteccion por claro, no por pixel -----------------------------
+        logger.info("=" * 62)
+        logger.info("DETECCION POR CLARO (traslape, sin exigir contorno)")
+        par = deteccion_por_parche(propia, glad_p, este)
+        par.to_csv(DIR_DEMO / "deteccion_por_parche.csv", index=False)
+        for direccion, et in (
+                ("glad_vs_propia", "claros de GLAD-L que la demo encuentra"),
+                ("propia_vs_glad", "claros de la demo que GLAD-L confirma")):
+            logger.info("  -- %s", et)
+            logger.info("     %-14s %8s %10s %7s %7s", "tamano", "claros",
+                        "detectad.", "%", "% area")
+            for _, f in par[par.direccion == direccion].iterrows():
+                logger.info("     %-14s %8d %10d %6.0f%% %6.0f%%",
+                            f.tamano, f.parches, f.parches_detectados,
+                            f.pct_parches, f.pct_area)
 
         # --- celdas de 5 km ------------------------------------------------
         logger.info("=" * 62)
