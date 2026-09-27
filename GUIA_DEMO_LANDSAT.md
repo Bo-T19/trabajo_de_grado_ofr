@@ -4,6 +4,12 @@ Recorrido completo de [`demo_landsat_caqueta.py`](demo_landsat_caqueta.py):
 qué hace cada bloque de código, por qué está escrito así, y qué significa
 cada número del resultado.
 
+**Qué papel cumple en la tesis.** Esta demo es parte del entendimiento de
+los datos. El panel usa cifras que calcularon otros —GLAD-L, Hansen, el
+IDEAM—, y la demo replica en una zona piloto el tipo de cálculo con que
+se obtienen, para entenderlo bien y no tomarlo como dado. Ver la
+sección 1.
+
 Este documento asume que ya leyó [`METODOLOGIA.md`](METODOLOGIA.md)
 sección 1.2, donde se explica qué mide cada fuente del proyecto.
 
@@ -11,7 +17,7 @@ sección 1.2, donde se explica qué mide cada fuente del proyecto.
 
 ## Índice
 
-1. [Qué problema resuelve](#1-qué-problema-resuelve)
+1. [Para qué sirve esta demo](#1-para-qué-sirve-esta-demo)
 2. [Con qué se compara, y una precisión necesaria](#2-con-qué-se-compara-y-una-precisión-necesaria)
 3. [La idea física: por qué el NBR detecta tala](#3-la-idea-física-por-qué-el-nbr-detecta-tala)
 4. [Los parámetros, uno por uno](#4-los-parámetros-uno-por-uno)
@@ -33,18 +39,36 @@ sección 1.2, donde se explica qué mide cada fuente del proyecto.
 20. [Por qué los resultados son como son](#por-qué-los-resultados-son-como-son)
 21. [¿Es bueno un F1 de 0,505?](#es-bueno-un-f1-de-0505)
 22. [Dónde se ubica este método](#dónde-se-ubica-este-método)
-23. [Lo que esta demo no demuestra](#lo-que-esta-demo-no-demuestra)
+23. [Límites de la demo](#límites-de-la-demo)
+24. [Preguntas para más adelante](#preguntas-para-más-adelante)
+
 ---
 
-## 1. Qué problema resuelve
+## 1. Para qué sirve esta demo
 
 El panel del proyecto usa productos ya procesados: alertas de GFW,
-pérdida de Hansen, capas del IDEAM. Alguien puede preguntar, con razón,
-si el trabajo consiste solo en descargar y agregar tablas ajenas.
+pérdida de Hansen, capas del IDEAM. Ninguno de los integrantes de este
+trabajo es experto en detección de deforestación, y proponer un indicador
+propio frente a productos hechos por equipos especializados sería
+pretencioso. Lo que sí está a nuestro alcance, y aporta, es entender bien
+cómo calcularon ellos sus datos.
 
-Esta demo toma **imágenes crudas de satélite** y deriva de ellas una
-detección de pérdida de bosque propia, con su propio umbral calibrado.
-Después la contrasta contra un producto publicado.
+La demo hace eso en una zona piloto de Caquetá:
+
+1. Toma **imágenes crudas de satélite** y replica el tipo de cálculo con
+   que se detecta pérdida de bosque: compuestos sin nubes, un índice
+   espectral, un umbral y un filtro de área mínima.
+2. Se **ajusta lo más posible a un producto publicado**, GLAD-L: el
+   umbral se calibra para acercarse a sus valores.
+3. Mide **cuánto se acerca y por qué se aparta**, y compara esa distancia
+   con la que hay entre los propios productos profesionales.
+
+Por decisión tomada con el profesor, la demo queda como **parte del
+entendimiento de los datos**: explica de dónde vienen las cifras y cómo
+se calcularon. No alimenta ningún panel ni el modelo. Si más adelante
+hace falta responder preguntas que los productos publicados no
+contestan, este es el punto de partida (ver
+[Preguntas para más adelante](#preguntas-para-más-adelante)).
 
 Todo corre en el PC, sin Google Earth Engine y sin credenciales nuevas.
 El nivel gratuito de Earth Engine está limitado a uso **no comercial**, y
@@ -76,9 +100,12 @@ se contrasta. Está escrito así en el docstring de `metricas()`:
 Para exactitud contra el terreno está la muestra de validación visual
 del paso 13.
 
-> **Una comparación contra el IDEAM sí es posible** y sería un buen
-> siguiente paso: la capa `cambio_2022-2023` del panel cubre la misma
-> ventana y la misma zona. Quedaría como contraste anual, no por píxel.
+> **El IDEAM entra en la comparación de otra forma.** En
+> [¿Es bueno un F1 de 0,505?](#es-bueno-un-f1-de-0505) se mide cuánto
+> concuerdan entre sí GLAD-L, Hansen y el IDEAM en 2022, para tener un
+> punto de referencia. La detección propia no se compara directamente con
+> el IDEAM porque el año del IDEAM va de enero a diciembre y el de la
+> demo de febrero a febrero.
 
 ---
 
@@ -1519,6 +1546,14 @@ Esta demo no usa etiquetas propias, pero tampoco trabaja sin referencia:
 el umbral de 0,35 se calibró contra GLAD-L en la mitad oeste. Tiene un
 solo parámetro, y ese parámetro se ajustó con datos.
 
+### Por qué el extremo simple sirve para entender
+
+Para el propósito de esta demo, el extremo simple tiene una ventaja
+concreta: cada paso se puede leer, explicar y cambiar. Se ve qué índice
+se usa, dónde queda la raya y qué pasa con cada píxel. Un clasificador
+con cientos de reglas se acercaría más a GLAD-L, pero explicaría menos
+por qué.
+
 ### Por qué no se entrenó un modelo con GLAD-L como etiqueta
 
 Sería circular. El modelo aprendería a reproducir GLAD-L, y después
@@ -1545,20 +1580,23 @@ comparación vuelve a significar algo.
 
 ---
 
-## Lo que esta demo no demuestra
+## Límites de la demo
 
-Conviene tenerlo claro antes de presentarla:
+Conviene tenerlos claros antes de presentarla:
 
-**No reemplaza a GLAD-L.** Es una zona piloto de 80 × 77 km, un par de
-fechas y un solo índice. El producto de GFW integra tres sistemas,
-cobertura continua y una escala de confianza validada.
+**No es un indicador propio.** Es una réplica en una zona piloto de
+89 × 77 km, con un par de fechas y un solo índice, hecha para entender el
+cálculo. El producto de GFW integra tres sistemas, cobertura continua y
+una escala de confianza validada.
 
 **Mide concordancia, no exactitud.** Sin la interpretación visual de los
 200 puntos no hay verdad de campo contra la cual medirse.
 
-**No se comparó con el dato oficial.** El oficial es el del IDEAM.
-Compararla contra la capa `cambio_2022-2023` del panel sería un buen
-siguiente paso, aunque quedaría anual y no por píxel.
+**La detección propia no se comparó directamente con el dato oficial.**
+El IDEAM entra en la referencia entre productos, pero la demo solo se
+contrasta con GLAD-L, cuya ventana de fechas coincide con la suya.
+Compararla con el IDEAM exigiría mover las fechas objetivo al año
+calendario.
 
 **Un umbral único para toda la zona.** El 0,35 se aplica igual en los
 2968 × 2581 píxeles. Un bosque más seco o con otra estructura responde
@@ -1575,6 +1613,55 @@ con suficientes lecturas limpias.
 **Un solo índice y una sola fecha por año.** Los productos operativos
 usan series temporales completas y varios índices. Esta demo usa dos
 compuestos y el NBR.
+
+---
+
+## Preguntas para más adelante
+
+Entender cómo se calculan los datos deja preguntas que los productos
+publicados no contestan. Esta demo es el lugar al que habría que volver
+para responderlas, porque aquí cada paso del cálculo está a la vista y
+se puede cambiar.
+
+### ¿Cómo se sabe cuánto se deforestó en un departamento?
+
+Hoy la respuesta tiene dos pasos, y cada uno lleva una decisión.
+
+**Del píxel a hectáreas.** GLAD-L, Hansen, el IDEAM y esta demo cuentan
+cada píxel marcado con su área completa: 0,09 ha a 30 m. La magnitud del
+cambio espectral solo decide si el píxel se marca o no. Un píxel donde el
+NBR cayó 0,36 y otro donde cayó 0,90 suman lo mismo.
+
+**De hectáreas a departamento.** El panel suma por celdas de 5 km, y
+cada celda se asigna completa al departamento donde cae su centroide
+(`exportar_grilla.py`). Una celda partida por un límite departamental
+cuenta entera para un solo lado.
+
+De ahí salen tres preguntas abiertas:
+
+- **¿Debe pesar igual todo píxel marcado?** El anillo de orilla (ver
+  [Por qué los resultados son como son](#por-qué-los-resultados-son-como-son))
+  muestra lo que cuesta no ponderar: los píxeles que el borde de un claro
+  parte por la mitad cuentan enteros. Una alternativa sería estimar qué
+  fracción de cada píxel se perdió a partir de cuánto cayó el índice, y
+  sumar fracciones en lugar de píxeles enteros. La demo ya tiene el dNBR
+  de cada píxel, así que esa prueba se puede hacer aquí.
+- **¿Qué magnitud de cambio cuenta como deforestación?** Hoy la decide un
+  umbral calibrado contra GLAD-L. Otra referencia, u otro uso del dato,
+  podría justificar otro umbral.
+- **¿Cómo se reparten las celdas de frontera?** En un departamento grande
+  el efecto es pequeño; en un municipio pequeño, cubierto por pocas
+  celdas, puede no serlo. La alternativa es repartir cada celda según la
+  fracción de su área que cae en cada unidad.
+
+### Cómo se abordarían
+
+Con el mismo camino que siguió esta demo: primero replicar lo que hacen
+los productos publicados, y después cambiar una decisión a la vez y ver
+cuánto se mueve la cifra agregada. La vara para juzgar cada cambio sería
+el dato oficial agregado, porque el IDEAM reporta también por
+departamento y la agregación de sus capas en este proyecto ya reproduce
+su cifra nacional (ver `METODOLOGIA.md`, sección 8).
 
 ---
 

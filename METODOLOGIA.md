@@ -16,6 +16,7 @@ decisiones documentadas aquí, en particular la sección 7 (licencias).
 1. [Diseño general](#1-diseño-general)
    - [1.2 Para qué sirve cada fuente](#12-para-qué-sirve-cada-fuente)
 2. [Fuentes de datos](#2-fuentes-de-datos)
+   - [2.6 Cómo se generan estos datos: réplica en una zona piloto](#26-cómo-se-generan-estos-datos-réplica-en-una-zona-piloto)
 3. [Marco conceptual: de píxeles a panel](#3-marco-conceptual-de-píxeles-a-panel)
 4. [Bitácora de decisiones de diseño](#4-bitácora-de-decisiones-de-diseño)
 5. [Supuestos del estudio](#5-supuestos-del-estudio)
@@ -278,6 +279,9 @@ cuantifica, celda a celda y año a año, la relación entre una alerta de
 disturbio, una hectárea de cobertura perdida y una hectárea oficialmente
 deforestada (sección 8).
 
+La sección 2.6 no agrega una fuente: replica en una zona piloto el
+cálculo con que se generan, para entenderlo.
+
 ### 2.1 Hansen Global Forest Change — línea base y pérdida de cobertura
 
 **Qué es.** Producto global de cobertura y cambio de bosque a 30 m de
@@ -526,6 +530,45 @@ al conteo consolidado.
 Ninguna de las dos aporta información temporal ni de cambio: solo definen
 **dónde** está cada celda y **cómo se llama** administrativamente.
 
+### 2.6 Cómo se generan estos datos: réplica en una zona piloto
+
+Las fuentes anteriores se usan tal como las publican sus productores.
+Para no tomarlas como dadas, se replicó el tipo de cálculo con que se
+obtienen, sobre imágenes Landsat 8/9 crudas de una zona piloto en
+Caquetá (89 × 77 km, entre Cartagena del Chairá y San Vicente del
+Caguán), en `demo_landsat_caqueta.py`.
+
+**Qué hace.** Arma dos compuestos sin nubes, de enero a marzo de 2022 y
+de 2023; calcula en cada uno el índice NBR; marca como pérdida los
+píxeles de bosque donde el índice cae más de un umbral, y descarta los
+parches menores de 1 ha. El umbral se calibra para acercarse a las
+alertas GLAD-L en la mitad oeste de la zona, y se evalúa en la mitad
+este.
+
+**Qué se obtuvo.**
+
+- Por celda de 5 km, la correlación con GLAD-L es 0,909. Por píxel, el
+  F1 es 0,505.
+- Medidos igual, GLAD-L, Hansen y el IDEAM concuerdan entre sí con un F1
+  de 0,44 a 0,61 y una correlación por celda de 0,89 a 0,94. La réplica
+  cae dentro de ambos rangos. Los productos discrepan sobre todo en
+  cuánta área reportan; la réplica, calibrada contra GLAD-L, en dónde la
+  pone.
+- Encuentra el 88 % de los claros de GLAD-L mayores de 30 ha y el 23 % de
+  los de 1 a 3 ha.
+- El límite principal es la nubosidad: el píxel típico tuvo 5 lecturas
+  limpias de 38 posibles en 2022, y 3 de 34 en 2023.
+
+**Qué papel cumple.** Es parte del entendimiento de los datos: explica
+de dónde vienen las cifras de deforestación y por qué productos serios no
+coinciden píxel a píxel. No alimenta ningún panel ni el modelo
+(decisión 12 de la bitácora). Queda como punto de partida para preguntas
+que los productos publicados no responden, como la forma de ponderar
+cada píxel al agregar a un departamento.
+
+El recorrido completo, con cada decisión y cada cifra, está en
+[`GUIA_DEMO_LANDSAT.md`](GUIA_DEMO_LANDSAT.md).
+
 ---
 
 ## 3. Marco conceptual: de píxeles a panel
@@ -626,6 +669,7 @@ requerirían tomar el máximo entre piezas para no duplicar bosque).
 | 9 | Remuestreo *nearest neighbor* al reproyectar Hansen | Remuestreo bilinear o cúbico | `treecover2000` y `lossyear` son variables de clasificación (bosque/no bosque, año categórico); interpolar valores continuos entre categorías produciría valores sin sentido físico | Cierto error posicional de sub-píxel en los bordes de manchas de bosque, inherente a cualquier remuestreo por vecino más cercano |
 | 10 | Grilla construida localmente con `geopandas` y límites del DANE (MGN) | Google Earth Engine con `coveringGrid()` y assets `USDOS/LSIB_SIMPLE`/`FAO/GAUL_SIMPLIFIED`; GADM como fuente de límites | La edición gratuita/académica de Earth Engine **prohíbe explícitamente** su uso para "actividades de pago por servicio" o para "recibir compensación de una entidad comercial por aplicaciones o datos creados usando Earth Engine" — y este panel es insumo de consultorías comerciales del Observatorio. GADM es de uso no comercial únicamente, el mismo problema. El DANE (MGN, CC BY 4.0) permite uso comercial con atribución | El MGN del DANE es de precisión catastral completa (no generalizada), así que el polígono nacional sale con ~280 000 vértices; se simplifica con tolerancia de 100 m (irrelevante frente al lado de celda de 5000 m) para que el filtro espacial corra en segundos, no minutos |
 | 11 | Rectángulo (`bbox`) para seleccionar gránulos de Hansen | Enviar la geometría exacta de Colombia | Los gránulos de Hansen son de 10×10 grados: un `bbox` simple basta para identificar cuáles hacen falta, sin construir ni depurar una consulta con geometría compleja | Se descargan gránulos que cubren de más (países vecinos, océano) — costo de almacenamiento marginal, no de tiempo de cómputo relevante |
+| 12 | **La réplica con Landsat queda como entendimiento de los datos**, no como fuente del panel (§2.6) | Construir un indicador propio de deforestación desde imagen cruda y usarlo en el panel o en el modelo | Ningún integrante del trabajo es experto en detección de deforestación, y proponer un indicador propio frente a productos de equipos especializados sería pretencioso. Replicar su cálculo, acercarse lo más posible a sus valores y entender dónde y por qué se aparta sí aporta: permite leer las fuentes sin tomarlas como dadas. Decisión tomada con el profesor | La réplica no produce datos para el modelo. Preguntas como la forma de ponderar cada píxel al agregar a un departamento quedan abiertas, con la réplica como punto de partida para responderlas |
 
 ---
 

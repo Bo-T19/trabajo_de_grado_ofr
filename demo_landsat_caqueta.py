@@ -1,25 +1,27 @@
 """
 demo_landsat_caqueta.py
 ======================================================================
-PRUEBA DE CONCEPTO: derivar perdida de bosque directamente de imagenes
-Landsat 8/9 sobre una zona piloto de Caqueta, y contrastarla con las
-alertas GLAD-L.
+ENTENDIMIENTO DE LOS DATOS: replica, sobre imagenes Landsat 8/9 crudas
+de una zona piloto de Caqueta, el tipo de calculo con que los productos
+publicados detectan perdida de bosque, y la contrasta con las alertas
+GLAD-L.
 
     python demo_landsat_caqueta.py
 
 Salidas: datos/demo/  (ver la seccion SALIDAS mas abajo)
 
-QUE DEMUESTRA Y QUE NO
-----------------------
-Demuestra que la deteccion de perdida de bosque se puede derivar desde
-la imagen cruda -- compuestos, indice espectral, umbral, filtro de
-parche-- y evaluarse contra un producto publicado, con separacion
+PARA QUE SIRVE Y PARA QUE NO
+----------------------------
+Sirve para entender como se calculan los datos que usa el panel: arma la
+deteccion de perdida de bosque desde la imagen cruda -- compuestos,
+indice espectral, umbral, filtro de parche--, se acerca lo mas posible a
+un producto publicado, y mide donde y por que se aparta, con separacion
 honesta entre calibracion y validacion.
 
-NO pretende reemplazar a GLAD-L como variable objetivo del modelo
-nacional. Es una zona piloto, un par de fechas y un indice; el producto
-de GFW integra tres sistemas, cobertura continua y una escala de
-confianza validada.
+No es un indicador propio ni alimenta el panel o el modelo. Es una zona
+piloto, un par de fechas y un indice; el producto de GFW integra tres
+sistemas, cobertura continua y una escala de confianza validada. Ver
+METODOLOGIA.md, seccion 2.6, y la decision 12 de su bitacora.
 
 SIN GOOGLE EARTH ENGINE, Y POR QUE IMPORTA
 ------------------------------------------

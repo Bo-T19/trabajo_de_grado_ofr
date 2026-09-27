@@ -23,7 +23,7 @@ se explica su implementación.
 6. [Cómo se calcula el bosque base, en código](#6-cómo-se-calcula-el-bosque-base-en-código)
 7. [Cómo se construye el panel, en código](#7-cómo-se-construye-el-panel-en-código)
 8. [El mapa interactivo (`mapa_folium.py`)](#8-el-mapa-interactivo-mapa_foliumpy)
-9. [Prueba de concepto: derivar deforestación desde Landsat](#9-prueba-de-concepto-derivar-deforestación-desde-landsat)
+9. [Entendimiento de los datos: réplica del cálculo desde Landsat](#9-entendimiento-de-los-datos-réplica-del-cálculo-desde-landsat)
 10. [Análisis exploratorio](#10-análisis-exploratorio)
 11. [Estructura de `datos/`](#11-estructura-de-datos)
 12. [Cómo adaptar el pipeline](#12-cómo-adaptar-el-pipeline)
@@ -71,8 +71,8 @@ trabajo_de_grado/
 ├── describir_fuentes_profesor.py  igual, para las 3 tablas del profesor (cuenta personal)
 ├── DESCRIPCION_FUENTES_PROFESOR.md  salida de describir_fuentes_profesor.py
 │
-│   ── PRUEBA DE CONCEPTO: deforestación derivada de imagen cruda ──
-├── demo_landsat_caqueta.py   deriva pérdida de bosque desde Landsat
+│   ── ENTENDIMIENTO DE LOS DATOS: réplica del cálculo desde imagen cruda ──
+├── demo_landsat_caqueta.py   replica el cálculo de pérdida desde Landsat
 ├── mapa_folium.py            mapa interactivo (Leaflet) de la tabla de alertas
 │
 ├── requirements_local.txt    dependencias de Python (pip)
@@ -81,7 +81,7 @@ trabajo_de_grado/
 ├── METODOLOGIA.md            ← el "qué y por qué" (léalo primero)
 ├── GUIA_CODIGO.md            ← este documento, el "cómo"
 ├── GUIA_BIGQUERY.md          ← acceso y arquitectura de BigQuery (equipo + Observatorio)
-├── GUIA_DEMO_LANDSAT.md      ← detalle de la prueba de concepto con Landsat (sección 9)
+├── GUIA_DEMO_LANDSAT.md      ← recorrido de la réplica con Landsat (sección 9)
 │
 ├── legacy/                   código archivado, fuera del pipeline activo
 │                              (ver legacy/README.md)
@@ -90,7 +90,7 @@ trabajo_de_grado/
     ├── grilla/  hansen/  gfw/  cache/  crudo/  limites/  panel/  logs/
     ├── ideam/                 capas de cambio de bosque del SMByC
     ├── dtd/                   detecciones tempranas del SMByC
-    └── demo/                  salidas de la prueba de concepto
+    └── demo/                  salidas de la réplica con Landsat
 ```
 
 ### Las cuatro tablas
@@ -1218,12 +1218,16 @@ se puede leer el `.parquet`.
 
 ---
 
-## 9. Prueba de concepto: derivar deforestación desde Landsat
+## 9. Entendimiento de los datos: réplica del cálculo desde Landsat
 
-`demo_landsat_caqueta.py` deriva pérdida de bosque **directamente de
-imágenes Landsat 8/9** sobre una zona piloto de Caquetá, y la contrasta
-con las alertas GLAD-L. Es una demostración metodológica: no reemplaza a
-GLAD-L como fuente del panel.
+`demo_landsat_caqueta.py` replica, en una zona piloto de Caquetá, el tipo
+de cálculo con que los productos publicados detectan pérdida de bosque,
+partiendo de imágenes Landsat 8/9 crudas. Se acerca lo más posible a las
+alertas GLAD-L y mide dónde y por qué se aparta.
+
+Es parte del entendimiento de los datos
+([`METODOLOGIA.md`](METODOLOGIA.md), sección 2.6): no alimenta ningún
+panel ni el modelo.
 
 > El recorrido línea por línea del módulo está en
 > [`GUIA_DEMO_LANDSAT.md`](GUIA_DEMO_LANDSAT.md). Esta sección resume qué
@@ -1280,6 +1284,11 @@ anteriores. Se verificó la cobertura real sobre la zona antes de fijar
 las fechas. 2022 y 2023 son los dos primeros años consecutivos con
 alertas confirmadas completas, y ambos tienen escenas de Landsat 8 y 9.
 
+Cada compuesto usa todas las lecturas limpias de su ventana con el mismo
+peso. La foto de 2022 queda centrada cerca del 1 de febrero y la de 2023
+cerca del 19 de febrero, así que el dato mide unos 376 días
+(`fecha_efectiva.csv`).
+
 ### Resultados de la corrida de referencia
 
 Zona de 2968 × 2581 píxeles de 30 m, con 330 600 ha de bosque inicial.
@@ -1293,14 +1302,19 @@ Zona de 2968 × 2581 píxeles de 30 m, con 330 600 ha de bosque inicial.
 | Sensibilidad, a nivel de píxel | 0,467 |
 | F1, a nivel de píxel | 0,505 |
 
-Esa diferencia entre escalas es el resultado central: **a nivel de píxel
-la coincidencia es moderada, pero a la escala de 5 km del modelo la
-correlación llega a 0,91**. Dos detectores pueden discrepar sobre qué
-píxel exacto marcaron y aun así coincidir muy bien en cuánta pérdida hay
-en cada celda, que es lo que el modelo necesita.
+Para leer estas cifras hace falta un punto de referencia. Medidos con la
+misma vara, en 2022, GLAD-L, Hansen y el IDEAM concuerdan entre sí con un
+F1 por píxel de 0,44 a 0,61 y una correlación por celda de 0,89 a 0,94.
+La réplica cae dentro de ambos rangos. Eso no la hace mejor que los
+productos: ellos discrepan sobre todo en cuánta área reportan, y la
+réplica, calibrada contra GLAD-L, en dónde la pone (ver
+`GUIA_DEMO_LANDSAT.md`, «¿Es bueno un F1 de 0,505?»).
 
 Matriz de acuerdo, sobre 180 450 ha de dominio: 1 251 ha detectadas por
 ambos, 1 026 ha solo por el método propio, 1 430 ha solo por GLAD-L.
+
+Por tamaño de claro, encuentra el 88 % de los claros de GLAD-L mayores
+de 30 ha, el 77 % de los de 10 a 30 ha y el 23 % de los de 1 a 3 ha.
 
 > **La exactitud global fue 0,9864 y no significa nada.** El bosque
 > estable ocupa el 98 % del dominio, así que un detector que no marcara
@@ -1323,6 +1337,9 @@ Por eso el diagnóstico reporta la distribución completa —mínimo,
 percentil 10, mediana, máximo— y no solo el porcentaje excluido: un píxel
 con una sola lectura entra al dominio, pero si esa lectura venía
 contaminada y la máscara no la atrapó, su dNBR es ruido.
+
+El efecto se ve en `curva_observabilidad.csv`: en los píxeles con 3
+lecturas limpias el F1 es 0,285, y en los que tuvieron 10 o más, 0,693.
 
 ### Las dos decisiones que sostienen el resultado
 
@@ -1368,8 +1385,8 @@ desacuerdos —que son lo que hay que revisar— casi sin puntos.
 
 `zonal.reproyectar_sobre_bloque()` para llevar los gránulos de Hansen a
 la rejilla de trabajo, `mapa_folium.atenuar_mapa_base()` para que el mapa
-se vea igual que los demás, y el `logger` de `config_local`. La demo no
-reimplementa la geometría del reparto: la hereda.
+se vea igual que los demás, y el `logger` de `config_local`. Así la
+geometría del reparto es la misma del panel.
 
 ---
 
@@ -1465,7 +1482,7 @@ declaradas en `requirements_local.txt`.
 | `datos/limites/` | `municipios_dane_mgn2025.geojson` — límites municipales del DANE | `descargar_municipios.py` |
 | `datos/ideam/` | `cambio_<periodo>.img` — capas de cambio del SMByC (~53 MB c/u) | `descargar_ideam.py` |
 | `datos/dtd/` | `atd_<año>_<trim>.kml` — detecciones tempranas (~167 MB en total) | `descargar_dtd.py` |
-| `datos/demo/` | Salidas de la prueba de concepto con Landsat | `demo_landsat_caqueta.py` |
+| `datos/demo/` | Salidas de la réplica con Landsat | `demo_landsat_caqueta.py` |
 | `datos/panel/` | **Las cuatro tablas** (`.csv` + `.parquet`) + `mapa_deforestacion.html` | `consolidar.py`, `panel_hansen.py`, `panel_ideam.py`, `panel_dtd.py`, `mapa_folium.py` |
 | `datos/logs/` | `gfw_api_key.txt` | `configurar_gfw.py` |
 
