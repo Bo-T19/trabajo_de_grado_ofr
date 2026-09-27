@@ -111,6 +111,9 @@ SALIDAS (datos/demo/)
   deteccion_por_parche.csv      cuantos claros se detectan por tramo de
                                 tamano, en ambas direcciones
   comparacion_celdas.csv        hectareas por celda de 5 km, ambas fuentes
+  referencia_entre_productos.csv cuanto concuerdan entre si GLAD-L, Hansen
+                                y el IDEAM con la misma vara que la demo,
+                                para poder leer su F1
   muestra_validacion_visual.csv muestra estratificada para interpretar a
                                 mano (Olofsson et al., 2014)
   mapa_revision.html            mapa folium con todas las capas
@@ -171,6 +174,11 @@ T2_INICIO, T2_FIN = "2023-01-01", "2023-03-31"
 GLAD_DESDE = dt.date(2022, 2, 15)
 GLAD_HASTA = dt.date(2023, 2, 15)
 GLAD_CONF_MIN = 3                        # 3 = alerta confirmada
+
+# Anio calendario en que se compara a los productos profesionales entre
+# si (ver referencia_entre_productos). Debe estar cubierto por el
+# raster rodante de GLAD-L y tener capa del IDEAM en disco.
+ANIO_REFERENCIA = 2022
 
 # Bosque inicial. Se usan los granulos LOCALES, que el pipeline ya
 # descarga; no hay que bajar nada nuevo.
@@ -660,10 +668,9 @@ def _url_glad(clave: str) -> str:
     return r.headers["Location"]
 
 
-def alertas_glad(perfil: dict, clave: str) -> np.ndarray:
+def leer_glad(perfil: dict, clave: str) -> np.ndarray:
     """
-    Alertas GLAD-L confirmadas dentro de la ventana T1-T2, sobre la
-    rejilla de trabajo.
+    Raster date_conf de GLAD-L sobre la rejilla de trabajo, sin filtrar.
 
     CODIFICACION de la banda date_conf: el valor empaqueta dos cosas,
     confianza y fecha, como conf * 10000 + dias desde GLAD_EPOCA. Se
@@ -671,6 +678,10 @@ def alertas_glad(perfil: dict, clave: str) -> np.ndarray:
     confianza y el rango de fechas observados-- en vez de darla por
     supuesta: un desajuste aqui produciria un resultado vacio, que es el
     modo de falla mas dificil de detectar.
+
+    Se lee una sola vez por corrida. alertas_glad() lo filtra para cada
+    ventana que haga falta: la de la demo, y el anio calendario de la
+    referencia entre productos.
     """
     url = _url_glad(clave)
     os.environ["GDAL_DISABLE_READDIR_ON_OPEN"] = "EMPTY_DIR"
@@ -708,16 +719,31 @@ def alertas_glad(perfil: dict, clave: str) -> np.ndarray:
     logger.info("  rango de fechas: %s a %s",
                 GLAD_EPOCA + dt.timedelta(days=d_min),
                 GLAD_EPOCA + dt.timedelta(days=d_max))
+    return destino
 
-    desde = (GLAD_DESDE - GLAD_EPOCA).days
-    hasta = (GLAD_HASTA - GLAD_EPOCA).days
-    if d_max < desde or d_min > hasta:
+
+def alertas_glad(destino: np.ndarray, desde: dt.date = GLAD_DESDE,
+                 hasta: dt.date = GLAD_HASTA) -> np.ndarray:
+    """
+    Alertas GLAD-L confirmadas entre `desde` y `hasta`, ambos incluidos.
+
+    Si la ventana pedida cae fuera del rango de fechas que trae el
+    raster, se detiene con un mensaje claro. Devolver cero alertas seria
+    peor: pareceria que en la zona no hubo perdida.
+    """
+    con_dato = destino > 0
+    conf = (destino // 10000).astype(np.uint8)
+    dias = (destino % 10000).astype(np.int32)
+    d_min, d_max = int(dias[con_dato].min()), int(dias[con_dato].max())
+    i_desde = (desde - GLAD_EPOCA).days
+    i_hasta = (hasta - GLAD_EPOCA).days
+    if d_max < i_desde or d_min > i_hasta:
         raise SystemExit(
             f"Las alertas disponibles ({GLAD_EPOCA + dt.timedelta(days=d_min)} a "
             f"{GLAD_EPOCA + dt.timedelta(days=d_max)}) no cubren la ventana pedida "
-            f"({GLAD_DESDE} a {GLAD_HASTA}). Ajuste T1/T2 o GLAD_DESDE/GLAD_HASTA.")
-
-    return con_dato & (conf >= GLAD_CONF_MIN) & (dias >= desde) & (dias <= hasta)
+            f"({desde} a {hasta}). Ajuste T1/T2 o GLAD_DESDE/GLAD_HASTA.")
+    return (con_dato & (conf >= GLAD_CONF_MIN)
+            & (dias >= i_desde) & (dias <= i_hasta))
 
 
 # =====================================================================
@@ -1130,6 +1156,112 @@ def comparar_celdas(propia, glad, dominio, region, perfil) -> pd.DataFrame:
                "propia_ha", "glad_ha", "dominio_ha"]].reset_index(drop=True)
 
 
+def f1_con_tolerancia(prueba, ref, region, radio: float) -> float:
+    """
+    F1 aceptando un corrimiento de hasta `radio` pixeles.
+
+    Un pixel marcado por una capa cuenta como acierto si la otra capa
+    tiene algun pixel marcado a esa distancia o menos. Asi se separa el
+    error de contorno -- el mismo claro con el borde uno o dos pixeles
+    mas afuera-- del error de verdad, que es marcar un claro que la otra
+    capa no tiene o no ver uno que si tiene.
+
+    radio 1.5 = el anillo de 8 vecinos (30 m); radio 2.9 = dos anillos
+    (60 m). Las distancias son euclidianas, por eso la diagonal de un
+    pixel mide 1.41 y no 1.
+    """
+    d_ref = ndimage.distance_transform_edt(~ref)
+    d_pru = ndimage.distance_transform_edt(~prueba)
+    p, r = prueba & region, ref & region
+    if not p.any() or not r.any():
+        return 0.0
+    prec = float((d_ref[p] <= radio).mean())
+    sens = float((d_pru[r] <= radio).mean())
+    return 2 * prec * sens / (prec + sens) if prec + sens else 0.0
+
+
+def referencia_entre_productos(perfil, dominio, region, glad_cod,
+                               propia, glad_p) -> pd.DataFrame:
+    """
+    Cuanto concuerdan entre si productos profesionales, medido igual que
+    la demo contra GLAD-L.
+
+    Un F1 por pixel de 0,505 no se puede leer solo: no dice si es bueno o
+    malo sin saber cuanto concuerdan, con la misma vara, productos hechos
+    por equipos profesionales. Esta tabla da ese punto de referencia.
+
+    Pares, en `region` y con el mismo filtro de parche para todas las
+    capas:
+      demo vs GLAD-L    ventana de la demo (GLAD_DESDE a GLAD_HASTA)
+      Hansen vs GLAD-L  anio calendario ANIO_REFERENCIA
+      IDEAM vs GLAD-L   idem, sin los pixeles que el IDEAM marca sin
+                        informacion
+      IDEAM vs Hansen   idem
+
+    El IDEAM se lee de la capa cambio_(ANIO-1)-(ANIO) que el pipeline ya
+    descarga. Si no esta en disco, sus dos filas se omiten.
+
+    COLUMNAS QUE HAY QUE LEER JUNTAS. El F1 por pixel mezcla dos
+    desacuerdos distintos: cuanta area reporta cada capa, y donde la
+    pone. Si una capa reporta el triple que la otra, el F1 no puede
+    pasar de techo_f1 = 2 min(A, B) / (A + B) aunque todo lo que marque
+    la chica este dentro de la grande. pct_del_techo dice que parte de
+    ese maximo se alcanza. Los productos entre si discrepan sobre todo en
+    cuanto; la demo, que se calibro contra GLAD-L, discrepa sobre todo en
+    donde. Por eso esta tabla NO permite decir que la demo sea mejor que
+    los productos oficiales: dice que su concordancia con GLAD-L esta en
+    el mismo rango que la de ellos.
+    """
+    ha = (ESCALA_M ** 2) / 10_000.0
+    anio = ANIO_REFERENCIA
+    glad_anio = alertas_glad(glad_cod, dt.date(anio, 1, 1), dt.date(anio, 12, 31))
+    perdida = reproyectar_sobre_bloque(
+        sorted(DIR_HANSEN.glob("Hansen_*_lossyear_*.tif")), perfil)
+    hansen_anio = perdida == (anio - 2000)
+
+    pares = [("demo vs GLAD-L", f"{GLAD_DESDE} a {GLAD_HASTA}",
+              propia, glad_p, dominio),
+             ("Hansen vs GLAD-L", str(anio), hansen_anio, glad_anio, dominio)]
+    capa_ideam = DIR_DATOS / "ideam" / f"cambio_{anio - 1}-{anio}.img"
+    if capa_ideam.exists():
+        ideam = reproyectar_sobre_bloque([capa_ideam], perfil)
+        dom_ideam = dominio & np.isin(ideam, [1, 2, 4, 5])
+        ideam_anio = ideam == 2
+        pares += [("IDEAM vs GLAD-L", str(anio), ideam_anio, glad_anio, dom_ideam),
+                  ("IDEAM vs Hansen", str(anio), ideam_anio, hansen_anio, dom_ideam)]
+    else:
+        logger.info("  %s no esta en disco; se omiten las filas del IDEAM "
+                    "(python descargar_ideam.py)", capa_ideam.name)
+
+    filas = []
+    for par, ventana, prueba, ref, dom in pares:
+        prueba = filtrar_parches(prueba & dom)
+        ref = filtrar_parches(ref & dom)
+        m = matriz_acuerdo(prueba, ref, dom, region)
+        mt = metricas(m)
+        a_p = float((prueba & region).sum()) * ha
+        a_r = float((ref & region).sum()) * ha
+        techo = 2 * min(a_p, a_r) / (a_p + a_r) if a_p + a_r else 0.0
+        cel = comparar_celdas(prueba, ref, dom, region, perfil)
+        r = float(np.corrcoef(cel.propia_ha, cel.glad_ha)[0, 1])
+        det = deteccion_por_parche(prueba, ref, region)
+        det = det[det.tamano == "TODOS"].set_index("direccion")
+        filas.append({
+            "par": par, "ventana": ventana,
+            "area_prueba_ha": round(a_p, 1), "area_ref_ha": round(a_r, 1),
+            "razon_areas": round(a_p / a_r, 2) if a_r else None,
+            "f1": round(mt["f1"], 3),
+            "techo_f1": round(techo, 3),
+            "pct_del_techo": round(100 * mt["f1"] / techo, 1) if techo else None,
+            "f1_tol_1px": round(f1_con_tolerancia(prueba, ref, region, 1.5), 3),
+            "f1_tol_2px": round(f1_con_tolerancia(prueba, ref, region, 2.9), 3),
+            "pearson_celda": round(r, 3),
+            "pct_area_ref_hallada": det.loc["glad_vs_propia", "pct_area"],
+            "pct_area_prueba_confirmada": det.loc["propia_vs_glad", "pct_area"],
+        })
+    return pd.DataFrame(filas)
+
+
 # =====================================================================
 # 9. MUESTRA PARA VALIDACION VISUAL
 # =====================================================================
@@ -1324,7 +1456,8 @@ def main() -> int:
         # --- GLAD-L -------------------------------------------------------
         logger.info("=" * 62)
         logger.info("ALERTAS GLAD-L (data-lake de GFW)")
-        glad_bruta = alertas_glad(perfil, _api_key())
+        glad_cod = leer_glad(perfil, _api_key())
+        glad_bruta = alertas_glad(glad_cod)
         glad_p = perdida_glad(glad_bruta, dominio)
         logger.info("  en ventana y dominio: %.1f ha", glad_p.sum() * ha)
 
@@ -1398,6 +1531,19 @@ def main() -> int:
             logger.info("  Spearman r = %.3f", rs)
         else:
             logger.warning("  muy pocas celdas (%d) para correlacionar", len(celdas))
+
+        # --- referencia entre productos -------------------------------------
+        logger.info("=" * 62)
+        logger.info("REFERENCIA: CONCORDANCIA ENTRE PRODUCTOS (mitad ESTE)")
+        ref = referencia_entre_productos(perfil, dominio, este, glad_cod,
+                                         propia, glad_p)
+        ref.to_csv(DIR_DEMO / "referencia_entre_productos.csv", index=False)
+        logger.info("  %-17s %6s %6s %6s %6s %6s %6s",
+                    "par", "F1", "techo", "tol1", "tol2", "areas", "r_cel")
+        for _, f in ref.iterrows():
+            logger.info("  %-17s %6.3f %6.3f %6.3f %6.3f %6.2f %6.3f",
+                        f.par, f.f1, f.techo_f1, f.f1_tol_1px, f.f1_tol_2px,
+                        f.razon_areas, f.pearson_celda)
 
         # --- muestra --------------------------------------------------------
         logger.info("=" * 62)

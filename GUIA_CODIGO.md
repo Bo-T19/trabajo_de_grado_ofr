@@ -1346,12 +1346,16 @@ en lugar de diferencias de detección.
 | Archivo | Qué trae |
 |---|---|
 | `diagnostico_nubes.csv` | Bosque, dominio y distribución de observaciones limpias |
+| `fecha_efectiva.csv` | Qué fecha representa cada compuesto y qué intervalo mide el dNBR |
 | `calibracion_umbral.csv` | Métricas por umbral, en la mitad oeste |
 | `evaluacion_validacion.csv` | Matriz de acuerdo y métricas, en la mitad este |
+| `curva_observabilidad.csv` | Concordancia según cuántas observaciones limpias se exijan |
+| `deteccion_por_parche.csv` | Cuántos claros se detectan, por tamaño y en ambas direcciones |
 | `comparacion_celdas.csv` | Hectáreas por celda de 5 km, ambas fuentes |
+| `referencia_entre_productos.csv` | Cuánto concuerdan entre sí GLAD-L, Hansen y el IDEAM, para leer el F1 de la demo |
 | `muestra_validacion_visual.csv` | 200 puntos estratificados para interpretar a mano |
 | `mapa_revision.html` | Mapa con bosque, pérdida propia y pérdida GLAD-L |
-| `cache_nbr_*.npz` | Compuestos guardados; borrarlo fuerza recalcular |
+| `cache_nbr_*.npz` | Compuestos y fecha efectiva guardados; borrarlo fuerza recalcular |
 
 La muestra sigue la práctica de Olofsson et al. (2014): 50 puntos por
 cada una de las cuatro combinaciones propia/GLAD, con `etiqueta_visual`

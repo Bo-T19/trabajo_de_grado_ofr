@@ -31,8 +31,9 @@ sección 1.2, donde se explica qué mide cada fuente del proyecto.
 18. [Paso 13 — La muestra para validación visual](#paso-13--la-muestra-para-validación-visual)
 19. [Los resultados, interpretados](#los-resultados-interpretados)
 20. [Por qué los resultados son como son](#por-qué-los-resultados-son-como-son)
-21. [Dónde se ubica este método](#dónde-se-ubica-este-método)
-22. [Lo que esta demo no demuestra](#lo-que-esta-demo-no-demuestra)
+21. [¿Es bueno un F1 de 0,505?](#es-bueno-un-f1-de-0505)
+22. [Dónde se ubica este método](#dónde-se-ubica-este-método)
+23. [Lo que esta demo no demuestra](#lo-que-esta-demo-no-demuestra)
 ---
 
 ## 1. Qué problema resuelve
@@ -682,12 +683,17 @@ Esa verificación descubrió que el ráster es **rodante** (solo tiene
 alertas desde 2021), y por eso hubo que mover la ventana del análisis.
 
 ```python
-    if d_max < desde or d_min > hasta:
-        raise SystemExit(f"Las alertas disponibles (...) no cubren la ventana pedida ...")
+    if d_max < i_desde or d_min > i_hasta:
+        raise SystemExit(
+            f"Las alertas disponibles ({GLAD_EPOCA + dt.timedelta(days=d_min)} a "
 ```
 
 Si la ventana pedida cae fuera del rango disponible, el módulo se
 detiene con un mensaje claro. Devolver cero alertas sería peor.
+
+El ráster se lee una sola vez por corrida, con `leer_glad()`, y
+`alertas_glad()` lo filtra para cada ventana que haga falta: la de la
+demo y, en la referencia entre productos, el año calendario 2022.
 
 ### Cuando la API responde a medias
 
@@ -984,7 +990,10 @@ mide **concordancia con GLAD-L**, no exactitud.
 
 ## Los resultados, interpretados
 
-Sobre la mitad este, que la calibración nunca vio:
+Sobre la mitad este, que la calibración nunca vio. Para saber si estas
+cifras son buenas o malas, ver
+[¿Es bueno un F1 de 0,505?](#es-bueno-un-f1-de-0505), que las compara con
+cuánto concuerdan entre sí los productos profesionales.
 
 | Métrica | Valor |
 |---|---|
@@ -1280,6 +1289,181 @@ una cifra agregada son los claros grandes, no los de hectárea y media.
 La causa 2 es la que más pesa y la que explica por qué los sistemas
 operativos integran radar: Sentinel-1 atraviesa la nube, así que RADD no
 necesita acumular meses para conseguir una lectura limpia.
+
+---
+
+## ¿Es bueno un F1 de 0,505?
+
+A simple vista parece bajo. Pero un F1 suelto no dice si un resultado es
+bueno o malo. Para leerlo hacen falta tres cosas: saber qué castiga,
+compararlo con cuánto concuerdan entre sí los productos profesionales, y
+ponerlo al lado de medidas a la escala en que se usa el dato. Esta
+sección hace las tres.
+
+### Qué castiga el F1 por píxel
+
+Exige que las dos capas marquen **exactamente el mismo cuadro de 30 m**.
+Castiga por igual cuatro situaciones:
+
+1. Marcar un claro que la otra capa no tiene.
+2. No ver un claro que la otra capa sí tiene.
+3. Ver el claro correcto, pero con el borde uno o dos píxeles más afuera.
+4. Reportar más o menos área total que la otra capa.
+
+Solo las dos primeras son fallas de detección. La tercera es el anillo de
+orilla explicado en
+[Por qué los resultados son como son](#por-qué-los-resultados-son-como-son),
+y la cuarta depende de cómo define cada producto qué cuenta como
+pérdida. En esta demo las dos últimas pesan bastante.
+
+### El punto de referencia: cuánto concuerdan los productos profesionales
+
+La pregunta útil es: si se miden con la misma vara, ¿cuánto concuerdan
+entre sí productos hechos por equipos profesionales?
+
+`referencia_entre_productos.csv` lo mide en cada corrida, en la mitad
+este, con el mismo dominio de bosque y el mismo filtro de parche que la
+demo. Los productos se comparan en el año calendario 2022:
+
+- **GLAD-L**: las alertas confirmadas de la Universidad de Maryland.
+- **Hansen**: la pérdida anual de cobertura arbórea, también de Maryland,
+  producida con el año ya cerrado.
+- **IDEAM**: la capa oficial de cambio de bosque de Colombia. Se excluyen
+  los píxeles que el IDEAM marca sin información.
+
+| Par | F1 por píxel | Pearson por celda de 5 km |
+|---|---|---|
+| **Demo vs GLAD-L** | **0,505** | **0,909** |
+| Hansen vs GLAD-L | 0,436 | 0,889 |
+| IDEAM vs GLAD-L | 0,460 | 0,904 |
+| IDEAM vs Hansen | 0,611 | 0,939 |
+
+**Tres productos profesionales concuerdan entre sí, por píxel, entre 0,44
+y 0,61.** El 0,505 de la demo cae en ese rango. Y en la escala del panel,
+la celda de 5 km, su 0,909 también: los productos van de 0,889 a 0,939.
+
+El F1 por píxel es bajo para todos. Es una vara muy exigente, y dos
+mapas de deforestación rara vez coinciden cuadro por cuadro aunque los
+hagan equipos expertos.
+
+### Por qué esa tabla no permite decir que la demo es mejor
+
+La demo supera en F1 a dos de los tres pares de productos. Eso no
+significa que detecte mejor que ellos, por una razón concreta: **las
+capas no reportan la misma cantidad de área**.
+
+| Par | Área de la primera | Área de la segunda | Razón |
+|---|---|---|---|
+| Demo vs GLAD-L | 2 277 ha | 2 681 ha | 0,85 |
+| Hansen vs GLAD-L | 11 860 ha | 3 329 ha | **3,56** |
+| IDEAM vs GLAD-L | 6 548 ha | 3 329 ha | 1,97 |
+| IDEAM vs Hansen | 6 548 ha | 11 859 ha | 0,55 |
+
+Cuando dos capas difieren en área, el F1 tiene un **techo** aunque la
+chica esté completamente dentro de la grande:
+
+```
+techo del F1 = 2 × área menor / (área mayor + área menor)
+```
+
+Un ejemplo: si una capa marca 100 ha y la otra 300, y las 100 están
+todas dentro de las 300, el F1 no puede pasar de 2 × 100 / 400 = 0,50.
+
+| Par | F1 | Techo | Parte del techo alcanzada |
+|---|---|---|---|
+| Demo vs GLAD-L | 0,505 | 0,919 | 55 % |
+| Hansen vs GLAD-L | 0,436 | 0,438 | **99 %** |
+| IDEAM vs GLAD-L | 0,460 | 0,674 | 68 % |
+| IDEAM vs Hansen | 0,611 | 0,711 | 86 % |
+
+Hansen contra GLAD-L está en su techo: prácticamente todo lo que marca
+GLAD-L está dentro de lo que marca Hansen, que encuentra el 100 % del
+área de GLAD-L. Su F1 es bajo porque Hansen reporta el triple de área, no
+porque pongan la pérdida en lugares distintos. Las alertas confirmadas
+de GLAD-L son conservadoras frente al producto anual de Hansen.
+
+La demo está en el otro extremo. Su umbral se calibró contra GLAD-L, así
+que reporta casi la misma área y su techo es alto. Lo que le baja el F1
+es **dónde** pone la pérdida.
+
+Entonces: **los productos discrepan entre sí sobre todo en cuánto; la
+demo discrepa con GLAD-L sobre todo en dónde.** Son desacuerdos de
+distinta naturaleza y no se pueden ordenar de mejor a peor. Lo que sí se
+puede afirmar es que la concordancia de la demo con GLAD-L está en el
+mismo rango que la de los productos profesionales entre sí.
+
+### Qué pasa si se perdona el borde
+
+`f1_con_tolerancia()` cuenta como acierto todo píxel que tenga uno de la
+otra capa a 1 o 2 píxeles de distancia. Así se aparta el error de
+contorno:
+
+| Par | F1 exacto | Tolerancia 1 píxel (30 m) | Tolerancia 2 píxeles (60 m) |
+|---|---|---|---|
+| Demo vs GLAD-L | 0,505 | 0,615 | 0,646 |
+| Hansen vs GLAD-L | 0,436 | 0,624 | 0,686 |
+| IDEAM vs GLAD-L | 0,460 | 0,630 | 0,694 |
+| IDEAM vs Hansen | 0,611 | 0,734 | 0,779 |
+
+Aceptando 30 m de corrimiento, la demo sube de 0,505 a 0,615. Los
+productos suben más, y con tolerancia la demo queda en el extremo bajo
+del rango. Eso es coherente con lo que ya se sabía: además del borde, la
+demo tiene un error propio, los claros pequeños que no ve.
+
+### Una medida para cada pregunta
+
+Ninguna medida sola describe la concordancia. Cada una contesta una
+pregunta distinta:
+
+| Pregunta | Medida | Demo vs GLAD-L | Entre productos |
+|---|---|---|---|
+| ¿Reporta la misma cantidad de área? | Razón de áreas | 0,85 | de 0,55 a 3,56 |
+| ¿Marca exactamente los mismos píxeles? | F1 por píxel | 0,505 | de 0,44 a 0,61 |
+| ¿Los mismos, perdonando 30 m de borde? | F1 con tolerancia de 1 píxel | 0,615 | de 0,62 a 0,73 |
+| ¿Ve la pérdida que marca la referencia? | % del área de la referencia hallada | 62 % | de 81 % a 100 % |
+| ¿Lo que marca existe en la referencia? | % del área propia confirmada | 86 % | de 73 % a 98 % |
+| ¿Coincide en qué celdas pierden más? | Pearson por celda de 5 km | 0,909 | de 0,89 a 0,94 |
+
+El "% hallado" de los productos sale alto en parte porque varios
+reportan mucha más área que GLAD-L: con el triple de área es fácil tocar
+todo lo que marca la otra capa.
+
+### Entonces, ¿los datos son buenos o malos?
+
+**Son buenos para:**
+
+- Saber **dónde** está ocurriendo la pérdida a escala de 5 km. La
+  correlación por celda, 0,909, está en el rango de los productos
+  profesionales entre sí.
+- Los **claros grandes**: encuentra el 88 % de los de más de 30 ha y el
+  77 % de los de 10 a 30 ha.
+- Confiar en lo que marca: el **86 %** del área que señala la demo
+  también la señala GLAD-L.
+
+**Son malos para:**
+
+- Los **claros pequeños**: encuentra el 23 % de los de 1 a 3 ha.
+- **Dibujar el contorno exacto** de cada claro: el anillo de orilla lo
+  engorda.
+- Las zonas con **pocas lecturas limpias**: con tres observaciones el F1
+  cae a 0,285.
+- El **área total**: queda un 15 % por debajo de GLAD-L.
+
+Y todo lo anterior es concordancia con GLAD-L, no exactitud contra el
+terreno. Para eso hace falta la validación visual del paso 13.
+
+### Cómo reportarlo
+
+No conviene citar el F1 solo. Lo recomendable es mostrar la tabla de
+medidas y abrir con la que corresponde al uso del dato, que en este
+proyecto es la celda de 5 km. Una forma de decirlo:
+
+> A nivel de píxel, la detección propia concuerda con GLAD-L con un F1 de
+> 0,505, en el rango en que concuerdan entre sí GLAD-L, Hansen y el IDEAM
+> (0,44 a 0,61) medidos con la misma vara. A la escala de celda de 5 km la
+> correlación es de 0,909, también dentro del rango entre productos (0,89
+> a 0,94). El método encuentra los claros grandes de forma confiable y
+> pierde la mayoría de los menores de 3 ha.
 
 ---
 
