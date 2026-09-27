@@ -57,7 +57,8 @@ Un pixel cuenta como perdida si cumple las tres condiciones:
      que responde fuerte a la perdida de biomasa verde. Se comparan dos
      compuestos de MEDIANA de la MISMA temporada seca -- enero a marzo de
      dos anios consecutivos-- para que la diferencia no recoja
-     estacionalidad fenologica. dNBR = NBR(T1) - NBR(T2).
+     estacionalidad fenologica. dNBR = NBR(T1) - NBR(T2). Todas las
+     lecturas limpias de la ventana pesan igual; ver compuesto_nbr().
 
   3. Pertenece a un parche de al menos 1 ha, el area minima de la
      definicion de bosque del IDEAM. Un pixel aislado que cruza el
@@ -100,6 +101,8 @@ SALIDAS (datos/demo/)
 ---------------------
   diagnostico_nubes.csv         observaciones limpias y porcentaje de
                                 bosque sin datos
+  fecha_efectiva.csv            que fecha representa cada compuesto y que
+                                intervalo mide en realidad el dNBR
   calibracion_umbral.csv        metricas por umbral, en la mitad OESTE
   evaluacion_validacion.csv     matriz de acuerdo y metricas, mitad ESTE
   curva_observabilidad.csv      concordancia segun cuantas observaciones
@@ -158,10 +161,13 @@ BBOX = (-75.0, 0.8, -74.2, 1.5)          # lon_min, lat_min, lon_max, lat_max
 T1_INICIO, T1_FIN = "2022-01-01", "2022-03-31"
 T2_INICIO, T2_FIN = "2023-01-01", "2023-03-31"
 
-# Ventana equivalente para GLAD-L. Un compuesto de mediana sobre
-# enero-marzo representa el estado a MITAD de esa ventana, no a su
-# inicio ni a su final; por eso la ventana de alertas va del punto medio
-# de T1 al punto medio de T2.
+# Ventana equivalente para GLAD-L: del centro de T1 al centro de T2. Un
+# compuesto de mediana sobre enero-marzo representa, en promedio, algo
+# cercano a la mitad de la ventana; la fecha que representa de verdad
+# cada pixel se mide en cada corrida (fecha_efectiva.csv). Darle a cada
+# pixel su propia ventana de alertas segun esa fecha se probo y no
+# mejoro la concordancia (F1 0,491 frente a 0,505), asi que la ventana
+# se deja fija.
 GLAD_DESDE = dt.date(2022, 2, 15)
 GLAD_HASTA = dt.date(2023, 2, 15)
 GLAD_CONF_MIN = 3                        # 3 = alerta confirmada
@@ -392,14 +398,36 @@ def _nbr_de_escena(escena: dict, sas: str, perfil: dict,
     return nbr.astype(np.float32)
 
 
+def _fecha_escena(escena: dict) -> dt.date:
+    """Fecha de adquisicion de una escena, tomada de su registro STAC."""
+    return dt.date.fromisoformat(escena["properties"]["datetime"][:10])
+
+
 def compuesto_nbr(escenas: List[dict], sas: str, perfil: dict,
-                  etiqueta: str) -> Tuple[np.ndarray, np.ndarray]:
+                  referencia: dt.date, etiqueta: str
+                  ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Compuesto de MEDIANA del NBR y conteo de observaciones limpias.
+    Compuesto de MEDIANA del NBR, conteo de observaciones limpias y fecha
+    efectiva de cada pixel.
 
     Se usa mediana y no media porque es robusta a las observaciones
     residuales que la mascara de nubes deja pasar: una sola lectura
     contaminada desplaza la media, pero no la mediana.
+
+    TODAS las lecturas limpias de la ventana pesan igual, sin importar su
+    fecha. Se probo privilegiar las cercanas al centro de la ventana --
+    mediana ponderada con peso gaussiano de 15 y de 30 dias, las 3
+    lecturas mas cercanas, y solo la mas cercana-- y todas empeoraron la
+    concordancia con GLAD-L: el F1 bajo de 0,505 a entre 0,455 y 0,497.
+    El error dominante de este metodo es la nube residual, no la fecha;
+    usar menos lecturas gana precision de fecha y pierde la proteccion
+    que da la mediana.
+
+    La FECHA EFECTIVA se devuelve como desfase en dias respecto de
+    `referencia` (el centro de la ventana): la mediana de las fechas de
+    las lecturas limpias de cada pixel. Dice que momento representa en
+    realidad el compuesto, y con eso que intervalo mide el dNBR. Ver
+    fecha_efectiva().
 
     El trabajo va por FRANJAS horizontales para acotar la memoria.
     Apilar todas las escenas de la zona completa exigiria del orden de
@@ -409,17 +437,24 @@ def compuesto_nbr(escenas: List[dict], sas: str, perfil: dict,
     alto, ancho = perfil["height"], perfil["width"]
     nbr = np.full((alto, ancho), np.nan, dtype=np.float32)
     obs = np.zeros((alto, ancho), dtype=np.uint16)
+    desfase = np.full((alto, ancho), np.nan, dtype=np.float32)
 
     for fila0 in range(0, alto, FILAS_POR_FRANJA):
         n = min(FILAS_POR_FRANJA, alto - fila0)
-        pila = [c for c in
-                (_nbr_de_escena(e, sas, perfil, fila0, n) for e in escenas)
-                if c is not None]
+        pila, dias = [], []
+        for e in escenas:
+            c = _nbr_de_escena(e, sas, perfil, fila0, n)
+            if c is not None:
+                pila.append(c)
+                dias.append((_fecha_escena(e) - referencia).days)
         if not pila:
             logger.warning("    %s franja %d-%d: sin observaciones", etiqueta,
                            fila0, fila0 + n)
             continue
         cubo = np.stack(pila)
+        limpio = ~np.isnan(cubo)
+        fechas = np.where(limpio, np.array(dias, np.float32)[:, None, None],
+                          np.nan)
         with warnings.catch_warnings():
             # nanmedian avisa "All-NaN slice" cuando un pixel estuvo
             # nublado en TODAS las escenas. Es el caso esperado y no un
@@ -428,10 +463,11 @@ def compuesto_nbr(escenas: List[dict], sas: str, perfil: dict,
             # aviso para que no tape el registro util de la corrida.
             warnings.simplefilter("ignore", RuntimeWarning)
             nbr[fila0:fila0 + n] = np.nanmedian(cubo, axis=0)
-        obs[fila0:fila0 + n] = np.sum(~np.isnan(cubo), axis=0).astype(np.uint16)
+            desfase[fila0:fila0 + n] = np.nanmedian(fechas, axis=0)
+        obs[fila0:fila0 + n] = limpio.sum(axis=0).astype(np.uint16)
         logger.info("    %s franja %4d-%4d de %d  (%d escenas con datos)",
                     etiqueta, fila0, fila0 + n, alto, len(pila))
-    return nbr, obs
+    return nbr, obs, desfase
 
 
 def compuestos_con_cache(perfil: dict):
@@ -449,29 +485,36 @@ def compuestos_con_cache(perfil: dict):
     en cualquiera de ellos invalide el cache en vez de devolver
     calladamente un compuesto de otra corrida. Es el mismo cuidado que
     calcular_bosque.py tiene con su propio cache.
+
+    Un cache de una version anterior del modulo, sin la fecha efectiva,
+    se descarta y se recalcula.
     """
     clave = (f"nbr_{BBOX[0]}_{BBOX[1]}_{BBOX[2]}_{BBOX[3]}"
              f"_{T1_INICIO}_{T1_FIN}_{T2_INICIO}_{T2_FIN}"
              f"_{perfil['width']}x{perfil['height']}").replace("-", "")
     archivo = DIR_DEMO / f"cache_{clave}.npz"
+    campos = ("nbr_t1", "obs_t1", "desfase_t1", "nbr_t2", "obs_t2", "desfase_t2")
 
     if archivo.exists():
-        logger.info("  reutilizando compuestos en cache (%s)", archivo.name)
         d = np.load(archivo)
-        return d["nbr_t1"], d["obs_t1"], d["nbr_t2"], d["obs_t2"]
+        if all(c in d.files for c in campos):
+            logger.info("  reutilizando compuestos en cache (%s)", archivo.name)
+            return tuple(d[c] for c in campos)
+        logger.info("  el cache no trae la fecha efectiva (version anterior); "
+                    "se recalcula")
 
     e_t1 = buscar_escenas(T1_INICIO, T1_FIN)
     e_t2 = buscar_escenas(T2_INICIO, T2_FIN)
     sas = token_sas()
     logger.info("  componiendo T1...")
-    nbr_t1, obs_t1 = compuesto_nbr(e_t1, sas, perfil, "T1")
+    nbr_t1, obs_t1, des_t1 = compuesto_nbr(e_t1, sas, perfil, GLAD_DESDE, "T1")
     logger.info("  componiendo T2...")
-    nbr_t2, obs_t2 = compuesto_nbr(e_t2, sas, perfil, "T2")
+    nbr_t2, obs_t2, des_t2 = compuesto_nbr(e_t2, sas, perfil, GLAD_HASTA, "T2")
 
-    np.savez_compressed(archivo, nbr_t1=nbr_t1, obs_t1=obs_t1,
-                        nbr_t2=nbr_t2, obs_t2=obs_t2)
+    np.savez_compressed(archivo, nbr_t1=nbr_t1, obs_t1=obs_t1, desfase_t1=des_t1,
+                        nbr_t2=nbr_t2, obs_t2=obs_t2, desfase_t2=des_t2)
     logger.info("  compuestos guardados en %s", archivo.name)
-    return nbr_t1, obs_t1, nbr_t2, obs_t2
+    return nbr_t1, obs_t1, des_t1, nbr_t2, obs_t2, des_t2
 
 
 # =====================================================================
@@ -743,6 +786,54 @@ def diagnostico_nubes(bosque, dominio, obs_t1, obs_t2) -> pd.DataFrame:
         "pct_bosque_con_1_sola_obs": round(
             100 * float(((o1 == 1) | (o2 == 1)).mean()), 2) if b else None,
     }])
+
+
+def fecha_efectiva(dominio, desfase_t1, desfase_t2) -> pd.DataFrame:
+    """
+    Que periodo mide en realidad el dNBR.
+
+    Cada compuesto usa todas las lecturas limpias de enero a marzo con el
+    mismo peso, asi que no representa necesariamente el centro de la
+    ventana: si las lecturas limpias de un pixel cayeron sobre todo en
+    enero, su compuesto describe enero. La fecha efectiva de cada pixel
+    es la mediana de las fechas de sus lecturas limpias, y el intervalo
+    efectivo es la distancia entre la de T1 y la de T2.
+
+    El dato "anual" de la demo es por eso aproximado. Esta tabla dice
+    cuanto: una fila por medida, con percentiles sobre el dominio.
+
+        desfase_t1_dias  dias entre la fecha efectiva de T1 y GLAD_DESDE
+        desfase_t2_dias  dias entre la fecha efectiva de T2 y GLAD_HASTA
+        intervalo_dias   dias entre las dos fechas efectivas
+
+    Las dos primeras filas traen ademas la fecha efectiva mediana, y la
+    ultima el porcentaje de pixeles cuyo intervalo se aparta del anio en
+    mas de 30 y de 45 dias.
+    """
+    nominal = (GLAD_HASTA - GLAD_DESDE).days
+    d1 = desfase_t1[dominio].astype(np.float64)
+    d2 = desfase_t2[dominio].astype(np.float64)
+    intervalo = nominal + d2 - d1
+
+    filas = []
+    for medida, v, ref in (("desfase_t1_dias", d1, GLAD_DESDE),
+                           ("desfase_t2_dias", d2, GLAD_HASTA),
+                           ("intervalo_dias", intervalo, None)):
+        p5, p25, p50, p75, p95 = np.percentile(v, [5, 25, 50, 75, 95])
+        fila = {"medida": medida,
+                "p5": round(p5), "p25": round(p25), "mediana": round(p50),
+                "p75": round(p75), "p95": round(p95),
+                "fecha_mediana": "", "pct_mas_de_30d_del_anio": None,
+                "pct_mas_de_45d_del_anio": None}
+        if ref is not None:
+            fila["fecha_mediana"] = (ref + dt.timedelta(days=round(p50))).isoformat()
+        else:
+            fila["pct_mas_de_30d_del_anio"] = round(
+                100 * float((np.abs(v - nominal) > 30).mean()), 1)
+            fila["pct_mas_de_45d_del_anio"] = round(
+                100 * float((np.abs(v - nominal) > 45).mean()), 1)
+        filas.append(fila)
+    return pd.DataFrame(filas)
 
 
 # =====================================================================
@@ -1194,7 +1285,7 @@ def main() -> int:
         # --- Landsat -----------------------------------------------------
         logger.info("=" * 62)
         logger.info("ESCENAS LANDSAT (catalogo STAC, lectura por ventana)")
-        nbr_t1, obs_t1, nbr_t2, obs_t2 = compuestos_con_cache(perfil)
+        nbr_t1, obs_t1, des_t1, nbr_t2, obs_t2, des_t2 = compuestos_con_cache(perfil)
         dnbr = nbr_t1 - nbr_t2
 
         # --- dominio ------------------------------------------------------
@@ -1213,6 +1304,22 @@ def main() -> int:
         if dominio.sum() == 0:
             raise SystemExit("El dominio quedo vacio: no hay bosque con "
                              "observaciones limpias en ambas ventanas.")
+
+        # --- fecha efectiva -------------------------------------------------
+        logger.info("=" * 62)
+        logger.info("FECHA EFECTIVA DE LOS COMPUESTOS")
+        fe = fecha_efectiva(dominio, des_t1, des_t2).set_index("medida")
+        fe.to_csv(DIR_DEMO / "fecha_efectiva.csv")
+        for k, et in (("desfase_t1_dias", "T1"), ("desfase_t2_dias", "T2")):
+            r = fe.loc[k]
+            logger.info("  %s centrado en %s  (desfase mediano %+d d; "
+                        "90%% de los pixeles entre %+d y %+d d)",
+                        et, r.fecha_mediana, r.mediana, r.p5, r.p95)
+        r = fe.loc["intervalo_dias"]
+        logger.info("  intervalo T1->T2: mediana %d d; 90%% entre %d y %d d",
+                    r.mediana, r.p5, r.p95)
+        logger.info("  se aparta del anio mas de 30 d: %.1f%% | mas de 45 d: %.1f%%",
+                    r.pct_mas_de_30d_del_anio, r.pct_mas_de_45d_del_anio)
 
         # --- GLAD-L -------------------------------------------------------
         logger.info("=" * 62)

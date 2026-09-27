@@ -141,9 +141,10 @@ GLAD_DESDE = dt.date(2022, 2, 15)
 GLAD_HASTA = dt.date(2023, 2, 15)
 ```
 
-La ventana equivalente para las alertas. Un compuesto de mediana sobre
-enero-marzo representa el estado a **mitad** de esa ventana, no a su
-inicio ni a su final. Por eso va de punto medio a punto medio.
+La ventana equivalente para las alertas, del centro de T1 al centro de
+T2. Un compuesto de mediana sobre enero-marzo representa, en promedio,
+algo cercano a la mitad de la ventana. La fecha que representa de verdad
+cada píxel se mide en cada corrida; ver el paso 5.
 
 ```python
 UMBRAL_DOSEL = 30
@@ -399,12 +400,29 @@ de NBR legítimo y se confundiría con un dato real; NaN marca la ausencia.
 ```python
     for fila0 in range(0, alto, FILAS_POR_FRANJA):
         n = min(FILAS_POR_FRANJA, alto - fila0)
-        pila = [c for c in (_nbr_de_escena(e, sas, perfil, fila0, n) for e in escenas)
-                if c is not None]
+        pila, dias = [], []
+        for e in escenas:
+            c = _nbr_de_escena(e, sas, perfil, fila0, n)
+            if c is not None:
+                pila.append(c)
+                dias.append((_fecha_escena(e) - referencia).days)
         cubo = np.stack(pila)
+        limpio = ~np.isnan(cubo)
+        fechas = np.where(limpio, np.array(dias, np.float32)[:, None, None],
+                          np.nan)
         nbr[fila0:fila0 + n] = np.nanmedian(cubo, axis=0)
-        obs[fila0:fila0 + n] = np.sum(~np.isnan(cubo), axis=0).astype(np.uint16)
+        desfase[fila0:fila0 + n] = np.nanmedian(fechas, axis=0)
+        obs[fila0:fila0 + n] = limpio.sum(axis=0).astype(np.uint16)
 ```
+
+Para cada píxel salen tres cosas:
+
+- **`nbr`**: la mediana de todas sus lecturas limpias de la ventana.
+- **`obs`**: cuántas lecturas limpias tuvo. Con eso se construye el
+  dominio.
+- **`desfase`**: la fecha mediana de esas lecturas, en días respecto del
+  centro de la ventana. Dice qué momento representa en realidad el
+  compuesto. Ver más abajo.
 
 **Se usa la mediana** porque la máscara de nubes deja pasar
 observaciones residuales. Una lectura contaminada desplaza la media, y a
@@ -414,9 +432,6 @@ la mediana casi no la mueve. Con 5 observaciones eso se nota bastante.
 completa pediría unos 600 MB al tiempo. Con franjas de 512 filas el pico
 baja a decenas de MB. El resultado es idéntico, porque la mediana se
 calcula por píxel y partir el trabajo por filas no la altera.
-
-**`obs` importa tanto como `nbr`.** Cuenta cuántas observaciones limpias
-tuvo cada píxel, y con eso se construye el dominio.
 
 ```python
         with warnings.catch_warnings():
@@ -428,6 +443,89 @@ tuvo cada píxel, y con eso se construye el dominio.
 escenas. Ese caso está previsto: el píxel queda en NaN, no entra al
 dominio y aparece contado en el diagnóstico. El aviso se silencia para
 que no tape el registro útil.
+
+### Cómo se llega al dato anual
+
+No se suman meses. Se arman dos "fotos" del bosque, una alrededor de
+febrero de 2022 y otra alrededor de febrero de 2023, y la resta de las
+dos da lo que se perdió en ese año.
+
+Cada foto se arma con todas las lecturas sin nube de enero a marzo,
+porque una sola fecha casi siempre sale nublada: de 38 escenas, el píxel
+típico tiene 5 limpias. No se usa la serie completa del año; solo esas
+dos ventanas de tres meses.
+
+### Todas las lecturas pesan igual
+
+Dentro de cada ventana, una lectura del 7 de enero pesa lo mismo que una
+del 15 de febrero. Eso tiene una consecuencia: si en un píxel las
+lecturas limpias de 2022 cayeron en enero y las de 2023 en marzo, su
+dNBR mide unos 14 meses, no 12.
+
+La alternativa natural es darles más peso a las lecturas cercanas al
+centro de la ventana. Se probaron cuatro formas, con el mismo dominio,
+la misma calibración en la mitad oeste y la misma validación en la mitad
+este:
+
+| Cómo se arma cada foto | Umbral | F1 | Pearson por celda | Área de GLAD-L encontrada |
+|---|---|---|---|---|
+| **Todas las lecturas, mismo peso (el módulo)** | 0,35 | **0,505** | **0,909** | **62 %** |
+| Más peso a las cercanas, suave (σ = 30 días) | 0,35 | 0,497 | 0,909 | 60 % |
+| Más peso a las cercanas, fuerte (σ = 15 días) | 0,45 | 0,470 | 0,896 | 53 % |
+| Solo las 3 lecturas más cercanas | 0,35 | 0,479 | 0,907 | 58 % |
+| Solo la lectura más cercana | 0,50 | 0,455 | 0,886 | 51 % |
+
+Mientras más se concentra la foto en una fecha, peor sale.
+
+La razón es la misma que explica casi todo en esta demo: el error
+dominante son las **lecturas contaminadas por nube**, no la fecha. Armar
+la foto con menos lecturas gana precisión de fecha y pierde la
+protección de la mediana contra una lectura sucia. Se nota en el umbral:
+las variantes más concentradas necesitaron subir la raya a 0,45 y 0,50
+para no llenarse de falsos positivos, y con eso dejaron de ver tala real.
+
+Por eso el módulo deja el mismo peso para todas.
+
+> Esta comparación se hizo una vez, fuera del módulo, releyendo las
+> escenas con su fecha. El módulo conserva solo la variante elegida.
+
+### Qué fecha representa cada compuesto
+
+Con el mismo peso para todas, la fecha de cada foto depende de cuándo
+cayeron las lecturas limpias de ese píxel. `fecha_efectiva.csv` lo mide
+en cada corrida:
+
+| | Fecha efectiva mediana | 90 % de los píxeles entre |
+|---|---|---|
+| Foto 2022 | **1 de febrero** (14 días antes del centro) | 23 de enero y 17 de febrero |
+| Foto 2023 | **19 de febrero** (4 días después del centro) | 27 de enero y 7 de marzo |
+
+Y con eso, el intervalo que mide el dNBR:
+
+| Intervalo T1 → T2 | Días |
+|---|---|
+| Mediana | **376** |
+| 90 % de los píxeles entre | 360 y 400 |
+| Se aparta del año más de 30 días | 8,2 % de los píxeles |
+| Se aparta del año más de 45 días | 0,3 % de los píxeles |
+
+El dato "anual" de la demo mide entonces unos **12 meses y medio**, y el
+92 % de los píxeles queda a menos de un mes del año exacto.
+
+La foto de 2022 sale corrida hacia enero porque ese año las lecturas
+limpias se concentraron en la primera parte de la ventana. No falta
+información cerca del centro: en el mismo diagnóstico de arriba, la
+mediana de la distancia entre el 15 de febrero y la lectura limpia más
+cercana fue de 1 día en 2022 y de 4 en 2023.
+
+### La ventana de GLAD-L se deja fija
+
+Las alertas de GLAD-L se cuentan del 15 de febrero de 2022 al 15 de
+febrero de 2023, para todos los píxeles. Se probó darle a cada píxel su
+propia ventana, de su fecha efectiva de 2022 a la de 2023, y el F1 bajó
+de 0,505 a 0,491. El desfase de fechas no explica los desacuerdos con
+GLAD-L; los explican los bordes, las nubes y los claros pequeños (ver
+[Por qué los resultados son como son](#por-qué-los-resultados-son-como-son)).
 
 ### El caché
 
@@ -445,6 +543,9 @@ que cambia el contenido. Si usted cambia el `BBOX` y vuelve a correr, el
 caché se invalida y se recalcula. Sin eso le devolvería calladamente el
 compuesto de otra corrida. `calcular_bosque.py` toma la misma
 precaución con su propio caché.
+
+El caché guarda también la fecha efectiva. Un caché de una versión
+anterior del módulo, que no la trae, se descarta y se recalcula solo.
 
 ---
 
@@ -1279,6 +1380,13 @@ siguiente paso, aunque quedaría anual y no por píxel.
 2968 × 2581 píxeles. Un bosque más seco o con otra estructura responde
 distinto, así que el valor que sirve aquí no necesariamente sirve en otra
 región del país.
+
+**El año que mide va de febrero a febrero.** El IDEAM reporta del 1 de
+enero al 31 de diciembre; esta demo mide entre dos compuestos centrados
+cerca del 1 de febrero de 2022 y del 19 de febrero de 2023. Las fechas
+objetivo se pueden mover, porque el método mide la pérdida entre dos
+fechas cualesquiera, pero tienen que caer en meses secos: son los únicos
+con suficientes lecturas limpias.
 
 **Un solo índice y una sola fecha por año.** Los productos operativos
 usan series temporales completas y varios índices. Esta demo usa dos
