@@ -977,6 +977,61 @@ que el modelo necesita.
 Las celdas sin dominio se descartan. En ellas no había dónde mirar, así
 que incluirlas inflaría la correlación.
 
+### Dos formas de medir si coinciden: Pearson y Lin
+
+Para cada celda hay dos números: las hectáreas que marca GLAD-L y las que
+marca la demo. Algunas celdas de la mitad este:
+
+| Celda | GLAD-L | Demo |
+|---|---|---|
+| 212 | 224 ha | 303 ha |
+| 229 | 167 ha | 198 ha |
+| 211 | 149 ha | 163 ha |
+| 230 | 149 ha | 103 ha |
+| 213 | 34 ha | 23 ha |
+| 124 | 13 ha | 12 ha |
+| 87 | 6 ha | 9 ha |
+| 15 | 0 ha | 0 ha |
+
+**El Pearson mide si las dos columnas suben y bajan juntas.** Donde GLAD-L
+marca mucho, ¿la demo también? Donde marca poco, ¿la demo también? Va de
+−1 a 1: 1 es que siempre suben y bajan juntas, 0 que no tienen relación,
+−1 que van al revés. Con las 160 celdas da **0,909**. Si se barajan las
+celdas al azar, cae a casi cero.
+
+**El Pearson no mira la cantidad.** Si la demo reportara el doble en todas
+las celdas, el Pearson seguiría en 0,909, porque las columnas seguirían
+subiendo y bajando juntas.
+
+**La concordancia de Lin mide lo mismo y además exige que los números sean
+iguales.** Se lee igual, de −1 a 1, pero castiga que una fuente reporte
+más que la otra:
+
+| | Pearson | Lin |
+|---|---|---|
+| Demo vs GLAD-L, tal como está | 0,909 | **0,902** |
+| Si la demo reportara el doble | 0,909 | **0,668** |
+
+```python
+    cov = float(((x - x.mean()) * (y - y.mean())).mean())
+    den = float(x.var() + y.var() + (x.mean() - y.mean()) ** 2)
+    return 2 * cov / den if den else float("nan")
+```
+
+El denominador suma la diferencia de medias al cuadrado: si una fuente
+reporta en promedio más que la otra, el coeficiente baja. Lin nunca
+supera al Pearson, y solo lo iguala cuando las dos series tienen la misma
+media y la misma dispersión.
+
+Por eso **Lin es la medida que conviene poner como titular**: responde la
+pregunta del panel, si una fuente dice lo mismo que la otra en cada celda,
+en dónde y en cuánto. El Pearson se sigue reportando porque es el que la
+mayoría conoce, y la distancia entre los dos dice cuánto pesa la
+diferencia de cantidad.
+
+> Lin, L. I-K. (1989). A concordance correlation coefficient to evaluate
+> reproducibility. *Biometrics*, 45(1), 255–268.
+
 ---
 
 ## Paso 13 — La muestra para validación visual
@@ -1024,7 +1079,8 @@ cuánto concuerdan entre sí los productos profesionales.
 
 | Métrica | Valor |
 |---|---|
-| **Pearson, hectáreas por celda de 5 km** | **0,909** |
+| **Concordancia de Lin, hectáreas por celda de 5 km** | **0,902** |
+| Pearson, por celda | 0,909 |
 | Spearman, por celda | 0,795 |
 | Precisión, a nivel de píxel | 0,549 |
 | Sensibilidad, a nivel de píxel | 0,467 |
@@ -1358,20 +1414,27 @@ demo. Los productos se comparan en el año calendario 2022:
 - **IDEAM**: la capa oficial de cambio de bosque de Colombia. Se excluyen
   los píxeles que el IDEAM marca sin información.
 
-| Par | F1 por píxel | Pearson por celda de 5 km |
-|---|---|---|
-| **Demo vs GLAD-L** | **0,505** | **0,909** |
-| Hansen vs GLAD-L | 0,436 | 0,889 |
-| IDEAM vs GLAD-L | 0,460 | 0,904 |
-| IDEAM vs Hansen | 0,611 | 0,939 |
+| Par | F1 por píxel | Pearson por celda | Lin por celda |
+|---|---|---|---|
+| **Demo vs GLAD-L** | **0,505** | **0,909** | **0,902** |
+| Hansen vs GLAD-L | 0,436 | 0,889 | 0,472 |
+| IDEAM vs GLAD-L | 0,460 | 0,904 | 0,757 |
+| IDEAM vs Hansen | 0,611 | 0,939 | 0,763 |
 
 **Tres productos profesionales concuerdan entre sí, por píxel, entre 0,44
 y 0,61.** El 0,505 de la demo cae en ese rango. Y en la escala del panel,
-la celda de 5 km, su 0,909 también: los productos van de 0,889 a 0,939.
+la celda de 5 km, su Pearson de 0,909 también: los productos van de
+0,889 a 0,939.
 
 El F1 por píxel es bajo para todos. Es una vara muy exigente, y dos
 mapas de deforestación rara vez coinciden cuadro por cuadro aunque los
 hagan equipos expertos.
+
+La columna de Lin muestra lo que el Pearson esconde. Hansen y GLAD-L
+coinciden bien en **dónde** hay pérdida (Pearson 0,889), pero Hansen
+reporta 3,5 veces más área, y Lin cae a 0,472. Los productos difieren en
+cantidad porque miden cosas distintas: alertas confirmadas, pérdida de
+cobertura arbórea y deforestación según la definición oficial de bosque.
 
 ### Por qué esa tabla no permite decir que la demo es mejor
 
@@ -1419,6 +1482,12 @@ distinta naturaleza y no se pueden ordenar de mejor a peor. Lo que sí se
 puede afirmar es que la concordancia de la demo con GLAD-L está en el
 mismo rango que la de los productos profesionales entre sí.
 
+Lo mismo vale para Lin. La demo saca 0,902 y los productos entre 0,47 y
+0,76 porque el umbral de la demo se calibró contra GLAD-L, y eso la lleva
+a reportar casi la misma cantidad. Ese 0,902 dice que la réplica quedó
+cerca de GLAD-L, que era su propósito; no dice que mida mejor que Hansen o
+el IDEAM.
+
 ### Qué pasa si se perdona el borde
 
 `f1_con_tolerancia()` cuenta como acierto todo píxel que tenga uno de la
@@ -1444,12 +1513,13 @@ pregunta distinta:
 
 | Pregunta | Medida | Demo vs GLAD-L | Entre productos |
 |---|---|---|---|
+| ¿Dice lo mismo en cada celda, en dónde y en cuánto? | Concordancia de Lin por celda de 5 km | **0,902** | de 0,47 a 0,76 |
+| ¿Coincide en qué celdas pierden más, sin mirar cuánto? | Pearson por celda de 5 km | 0,909 | de 0,89 a 0,94 |
 | ¿Reporta la misma cantidad de área? | Razón de áreas | 0,85 | de 0,55 a 3,56 |
 | ¿Marca exactamente los mismos píxeles? | F1 por píxel | 0,505 | de 0,44 a 0,61 |
 | ¿Los mismos, perdonando 30 m de borde? | F1 con tolerancia de 1 píxel | 0,615 | de 0,62 a 0,73 |
 | ¿Ve la pérdida que marca la referencia? | % del área de la referencia hallada | 62 % | de 81 % a 100 % |
 | ¿Lo que marca existe en la referencia? | % del área propia confirmada | 86 % | de 73 % a 98 % |
-| ¿Coincide en qué celdas pierden más? | Pearson por celda de 5 km | 0,909 | de 0,89 a 0,94 |
 
 El "% hallado" de los productos sale alto en parte porque varios
 reportan mucha más área que GLAD-L: con el triple de área es fácil tocar
@@ -1459,9 +1529,9 @@ todo lo que marca la otra capa.
 
 **Son buenos para:**
 
-- Saber **dónde** está ocurriendo la pérdida a escala de 5 km. La
-  correlación por celda, 0,909, está en el rango de los productos
-  profesionales entre sí.
+- Saber **dónde y cuánta** pérdida hay a escala de 5 km. La concordancia
+  de Lin por celda es 0,902, y la correlación de Pearson, 0,909, está en
+  el rango de los productos profesionales entre sí.
 - Los **claros grandes**: encuentra el 88 % de los de más de 30 ha y el
   77 % de los de 10 a 30 ha.
 - Confiar en lo que marca: el **86 %** del área que señala la demo
@@ -1481,16 +1551,27 @@ terreno. Para eso hace falta la validación visual del paso 13.
 
 ### Cómo reportarlo
 
-No conviene citar el F1 solo. Lo recomendable es mostrar la tabla de
-medidas y abrir con la que corresponde al uso del dato, que en este
-proyecto es la celda de 5 km. Una forma de decirlo:
+No conviene citar el F1 solo. El orden recomendado es este:
 
-> A nivel de píxel, la detección propia concuerda con GLAD-L con un F1 de
-> 0,505, en el rango en que concuerdan entre sí GLAD-L, Hansen y el IDEAM
-> (0,44 a 0,61) medidos con la misma vara. A la escala de celda de 5 km la
-> correlación es de 0,909, también dentro del rango entre productos (0,89
-> a 0,94). El método encuentra los claros grandes de forma confiable y
-> pierde la mayoría de los menores de 3 ha.
+1. **Como titular, la concordancia de Lin por celda de 5 km (0,902).** Es
+   la escala del panel, y junta en un número el dónde y el cuánto.
+2. **Al lado, la razón de áreas (0,85) y la detección por tamaño de
+   claro** (88 % de los mayores de 30 ha, 23 % de los de 1 a 3 ha).
+3. **El F1 por píxel (0,505), siempre con el rango de los productos entre
+   sí** (0,44 a 0,61). Sin esa referencia cualquiera lo lee como malo, y
+   un jurado lo va a pedir.
+
+Al citar el Lin hay que decir que el umbral se calibró contra GLAD-L:
+parte de que la demo reporte casi lo mismo viene de esa calibración. Una
+forma de decirlo:
+
+> A la escala de celda de 5 km, la réplica concuerda con GLAD-L con un
+> coeficiente de Lin de 0,902, con el umbral calibrado contra GLAD-L en
+> otra mitad de la zona; en total reporta un 15 % menos de área. A nivel
+> de píxel el F1 es 0,505, en el rango en que concuerdan entre sí GLAD-L,
+> Hansen y el IDEAM medidos con la misma vara (0,44 a 0,61). El método
+> encuentra los claros grandes de forma confiable y pierde la mayoría de
+> los menores de 3 ha.
 
 ---
 

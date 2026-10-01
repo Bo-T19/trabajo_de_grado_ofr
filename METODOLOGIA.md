@@ -547,8 +547,8 @@ este.
 
 **Qué se obtuvo.**
 
-- Por celda de 5 km, la correlación con GLAD-L es 0,909. Por píxel, el
-  F1 es 0,505.
+- Por celda de 5 km, la concordancia de Lin con GLAD-L es 0,902 y la
+  correlación de Pearson, 0,909. Por píxel, el F1 es 0,505.
 - Medidos igual, GLAD-L, Hansen y el IDEAM concuerdan entre sí con un F1
   de 0,44 a 0,61 y una correlación por celda de 0,89 a 0,94. La réplica
   cae dentro de ambos rangos. Los productos discrepan sobre todo en
@@ -858,6 +858,7 @@ cómo inspeccionarlos en `pandas`, está en
 
 | Término | Significado |
 |---|---|
+| **Concordancia de Lin** | Coeficiente de −1 a 1 que mide si dos series de valores coinciden, en patrón y en magnitud. A diferencia del Pearson, castiga que una serie sea sistemáticamente mayor que la otra (Lin, 1989). Se usa para comparar hectáreas por celda entre fuentes (§2.6) |
 | **CRS** | Sistema de referencia de coordenadas (p. ej. `EPSG:3116`, `EPSG:4326`) |
 | **Panel de datos** | Estructura de datos con una dimensión de sección cruzada (aquí, la celda) y una temporal (aquí, el mes), repetida sistemáticamente |
 | **Hurdle / cero-inflado** | Familia de modelos de dos etapas para variables con exceso de ceros: una etapa de clasificación (¿hubo evento?) y una de magnitud (¿cuánto, dado que hubo?) |
@@ -892,3 +893,5 @@ cómo inspeccionarlos en `pandas`, está en
   SMByC (verificar el comunicado del año que se cite).
 - DANE. *Marco Geoestadístico Nacional*.
   https://www.dane.gov.co
+- Lin, L. I-K. (1989). A concordance correlation coefficient to evaluate
+  reproducibility. *Biometrics*, 45(1), 255–268.

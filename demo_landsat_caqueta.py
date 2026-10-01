@@ -1109,6 +1109,39 @@ def curva_observabilidad(propia_fn, glad_raw, bosque, obs_t1, obs_t2,
     return pd.DataFrame(filas)
 
 
+def concordancia_lin(referencia, prueba) -> float:
+    """
+    Coeficiente de concordancia de Lin (1989) entre dos series de
+    hectareas por celda.
+
+    Se lee como un Pearson, de -1 a 1, pero mide otra cosa. Pearson dice
+    si las dos series SUBEN Y BAJAN JUNTAS, y no le importa si una
+    reporta el doble que la otra. Lin exige ademas que los VALORES sean
+    iguales: castiga la diferencia de nivel y la de escala.
+
+        Pearson = cov / (sd_ref * sd_pru)
+        Lin     = 2 cov / (var_ref + var_pru + (media_ref - media_pru)^2)
+
+    Lin nunca supera en valor absoluto a Pearson, y coincide con el solo
+    si las dos series tienen la misma media y la misma dispersion. Con
+    las celdas de la demo: Pearson 0,909 y Lin 0,902; si la demo
+    reportara el doble en cada celda, Pearson seguiria en 0,909 y Lin
+    caeria a 0,668.
+
+    Es la medida que conviene poner como titular, porque responde la
+    pregunta del panel: si una fuente dice lo mismo que la otra, celda
+    por celda, en donde y en cuanto.
+
+    Lin, L. I-K. (1989). A concordance correlation coefficient to
+    evaluate reproducibility. Biometrics, 45(1), 255-268.
+    """
+    x = np.asarray(referencia, dtype=np.float64)
+    y = np.asarray(prueba, dtype=np.float64)
+    cov = float(((x - x.mean()) * (y - y.mean())).mean())
+    den = float(x.var() + y.var() + (x.mean() - y.mean()) ** 2)
+    return 2 * cov / den if den else float("nan")
+
+
 def comparar_celdas(propia, glad, dominio, region, perfil) -> pd.DataFrame:
     """
     Hectareas perdidas por celda de 5 x 5 km, segun cada fuente.
@@ -1246,6 +1279,7 @@ def referencia_entre_productos(perfil, dominio, region, glad_cod,
         techo = 2 * min(a_p, a_r) / (a_p + a_r) if a_p + a_r else 0.0
         cel = comparar_celdas(prueba, ref, dom, region, perfil)
         r = float(np.corrcoef(cel.propia_ha, cel.glad_ha)[0, 1])
+        lin = concordancia_lin(cel.glad_ha, cel.propia_ha)
         det = deteccion_por_parche(prueba, ref, region)
         det = det[det.tamano == "TODOS"].set_index("direccion")
         filas.append({
@@ -1258,6 +1292,7 @@ def referencia_entre_productos(perfil, dominio, region, glad_cod,
             "f1_tol_1px": round(f1_con_tolerancia(prueba, ref, region, 1.5), 3),
             "f1_tol_2px": round(f1_con_tolerancia(prueba, ref, region, 2.9), 3),
             "pearson_celda": round(r, 3),
+            "lin_celda": round(lin, 3),
             "pct_area_ref_hallada": det.loc["glad_vs_propia", "pct_area"],
             "pct_area_prueba_confirmada": det.loc["propia_vs_glad", "pct_area"],
         })
@@ -1529,7 +1564,9 @@ def main() -> int:
             rp = celdas.propia_ha.corr(celdas.glad_ha, method="pearson")
             rs = celdas.propia_ha.corr(celdas.glad_ha, method="spearman")
             logger.info("  celdas con dominio: %d", len(celdas))
-            logger.info("  Pearson  r = %.3f", rp)
+            rl = concordancia_lin(celdas.glad_ha, celdas.propia_ha)
+            logger.info("  Lin      = %.3f  (concordancia: donde y cuanto)", rl)
+            logger.info("  Pearson  r = %.3f  (solo si suben y bajan juntas)", rp)
             logger.info("  Spearman r = %.3f", rs)
         else:
             logger.warning("  muy pocas celdas (%d) para correlacionar", len(celdas))
@@ -1540,12 +1577,13 @@ def main() -> int:
         ref = referencia_entre_productos(perfil, dominio, este, glad_cod,
                                          propia, glad_p)
         ref.to_csv(DIR_DEMO / "referencia_entre_productos.csv", index=False)
-        logger.info("  %-17s %6s %6s %6s %6s %6s %6s",
-                    "par", "F1", "techo", "tol1", "tol2", "areas", "r_cel")
+        logger.info("  %-17s %6s %6s %6s %6s %6s %6s %6s",
+                    "par", "F1", "techo", "tol1", "tol2", "areas", "r_cel",
+                    "lin")
         for _, f in ref.iterrows():
-            logger.info("  %-17s %6.3f %6.3f %6.3f %6.3f %6.2f %6.3f",
+            logger.info("  %-17s %6.3f %6.3f %6.3f %6.3f %6.2f %6.3f %6.3f",
                         f.par, f.f1, f.techo_f1, f.f1_tol_1px, f.f1_tol_2px,
-                        f.razon_areas, f.pearson_celda)
+                        f.razon_areas, f.pearson_celda, f.lin_celda)
 
         # --- muestra --------------------------------------------------------
         logger.info("=" * 62)

@@ -1296,7 +1296,8 @@ Zona de 2968 × 2581 píxeles de 30 m, con 330 600 ha de bosque inicial.
 
 | Métrica (mitad este, no vista en la calibración) | Valor |
 |---|---|
-| **Pearson, hectáreas por celda de 5 km** | **0,909** |
+| **Concordancia de Lin, hectáreas por celda de 5 km** | **0,902** |
+| Pearson, por celda | 0,909 |
 | Spearman, por celda | 0,795 |
 | Precisión, a nivel de píxel | 0,549 |
 | Sensibilidad, a nivel de píxel | 0,467 |
@@ -1305,7 +1306,9 @@ Zona de 2968 × 2581 píxeles de 30 m, con 330 600 ha de bosque inicial.
 Para leer estas cifras hace falta un punto de referencia. Medidos con la
 misma vara, en 2022, GLAD-L, Hansen y el IDEAM concuerdan entre sí con un
 F1 por píxel de 0,44 a 0,61 y una correlación por celda de 0,89 a 0,94.
-La réplica cae dentro de ambos rangos. Eso no la hace mejor que los
+La réplica cae dentro de ambos rangos. Con la concordancia de Lin, que
+exige además que las cantidades coincidan, la réplica saca 0,902 y los
+productos entre 0,47 y 0,76. Nada de eso la hace mejor que los
 productos: ellos discrepan sobre todo en cuánta área reportan, y la
 réplica, calibrada contra GLAD-L, en dónde la pone (ver
 `GUIA_DEMO_LANDSAT.md`, «¿Es bueno un F1 de 0,505?»).
