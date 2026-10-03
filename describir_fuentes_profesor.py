@@ -15,32 +15,28 @@ DESCRIPCION_FUENTES_PROFESOR.md.
 
 Por que un script aparte, y no un modo/bandera dentro de describir_fuentes.py
 --------------------------------------------------------------------------------
-El profesor le dio acceso de lectura a estas tres tablas a las cuentas
-personales de Google del equipo desde el 14/09/2026, pero todavia NO a
-la cuenta de servicio "pipeline-satelital" que usa el resto del
-pipeline (correo enviado, pendiente de respuesta). Este script por eso
-usa SIEMPRE la cuenta personal (Application Default Credentials / ADC)
--- no tiene modo "servicio" ni bandera que elegir, para no repetir la
-confusion de tener dos flujos de credenciales mezclados en el mismo
-comando. Cuando el profesor autorice la cuenta de servicio, este script
-deja de ser necesario: esas tres tablas se agregan de vuelta a FUENTES
-en describir_fuentes.py y "python main_local.py describir-fuentes"
-vuelve a cubrir las siete de una vez.
+Hasta el 02/10/2026 el profesor solo habia autorizado estas tres tablas
+para las cuentas personales de Google del equipo, no para la cuenta de
+servicio "pipeline-satelital" que usa el resto del pipeline, asi que
+este script usaba Application Default Credentials (ADC) en vez de la
+credencial de servicio. El profesor ya confirmo el acceso de lectura
+de la cuenta de servicio sobre las tres tablas (02/10/2026), asi que
+este script ahora usa la MISMA credencial de servicio que
+describir_fuentes.py (ver _credenciales() en ese modulo). Se mantiene
+como script aparte, con su propio reporte, mientras se valida que el
+acceso de la cuenta de servicio funciona igual de bien que con la
+cuenta personal; una vez validado, lo natural es fusionar estas tres
+tablas de vuelta a FUENTES en describir_fuentes.py y retirar este
+script, para que "python main_local.py describir-fuentes" vuelva a
+cubrir las siete tablas de una vez (pendiente de decision -- ver
+GUIA_CODIGO.md seccion 5.18).
 
-CREDENCIAL: tu cuenta personal de Google, via ADC
+CREDENCIAL: cuenta de servicio "pipeline-satelital"
 ---------------------------------------------------
-Requiere haber corrido, una sola vez en esta maquina:
-
-    gcloud auth application-default login
-
-e iniciar sesion en el navegador con la MISMA cuenta de Google que el
-profesor autorizo para las tres tablas (no la cuenta de servicio, no
-necesariamente la cuenta con la que usas Windows -- si tu navegador
-por defecto no es donde tienes esa cuenta iniciada, copia la URL que
-imprime el comando y pegala en el navegador correcto).
-
-Si no se han configurado las credenciales, el script lo dice claro y
-no hace nada mas (no intenta usar la cuenta de servicio como respaldo).
+Igual que describir_fuentes.py: datos/logs/bigquery-key.json, o la
+variable de entorno GOOGLE_APPLICATION_CREDENTIALS. Ver GUIA_CODIGO.md
+seccion 5.16. Ya NO requiere "gcloud auth application-default login"
+ni la cuenta personal de Google.
 
 USO (desde la raiz del proyecto, normalmente via main_local.py)
 ------------------------------------------------------------------
@@ -57,7 +53,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from config_local import logger
-from describir_fuentes import _describir_tabla
+from describir_fuentes import _credenciales, _describir_tabla
 
 AQUI = Path(__file__).resolve().parent
 
@@ -74,28 +70,8 @@ FUENTES = {
 }
 
 
-def _credenciales_personales():
-    """Carga la cuenta personal de Google via Application Default
-    Credentials (ADC). Import diferido: el resto del pipeline no
-    necesita google-auth para nada.
-    """
-    import google.auth
-
-    try:
-        credenciales, _ = google.auth.default(
-            scopes=["https://www.googleapis.com/auth/bigquery"])
-    except Exception as e:  # noqa: BLE001 -- mensaje claro en vez del traceback de google-auth
-        logger.error(
-            "No se encontraron credenciales personales (ADC). Corre "
-            "'gcloud auth application-default login' e inicia sesion "
-            "con la cuenta de Google que autorizo el profesor, y "
-            "vuelve a intentar. Detalle: %s", e)
-        return None
-    return credenciales
-
-
 def main() -> int:
-    credenciales = _credenciales_personales()
+    credenciales = _credenciales()
     if credenciales is None:
         return 1
 
@@ -107,13 +83,12 @@ def main() -> int:
     client = bigquery.Client(project="ofr-credito-deforestacion", credentials=credenciales)
 
     lineas = [
-        "# Descripcion de las fuentes del Observatorio (cuenta personal)\n\n",
+        "# Descripcion de las fuentes del Observatorio\n\n",
         "Generado automaticamente por `describir_fuentes_profesor.py`, "
-        "usando la cuenta personal de Google (ADC) mientras el profesor "
-        "autoriza la cuenta de servicio para estas tres tablas -- ver "
-        "describir_fuentes.py para las cuatro tablas propias. "
-        "No editar a mano -- se vuelve a generar completo cada vez que "
-        "se corre el script.\n",
+        "usando la cuenta de servicio pipeline-satelital (la misma de "
+        "describir_fuentes.py) -- ver ese script para las cuatro tablas "
+        "propias. No editar a mano -- se vuelve a generar completo cada "
+        "vez que se corre el script.\n",
     ]
 
     ok, con_error = 0, 0

@@ -75,15 +75,13 @@ USO — en este orden
 
     python main_local.py describir-fuentes-profesor
         Igual, pero para las tres tablas de solo lectura del
-        Observatorio en prueba-ofr, usando tu cuenta personal de
-        Google (ADC) en vez de la cuenta de servicio -- solucion
-        temporal mientras el profesor le da acceso a la cuenta de
-        servicio sobre esas tres tablas. Requiere "gcloud auth
-        application-default login" una vez, iniciando sesion con la
-        cuenta que el profesor autorizo. Genera
-        DESCRIPCION_FUENTES_PROFESOR.md aparte. Cuando el profesor
-        confirme el acceso de la cuenta de servicio, este comando deja
-        de ser necesario. Ver describir_fuentes_profesor.py.
+        Observatorio en prueba-ofr. Desde el 02/10/2026 usa la misma
+        cuenta de servicio "pipeline-satelital" que describir-fuentes
+        (el profesor confirmo el acceso de lectura de la cuenta de
+        servicio sobre estas tres tablas). Genera
+        DESCRIPCION_FUENTES_PROFESOR.md aparte, como script separado,
+        mientras se valida el comportamiento y se decide si se
+        fusiona con describir-fuentes. Ver describir_fuentes_profesor.py.
 ======================================================================
 """
 from __future__ import annotations

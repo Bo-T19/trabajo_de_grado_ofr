@@ -13,4 +13,4 @@ jupyter>=1.0               # entorno del analisis exploratorio
 google-cloud-bigquery>=3.25 # subir_bigquery.py y describir_fuentes(_profesor).py: leer/cargar tablas de BigQuery (propias y del profesor)
 db-dtypes>=1.2              # describir_fuentes(_profesor).py: to_dataframe() de un resultado de BigQuery
 tabulate>=0.9               # describir_fuentes(_profesor).py: DataFrame.to_markdown() para el reporte
-google-auth>=2.23           # describir_fuentes_profesor.py: credenciales personales (ADC) mientras se autoriza la cuenta de servicio; llega con google-cloud-bigquery, pero el codigo lo importa de forma explicita
+google-auth>=2.23           # describir_fuentes.py (y describir_fuentes_profesor.py, que reutiliza su credencial): cuenta de servicio pipeline-satelital via google.oauth2.service_account; llega con google-cloud-bigquery, pero el codigo lo importa de forma explicita

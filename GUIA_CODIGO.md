@@ -68,7 +68,7 @@ trabajo_de_grado/
 ├── subir_bigquery.py         sube las cuatro tablas propias a BigQuery (opcional)
 ├── describir_fuentes.py      Paso 1 del EDA: describe las 4 tablas propias -> DESCRIPCION_FUENTES.md
 ├── DESCRIPCION_FUENTES.md    salida de describir_fuentes.py (se regenera cada corrida)
-├── describir_fuentes_profesor.py  igual, para las 3 tablas del profesor (cuenta personal)
+├── describir_fuentes_profesor.py  igual, para las 3 tablas del profesor (cuenta de servicio, reporte aparte)
 ├── DESCRIPCION_FUENTES_PROFESOR.md  salida de describir_fuentes_profesor.py
 │
 │   ── ENTENDIMIENTO DE LOS DATOS: réplica del cálculo desde imagen cruda ──
@@ -190,7 +190,7 @@ jupyter>=1.0               # entorno del analisis exploratorio
 google-cloud-bigquery>=3.25 # subir_bigquery.py y describir_fuentes(_profesor).py: leer/cargar tablas de BigQuery (opcional)
 db-dtypes>=1.2              # describir_fuentes(_profesor).py: to_dataframe() de un resultado de BigQuery
 tabulate>=0.9               # describir_fuentes(_profesor).py: DataFrame.to_markdown() para el reporte
-google-auth>=2.23           # describir_fuentes_profesor.py: credenciales personales (ADC), ver seccion 5.18
+google-auth>=2.23           # describir_fuentes.py (y describir_fuentes_profesor.py, que reutiliza su credencial): cuenta de servicio pipeline-satelital, ver seccion 5.16 y 5.18
 ```
 
 Las últimas tres (`google-cloud-bigquery`, `db-dtypes`, `tabulate`) solo
@@ -220,15 +220,12 @@ versiones) o puede definirse en la variable de entorno `GFW_API_KEY`, si
 se prefiere no dejarla en disco.
 
 Adicionalmente, y solo si va a subir las tablas a BigQuery o correr el
-Paso 1 del EDA (Pasos 11-12), hace falta una segunda credencial: la
-llave de la cuenta de servicio `pipeline-satelital` en
-`datos/logs/bigquery-key.json`. Ver sección 5.16 para cómo conseguirla.
-
-Si además quiere describir las tres tablas del profesor mientras la
-cuenta de servicio no tiene acceso a ellas (Paso 13), hace falta una
-tercera credencial, pero sin archivo que guardar: su propia cuenta
-personal de Google, vía `gcloud auth application-default login` (una
-sola vez por máquina). Ver sección 5.18.
+Paso 1 del EDA (Pasos 11-13, incluyendo las tres tablas del profesor),
+hace falta una segunda credencial: la llave de la cuenta de servicio
+`pipeline-satelital` en `datos/logs/bigquery-key.json`. Ver sección
+5.16 para cómo conseguirla. Desde el 02/10/2026 esta misma credencial
+también sirve para el Paso 13 (tablas del profesor) -- ya no hace
+falta una cuenta personal de Google aparte. Ver sección 5.18.
 
 ### 2.6 Verificar la instalación (antes de lanzar nada largo)
 
@@ -497,24 +494,22 @@ limpieza o proponer KPIs, hay que revisar ese reporte para confirmar
 qué columnas trae cada fuente (por ejemplo, si ya existe población o
 área por municipio, o si hay que conseguirlas aparte).
 
-### Paso 13 — describir las tres tablas del profesor (cuenta personal)
+### Paso 13 — describir las tres tablas del profesor (cuenta de servicio, reporte aparte)
 
 ```bash
 python main_local.py describir-fuentes-profesor
 ```
 
 Igual que el paso anterior, pero para las tres tablas de solo lectura
-del Observatorio (`prueba-ofr`), y usando tu cuenta personal de Google
-en vez de la cuenta de servicio -- solución temporal mientras el
-profesor le da acceso a la cuenta de servicio sobre esas tres tablas
-(se le pidió por correo, pendiente de respuesta). Requiere
-`gcloud auth application-default login` una vez, iniciando sesión con
-la MISMA cuenta de Google que el profesor autorizó. Deja el resultado
-en `DESCRIPCION_FUENTES_PROFESOR.md`, aparte de `DESCRIPCION_FUENTES.md`.
-Ver sección 5.18 para el detalle. Cuando el profesor confirme el acceso
-de la cuenta de servicio, este paso deja de ser necesario: esas tres
-tablas se agregan de vuelta a `describir_fuentes.py` y el Paso 12 solo
-vuelve a cubrir las siete de una vez.
+del Observatorio (`prueba-ofr`). Desde el 02/10/2026 usa la misma
+cuenta de servicio `pipeline-satelital` que el Paso 12 -- el profesor
+confirmó el acceso de lectura sobre estas tres tablas, así que ya no
+hace falta cuenta personal de Google ni `gcloud auth application-default
+login`. Deja el resultado en `DESCRIPCION_FUENTES_PROFESOR.md`, aparte
+de `DESCRIPCION_FUENTES.md`. Ver sección 5.18 para el detalle. El
+script se mantiene separado por ahora (reporte aparte); fusionar estas
+tres tablas de vuelta a `describir_fuentes.py` para que el Paso 12
+cubra las siete de una vez es una decisión pendiente del equipo.
 
 ### Comando de estado (en cualquier momento)
 
@@ -1000,11 +995,13 @@ es incremental— así que basta con volver a correrlo cuando cambien las
 tablas de origen para mantenerlo al día.
 
 Las tres tablas de solo lectura del Observatorio (`prueba-ofr`) NO
-están en este script: la cuenta de servicio todavía no tiene acceso a
-ellas. Se describen aparte, con la cuenta personal, en
-`describir_fuentes_profesor.py` (sección 5.18). Cuando el profesor
-autorice la cuenta de servicio, esas tres tablas se pueden agregar de
-vuelta a `FUENTES` aquí y dejar de necesitar el script aparte.
+están en este script: se describen aparte, con su propio reporte, en
+`describir_fuentes_profesor.py` (sección 5.18). Desde el 02/10/2026 ese
+script ya usa la misma cuenta de servicio que este -- el profesor
+confirmó el acceso de lectura de `pipeline-satelital` sobre las tres
+tablas -- pero se mantiene separado por ahora. Fusionarlas de vuelta a
+`FUENTES` aquí y retirar el script aparte queda pendiente de una
+decisión explícita del equipo, no es un requisito técnico.
 
 Uso: `python main_local.py describir-fuentes`.
 
@@ -1015,41 +1012,29 @@ de dato, número de filas, muestra de 5 filas) pero solo para las tres
 tablas de solo lectura del Observatorio (`prueba-ofr.Inclusion_Financiera.FINAGRO_Desembolsos_EFECTIVA`,
 `prueba-ofr.Inclusion_Financiera.SFC414_DASH`, `prueba-ofr.Municipios.CODIGO`),
 y deja el resultado en un reporte aparte: `DESCRIPCION_FUENTES_PROFESOR.md`.
-Reutiliza `_describir_tabla()` de `describir_fuentes.py` (mismo import),
-así que la lógica de consulta -- siempre `SELECT`, nunca metadatos del
-dataset, porque el permiso del profesor es solo a nivel de tabla
-puntual (ver `GUIA_BIGQUERY.md`) -- es una sola, compartida entre los
-dos scripts.
+Reutiliza `_describir_tabla()` y `_credenciales()` de `describir_fuentes.py`
+(mismo import), así que tanto la lógica de consulta -- siempre `SELECT`,
+nunca metadatos del dataset, porque el permiso del profesor es solo a
+nivel de tabla puntual (ver `GUIA_BIGQUERY.md`) -- como la credencial
+son una sola, compartida entre los dos scripts.
 
-**Por qué un script aparte, y no una bandera dentro de `describir_fuentes.py`.**
-El profesor le dio acceso de lectura a estas tres tablas a las cuentas
-personales del equipo desde el 14/09/2026, pero todavía NO a la cuenta
-de servicio `pipeline-satelital` (se le pidió por correo, pendiente de
-respuesta). Este script por eso usa SIEMPRE la cuenta personal
-(Application Default Credentials / ADC) -- no tiene modo "servicio" ni
-bandera que elegir, para no repetir la confusión de tener dos flujos de
-credenciales mezclados en el mismo comando (así estaba antes, con
-`describir-fuentes --credenciales personal`, y costó bastante depurar).
+**Por qué sigue siendo un script aparte, y no una bandera dentro de
+`describir_fuentes.py`.** El profesor le dio acceso de lectura a estas
+tres tablas a las cuentas personales del equipo desde el 14/09/2026, y
+confirmó el acceso de la cuenta de servicio `pipeline-satelital` el
+02/10/2026. Hasta esa fecha este script usaba SIEMPRE la cuenta
+personal (Application Default Credentials / ADC); desde entonces ya NO
+la usa -- usa la misma credencial de servicio que `describir_fuentes.py`.
+El script se mantiene separado, con su propio reporte, mientras el
+equipo decide si fusionarlo con `describir_fuentes.py`; ya no es por un
+problema de credenciales, sino una decisión de organización del código
+pendiente.
 
-Requiere:
-
-1. Tener instalado el Google Cloud CLI (`gcloud --version`; si no está,
-   instalarlo desde <https://cloud.google.com/sdk/docs/install>).
-2. Correr una sola vez por máquina: `gcloud auth application-default login`
-   — abre el navegador, hay que iniciar sesión con la MISMA cuenta de
-   Google que el profesor autorizó. En la pantalla de permisos, marcar
-   **todos** los checkboxes (o "Select all") antes de continuar -- si
-   queda alguno sin marcar da el error "cloud-platform scope is
-   required but not consented".
-3. Si el navegador por defecto no es donde tienes esa cuenta iniciada
-   (por ejemplo PowerShell abre Edge pero la cuenta está validada en
-   Chrome), copiar la URL que imprime el comando y pegarla en el
-   navegador correcto, o usar `gcloud auth application-default login --no-browser`.
-
-Cuando el profesor confirme el acceso de la cuenta de servicio, este
-script deja de ser necesario: las tres tablas se agregan de vuelta a
-`describir_fuentes.py` y `python main_local.py describir-fuentes`
-vuelve a cubrir las siete de una vez.
+**Requiere:** la misma llave de la cuenta de servicio que
+`describir-fuentes` y `subir-bigquery` (`datos/logs/bigquery-key.json`,
+o la variable de entorno `GOOGLE_APPLICATION_CREDENTIALS` -- ver
+sección 5.16). Ya NO requiere tener el Google Cloud CLI instalado ni
+correr `gcloud auth application-default login` con una cuenta personal.
 
 Uso: `python main_local.py describir-fuentes-profesor`.
 
@@ -1409,8 +1394,7 @@ notebook:
 1. **Paso 1 — inventario de las 7 fuentes** (secciones 5.17 y 5.18):
    columnas, tipos, número de filas y una muestra de cada una. Las
    cuatro propias en `DESCRIPCION_FUENTES.md`; las tres del Observatorio,
-   con la cuenta personal mientras se autoriza la de servicio, en
-   `DESCRIPCION_FUENTES_PROFESOR.md`.
+   con la cuenta de servicio, en `DESCRIPCION_FUENTES_PROFESOR.md`.
 2. **Distribución de cada fuente** (sección "5. Distribución de cada
    fuente" del notebook): % de ceros, histogramas de la medida principal
    a nivel celda y por municipio, y un boxplot de dispersión

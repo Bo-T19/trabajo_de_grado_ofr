@@ -240,18 +240,17 @@ llaves activas a la vez, cada una revocable por separado.
   las consultas cross-project contra `prueba-ofr` (`describir_fuentes_profesor.py`,
   GUIA_CODIGO.md sección 5.18) corren sin error de ubicación, así que
   las regiones son compatibles y no hace falta copiar datos primero.
-- **Acceso de la cuenta de servicio al proyecto del profesor**: el
-  profesor le dio acceso de lectura a las tres tablas puntuales
-  (`FINAGRO_Desembolsos_EFECTIVA`, `SFC414_DASH`, `Municipios.CODIGO`)
-  a las **cuentas personales** del equipo desde el 14/09/2026 -- ya
-  verificado y en uso (ver `describir_fuentes_profesor.py`). Lo que
-  sigue pendiente es que también se lo dé a la **cuenta de servicio**
-  `pipeline-satelital` (se le pidió por correo aparte, sin respuesta
-  aún); mientras tanto, `describir_fuentes_profesor.py` usa la cuenta
-  personal vía ADC como solución temporal (ver GUIA_CODIGO.md sección
-  5.18). Una vez concedido a la cuenta de servicio, **no** hace falta
-  copiar sus tablas a este proyecto: se pueden consultar directamente
-  con su `proyecto.dataset.tabla` completo en cualquier `JOIN`.
+- ~~Acceso de la cuenta de servicio al proyecto del profesor~~ —
+  **resuelto**: el profesor le dio acceso de lectura a las tres tablas
+  puntuales (`FINAGRO_Desembolsos_EFECTIVA`, `SFC414_DASH`,
+  `Municipios.CODIGO`) primero a las cuentas personales del equipo
+  (14/09/2026) y luego, el 02/10/2026, también a la **cuenta de
+  servicio** `pipeline-satelital`. Ya verificado y en uso:
+  `describir_fuentes_profesor.py` usa esa cuenta de servicio (la misma
+  de `describir_fuentes.py`), no la cuenta personal vía ADC -- ver
+  GUIA_CODIGO.md sección 5.18. No hace falta copiar las tablas del
+  profesor a este proyecto: se consultan directamente con su
+  `proyecto.dataset.tabla` completo en cualquier `JOIN`.
 - **Tablas de `analitica`**: todavía no existen. Se crearán cuando el
   equipo defina el cruce municipal entre el índice de deforestación
   (`staging`) y las variables financieras del Observatorio (Fase 3 del

@@ -52,3 +52,5 @@
 # Checkpoints de Jupyter y carpeta local de la app de escritorio de Claude
 /.ipynb_checkpoints/
 /Claude outputs/
+
+*.docx
