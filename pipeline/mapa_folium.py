@@ -4,7 +4,7 @@ mapa_folium.py
 Mapa interactivo (Leaflet, via folium) para darle un vistazo rapido al
 panel final de deforestacion, sin abrir el CSV ni QGIS.
 
-    python mapa_folium.py
+    python main_local.py mapa
 
 Salida: datos/panel/mapa_deforestacion.html — se abre con doble click
 en cualquier navegador, no necesita servidor ni internet para verse
@@ -44,7 +44,7 @@ import numpy as np
 import pandas as pd
 from folium.plugins import Fullscreen, HeatMap, MarkerCluster, MiniMap
 
-from config_local import DIR_PANEL, logger
+from pipeline.config_local import DIR_PANEL, logger
 
 SALIDA = DIR_PANEL / "mapa_deforestacion.html"
 

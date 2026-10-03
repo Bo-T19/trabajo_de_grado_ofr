@@ -21,10 +21,10 @@ no documentacion de terceros):
 
 USO (desde la raiz del proyecto)
 ---------------------------------
-    python configurar_gfw.py signup --nombre "Su Nombre" --email correo@ejemplo.com
+    python main_local.py configurar-gfw signup --nombre "Su Nombre" --email correo@ejemplo.com
         (una sola vez; revise su correo despues de correrlo)
 
-    python configurar_gfw.py apikey --email correo@ejemplo.com --password "la-de-su-correo"
+    python main_local.py configurar-gfw apikey --email correo@ejemplo.com --password "la-de-su-correo"
         (guarda la API key en gfw_api_key.txt, NO se sube a ningun repositorio)
 
 La API key queda en datos/logs/gfw_api_key.txt (fuera del control de
@@ -40,7 +40,7 @@ import json
 
 import requests
 
-from config_local import DIR_LOG, logger
+from pipeline.config_local import DIR_LOG, logger
 
 BASE = "https://data-api.globalforestwatch.org"
 ARCHIVO_KEY = DIR_LOG / "gfw_api_key.txt"
@@ -79,7 +79,7 @@ def cmd_signup(nombre: str, email: str) -> int:
         return 1
     logger.info("Registro enviado. Revise %s: GFW manda una contrasena temporal.", email)
     logger.info("Con esa contrasena, corra:")
-    logger.info('  python configurar_gfw.py apikey --email %s --password "..."', email)
+    logger.info('  python main_local.py configurar-gfw apikey --email %s --password "..."', email)
     return 0
 
 

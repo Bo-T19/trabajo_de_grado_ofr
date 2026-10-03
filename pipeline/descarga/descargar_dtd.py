@@ -62,7 +62,7 @@ from typing import Dict, List, Tuple
 
 import requests
 
-from config_local import Config, DIR_DTD, logger
+from pipeline.config_local import Config, DIR_DTD, logger
 
 BASE = ("https://bart.ideam.gov.co/smbyc/"
         "Boletines%20Detecciones%20Tempranas%20de%20Deforestacion")

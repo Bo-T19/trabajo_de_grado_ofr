@@ -42,7 +42,7 @@ USO (desde la raiz del proyecto, normalmente via main_local.py)
 ------------------------------------------------------------------
     python main_local.py describir-fuentes-profesor
 
-    (equivalente directo: python describir_fuentes_profesor.py)
+    (equivalente directo: python -m pipeline.entendimiento.describir_fuentes_profesor)
 
 Vuelve a generar DESCRIPCION_FUENTES_PROFESOR.md completo cada vez que
 se corre (no es incremental, igual que describir_fuentes.py).
@@ -50,14 +50,10 @@ se corre (no es incremental, igual que describir_fuentes.py).
 """
 from __future__ import annotations
 
-from pathlib import Path
+from pipeline.config_local import RAIZ, logger
+from pipeline.entendimiento.describir_fuentes import _credenciales, _describir_tabla
 
-from config_local import logger
-from describir_fuentes import _credenciales, _describir_tabla
-
-AQUI = Path(__file__).resolve().parent
-
-ARCHIVO_REPORTE = AQUI / "DESCRIPCION_FUENTES_PROFESOR.md"
+ARCHIVO_REPORTE = RAIZ / "docs" / "DESCRIPCION_FUENTES_PROFESOR.md"
 
 # etiqueta legible -> tabla completamente calificada (proyecto.dataset.tabla)
 FUENTES = {

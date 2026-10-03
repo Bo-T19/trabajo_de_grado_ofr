@@ -159,10 +159,10 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 
-from calcular_bosque import bosque_ha_por_celda
-from config_local import Config, DIR_DTD, DIR_PANEL, logger
-from consolidar import asignar_municipio
-from zonal import cargar_grilla
+from pipeline.calcular_bosque import bosque_ha_por_celda
+from pipeline.config_local import Config, DIR_DTD, DIR_PANEL, logger
+from pipeline.paneles.consolidar import asignar_municipio
+from pipeline.zonal import cargar_grilla
 
 SALIDA = DIR_PANEL / "panel_dtd"
 

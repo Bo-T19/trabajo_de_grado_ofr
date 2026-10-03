@@ -1,7 +1,14 @@
 """
 main_local.py
 ======================================================================
-Punto de entrada del pipeline (Global Forest Watch, 2020-presente).
+Punto de entrada del pipeline: TODO se corre desde aqui, parado en la
+raiz del proyecto. El codigo vive en pipeline/, una carpeta por etapa;
+este archivo solo lanza cada etapa con los argumentos correctos.
+
+Las opciones que siguen a un subcomando se le pasan a su etapa:
+"python main_local.py ideam --todos", "python main_local.py mapa
+--umbral-ha 1". Con "--help" despues del subcomando se ven las de cada
+una. "python main_local.py --help" lista todos los subcomandos.
 
 USO — en este orden
 -------------------
@@ -13,10 +20,15 @@ USO — en este orden
         Baja los granulos de Hansen GFC sobre Colombia (~5 GB).
         No requiere ninguna cuenta.
 
+    python main_local.py configurar-gfw signup --nombre "..." --email ...
+    python main_local.py configurar-gfw apikey --email ... --password ...
+        Registro de una sola vez en la API de GFW y obtencion de la
+        API key, que queda en datos/logs/gfw_api_key.txt.
+
     python main_local.py gfw
         Calcula el bosque base y descarga el evento desde la API de
-        GFW. Produce datos/crudo/nacional.csv. Requiere una API key
-        de GFW (ver configurar_gfw.py). Del orden de 10-20 minutos.
+        GFW. Produce datos/crudo/nacional.csv. Requiere la API key de
+        GFW (ver configurar-gfw). Del orden de 10-20 minutos.
 
     python main_local.py municipios
         Descarga los limites municipales del DANE (MGN2025, nivel
@@ -49,7 +61,7 @@ USO — en este orden
     -- disturbio (GFW), perdida de cobertura arborea (Hansen) y
     deforestacion de bosque natural (IDEAM) -- y por eso NUNCA se suman
     entre si. Comparten grilla, bosque base y cruce municipal, que es lo
-    que las hace comparables. Ver METODOLOGIA.md seccion 2.
+    que las hace comparables. Ver docs/METODOLOGIA.md seccion 2.
 
     python main_local.py consolidar --dane ruta/al/otro_archivo.shp
         Igual, pero usando un shapefile/geojson municipal distinto en
@@ -58,20 +70,23 @@ USO — en este orden
     python main_local.py estado
         Que hay en disco y que falta.
 
+    python main_local.py mapa
+        Mapa interactivo (folium) de la TABLA 1, en datos/panel/.
+
     python main_local.py subir-bigquery
         Sube las tablas del panel que ya existan en datos/panel/ al
         dataset "staging" del proyecto de BigQuery del equipo
         (ofr-credito-deforestacion). Requiere la llave de la cuenta de
         servicio "pipeline-satelital" en datos/logs/bigquery-key.json
         (o en la variable de entorno GOOGLE_APPLICATION_CREDENTIALS).
-        Ver subir_bigquery.py y GUIA_CODIGO.md seccion 5.16.
+        Ver docs/GUIA_CODIGO.md seccion 5.16.
 
     python main_local.py describir-fuentes
         Paso 1 del EDA: describe las cuatro tablas del panel propio en
         BigQuery -- columnas, tipos de dato, numero de filas y una
         muestra de 5 filas por tabla. Requiere la misma credencial que
-        subir-bigquery. Genera/actualiza DESCRIPCION_FUENTES.md en la
-        raiz del repositorio. Ver describir_fuentes.py.
+        subir-bigquery. Genera/actualiza docs/DESCRIPCION_FUENTES.md.
+        Ver pipeline/entendimiento/describir_fuentes.py.
 
     python main_local.py describir-fuentes-profesor
         Igual, pero para las tres tablas de solo lectura del
@@ -79,9 +94,16 @@ USO — en este orden
         cuenta de servicio "pipeline-satelital" que describir-fuentes
         (el profesor confirmo el acceso de lectura de la cuenta de
         servicio sobre estas tres tablas). Genera
-        DESCRIPCION_FUENTES_PROFESOR.md aparte, como script separado,
+        docs/DESCRIPCION_FUENTES_PROFESOR.md aparte, como script separado,
         mientras se valida el comportamiento y se decide si se
-        fusiona con describir-fuentes. Ver describir_fuentes_profesor.py.
+        fusiona con describir-fuentes. Ver
+        pipeline/entendimiento/describir_fuentes_profesor.py.
+
+    python main_local.py demo-landsat
+        Replica, en una zona piloto de Caqueta, el calculo de perdida de
+        bosque desde imagenes Landsat crudas, y lo compara con GLAD-L.
+        Es entendimiento de los datos: no alimenta ninguna tabla. Ver
+        docs/GUIA_DEMO_LANDSAT.md.
 ======================================================================
 """
 from __future__ import annotations
@@ -91,23 +113,62 @@ import subprocess
 import sys
 from pathlib import Path
 
-from config_local import (Config, DIR_CRUDO, DIR_DTD, DIR_GRILLA,
+from pipeline.config_local import (Config, DIR_CRUDO, DIR_DTD, DIR_GRILLA,
                           DIR_HANSEN, DIR_IDEAM, DIR_LIMITES, DIR_PANEL,
                           logger)
 
 AQUI = Path(__file__).resolve().parent
 
 
-def _correr(script: str, *args: str) -> int:
-    """Lanza otro script del pipeline como subproceso.
+def _correr(modulo: str, *args: str) -> int:
+    """Lanza una etapa del pipeline como subproceso.
 
-    main_local.py no reimplementa la logica de cada etapa: solo arma
-    la linea de comandos correcta ("python <script> <args>") y la
-    ejecuta como un proceso hijo, propagando su codigo de salida.
+    main_local.py no reimplementa la logica de cada etapa: solo arma la
+    linea de comandos correcta ("python -m pipeline.<carpeta>.<modulo>
+    <args>") y la ejecuta como proceso hijo desde la raiz del proyecto,
+    propagando su codigo de salida. Se lanza con -m, y no por ruta de
+    archivo, para que cada modulo pueda importar el resto del paquete
+    pipeline/.
     """
-    cmd = [sys.executable, str(AQUI / script), *args]
+    cmd = [sys.executable, "-m", modulo, *args]
     logger.info("-> %s", " ".join(cmd[1:]))
-    return subprocess.call(cmd)
+    return subprocess.call(cmd, cwd=AQUI)
+
+
+# Subcomando -> (modulo que lo ejecuta, ayuda). Las opciones que vengan
+# despues del subcomando se le pasan tal cual al modulo, asi que
+# "python main_local.py ideam --todos" equivale a
+# "python -m pipeline.descarga.descargar_ideam --todos", y
+# "python main_local.py ideam --help" muestra la ayuda del modulo.
+ETAPAS = {
+    "grilla": ("pipeline.descarga.exportar_grilla",
+               "construye la grilla de 5 km (una sola vez)"),
+    "hansen": ("pipeline.descarga.descargar_hansen",
+               "descarga los granulos de Hansen GFC (~5 GB)"),
+    "configurar-gfw": ("pipeline.descarga.configurar_gfw",
+                       "registro y API key de Global Forest Watch (signup / apikey)"),
+    "gfw": ("pipeline.descarga.descargar_gfw",
+            "bosque base + alertas de GFW -> datos/crudo/nacional.csv"),
+    "municipios": ("pipeline.descarga.descargar_municipios",
+                   "limites municipales del DANE"),
+    "ideam": ("pipeline.descarga.descargar_ideam",
+              "capas de cambio de bosque del SMByC (--periodos, --todos)"),
+    "dtd": ("pipeline.descarga.descargar_dtd",
+            "detecciones tempranas del SMByC (--anios)"),
+    "panel-hansen": ("pipeline.paneles.panel_hansen", "TABLA 2: perdida anual (Hansen)"),
+    "panel-ideam": ("pipeline.paneles.panel_ideam", "TABLA 3: deforestacion oficial (IDEAM)"),
+    "panel-dtd": ("pipeline.paneles.panel_dtd", "TABLA 4: alertas tempranas (IDEAM)"),
+    "mapa": ("pipeline.mapa_folium",
+             "mapa interactivo de la TABLA 1 (--umbral-ha, --salida, ...)"),
+    "subir-bigquery": ("pipeline.bigquery.subir_bigquery",
+                       "sube las tablas del panel a BigQuery (--solo, --dataset)"),
+    "describir-fuentes": ("pipeline.entendimiento.describir_fuentes",
+                          "Paso 1 del EDA: describe las 4 tablas propias"),
+    "describir-fuentes-profesor": ("pipeline.entendimiento.describir_fuentes_profesor",
+                                   "Paso 1 del EDA: describe las 3 tablas del profesor"),
+    "demo-landsat": ("pipeline.entendimiento.demo_landsat_caqueta",
+                     "replica del calculo de perdida de bosque desde Landsat"),
+}
 
 
 def cmd_estado(cfg: Config) -> int:
@@ -151,90 +212,41 @@ def main() -> int:
     """Punto de entrada: python main_local.py <subcomando> [opciones].
 
     Ver el docstring del inicio del archivo para el orden recomendado
-    de subcomandos, y GUIA_CODIGO.md para la explicacion completa de
-    cada paso.
+    de subcomandos, y docs/GUIA_CODIGO.md para la explicacion completa
+    de cada paso.
     """
     p = argparse.ArgumentParser(
-        description="Panel de deforestacion de Colombia (Global Forest Watch)")
-    sub = p.add_subparsers(dest="cmd", required=True)
+        description="Panel de deforestacion de Colombia. Las opciones que "
+                    "siguen a un subcomando se le pasan a su etapa.")
+    sub = p.add_subparsers(dest="cmd", required=True, metavar="subcomando")
 
-    sub.add_parser("grilla")
-    sub.add_parser("hansen")
-    sub.add_parser("gfw")
-    sub.add_parser("municipios")
-    sub.add_parser("ideam")
-    sub.add_parser("panel-hansen")
-    sub.add_parser("panel-ideam")
-    sub.add_parser("dtd")
-    sub.add_parser("panel-dtd")
-    sub.add_parser("estado")
-
-    pb = sub.add_parser("subir-bigquery")
-    pb.add_argument("--solo", default=None,
-                    help="Lista separada por comas: gfw,hansen,ideam,dtd (default: todas).")
-    pb.add_argument("--dataset", default=None,
-                    help="Dataset de BigQuery destino (default: staging, ver subir_bigquery.py).")
-
-    sub.add_parser("describir-fuentes")
-    sub.add_parser("describir-fuentes-profesor")
-
-    pc = sub.add_parser("consolidar")
+    sub.add_parser("estado", help="que hay en disco y que falta")
+    pc = sub.add_parser("consolidar", help="TABLA 1: alertas GFW, celda x mes")
     pc.add_argument("--dane", default=None,
                     help=("Ruta a un shapefile/geojson municipal alterno. "
                           "Si se omite, se usa (descargandolo si hace falta) "
                           "el de datos/limites/, ver municipios."))
+    for nombre, (_, ayuda) in ETAPAS.items():
+        # add_help=False: "--help" se le pasa a la etapa, que muestra
+        # sus propias opciones.
+        sub.add_parser(nombre, help=ayuda, add_help=False)
 
-    a = p.parse_args()
+    a, resto = p.parse_known_args()
     cfg = Config()
+
+    if a.cmd in ETAPAS:
+        return _correr(ETAPAS[a.cmd][0], *resto)
+
+    if resto:
+        p.error(f"opciones no reconocidas para '{a.cmd}': {' '.join(resto)}")
 
     if a.cmd == "estado":
         return cmd_estado(cfg)
 
-    if a.cmd == "grilla":
-        return _correr("exportar_grilla.py")
-
-    if a.cmd == "hansen":
-        return _correr("descargar_hansen.py")
-
-    if a.cmd == "gfw":
-        return _correr("descargar_gfw.py")
-
-    if a.cmd == "municipios":
-        return _correr("descargar_municipios.py")
-
-    if a.cmd == "ideam":
-        return _correr("descargar_ideam.py")
-
-    if a.cmd == "panel-hansen":
-        return _correr("panel_hansen.py")
-
-    if a.cmd == "panel-ideam":
-        return _correr("panel_ideam.py")
-
-    if a.cmd == "dtd":
-        return _correr("descargar_dtd.py")
-
-    if a.cmd == "panel-dtd":
-        return _correr("panel_dtd.py")
-
-    if a.cmd == "subir-bigquery":
-        args = []
-        if a.solo:
-            args += ["--solo", a.solo]
-        if a.dataset:
-            args += ["--dataset", a.dataset]
-        return _correr("subir_bigquery.py", *args)
-
-    if a.cmd == "describir-fuentes":
-        return _correr("describir_fuentes.py")
-
-    if a.cmd == "describir-fuentes-profesor":
-        return _correr("describir_fuentes_profesor.py")
-
     if a.cmd == "consolidar":
         # A diferencia de los demas subcomandos, este SI importa la
         # funcion directamente en vez de lanzar un subproceso.
-        from consolidar import consolidar
+        from pipeline.paneles.consolidar import consolidar
         consolidar(cfg, a.dane)
         return 0
 

@@ -69,10 +69,10 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from calcular_bosque import bosque_ha_por_celda
-from config_local import Config, DIR_HANSEN, DIR_PANEL, logger
-from consolidar import asignar_municipio
-from zonal import (bloques, cargar_grilla, contar_por_celda_y_clase,
+from pipeline.calcular_bosque import bosque_ha_por_celda
+from pipeline.config_local import Config, DIR_HANSEN, DIR_PANEL, logger
+from pipeline.paneles.consolidar import asignar_municipio
+from pipeline.zonal import (bloques, cargar_grilla, contar_por_celda_y_clase,
                    indice_celdas_bloque, perfil_bloque,
                    reproyectar_sobre_bloque)
 

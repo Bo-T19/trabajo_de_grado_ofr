@@ -1,7 +1,7 @@
 # Las bases de datos son muy pesadas: se ignora TODO el contenido de
 # datos/, pero se conserva la ESTRUCTURA de carpetas (cada una trae un
 # .gitkeep) para que un clon nuevo del repo ya tenga el arbol listo
-# antes de correr nada -- ver config_local.py y GUIA_CODIGO.md seccion 11.
+# antes de correr nada -- ver pipeline/config_local.py y docs/GUIA_CODIGO.md seccion 11.
 /datos/*
 !/datos/grilla/
 !/datos/hansen/
@@ -42,15 +42,14 @@
 .dodsrc
 
 # Cache
-/__pycache__/
-/legacy/fuente_dist_alert/__pycache__/
+__pycache__/
 
 # Entorno virtual (se recrea con "python -m venv .venv" + requirements_local.txt,
-# ver GUIA_CODIGO.md seccion 2.3-2.4 -- nunca debe subirse al repo)
+# ver docs/GUIA_CODIGO.md seccion 2.3-2.4 -- nunca debe subirse al repo)
 /.venv/
 
 # Checkpoints de Jupyter y carpeta local de la app de escritorio de Claude
-/.ipynb_checkpoints/
+.ipynb_checkpoints/
 /Claude outputs/
 
 *.docx

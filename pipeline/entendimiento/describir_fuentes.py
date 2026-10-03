@@ -9,7 +9,7 @@ cruzar -- hoy eso no esta documentado en ningun lado del codigo.
 Este script consulta BigQuery directamente y para cada una de las
 CUATRO tablas propias obtiene: columnas y tipos de dato, numero de
 filas, y una muestra de 5 filas. Deja todo consolidado en
-DESCRIPCION_FUENTES.md, en la raiz del repositorio, para poder
+docs/DESCRIPCION_FUENTES.md, para poder
 revisarlo y decidir sobre eso (llaves de cruce municipal, columnas de
 fecha, si falta poblacion/area para los KPIs, etc.) sin tener que
 volver a entrar a la consola de BigQuery.
@@ -40,7 +40,7 @@ USO (desde la raiz del proyecto, normalmente via main_local.py)
 ------------------------------------------------------------------
     python main_local.py describir-fuentes
 
-    (equivalente directo: python describir_fuentes.py)
+    (equivalente directo: python -m pipeline.entendimiento.describir_fuentes)
 
 Vuelve a generar DESCRIPCION_FUENTES.md completo cada vez que se
 corre (no es incremental) -- correrlo de nuevo cuando cambien las
@@ -52,15 +52,13 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from config_local import DIR_LOG, logger
-
-AQUI = Path(__file__).resolve().parent
+from pipeline.config_local import DIR_LOG, RAIZ, logger
 
 # Ruta esperada de la llave de la cuenta de servicio "pipeline-satelital".
 # Ver GUIA_CODIGO.md seccion 5.16.
 ARCHIVO_KEY = DIR_LOG / "bigquery-key.json"
 
-ARCHIVO_REPORTE = AQUI / "DESCRIPCION_FUENTES.md"
+ARCHIVO_REPORTE = RAIZ / "docs" / "DESCRIPCION_FUENTES.md"
 
 # etiqueta legible -> tabla completamente calificada (proyecto.dataset.tabla)
 FUENTES = {

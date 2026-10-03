@@ -24,7 +24,7 @@ from typing import Optional
 
 import pandas as pd
 
-from config_local import Config, DIR_CRUDO, DIR_PANEL, logger
+from pipeline.config_local import Config, DIR_CRUDO, DIR_PANEL, logger
 
 ARCHIVO_CRUDO = DIR_CRUDO / "nacional.csv"
 
@@ -221,7 +221,7 @@ def asignar_municipio(df: pd.DataFrame, ruta_shp: Optional[str],
         return df
 
     if not ruta_shp:
-        from descargar_municipios import descargar_municipios, ruta_cache
+        from pipeline.descarga.descargar_municipios import descargar_municipios, ruta_cache
         destino = ruta_cache()
         if not destino.exists():
             logger.info("Sin limites municipales en disco; se descargan del DANE...")

@@ -11,7 +11,7 @@ Expone una sola funcion publica:
 
 Uso tipico (ver descargar_gfw.py):
 
-    from calcular_bosque import bosque_ha_por_celda
+    from pipeline.calcular_bosque import bosque_ha_por_celda
     bosque = bosque_ha_por_celda(cfg, grilla, mapa_celda)
 
 Este es el DENOMINADOR comun de las salidas del proyecto (alertas GFW,
@@ -61,8 +61,8 @@ from typing import Dict, Tuple
 import numpy as np
 import pandas as pd
 
-from config_local import Config, DIR_CACHE, DIR_HANSEN, logger
-from zonal import (bloques, indice_celdas_bloque, perfil_bloque,
+from pipeline.config_local import Config, DIR_CACHE, DIR_HANSEN, logger
+from pipeline.zonal import (bloques, indice_celdas_bloque, perfil_bloque,
                    reproyectar_sobre_bloque)
 
 

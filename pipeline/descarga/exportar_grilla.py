@@ -4,7 +4,7 @@ exportar_grilla.py
 Genera el CSV de la grilla de 5 km sobre Colombia, enteramente en el
 computador local: sin Google Earth Engine, sin ninguna cuenta de Google.
 
-    python exportar_grilla.py
+    python main_local.py grilla
 
 Salida: datos/grilla/grilla_colombia_5km.csv
 
@@ -62,7 +62,7 @@ import pandas as pd
 import requests
 import shapely.geometry as sg
 
-from config_local import Config, DIR_GRILLA, logger
+from pipeline.config_local import Config, DIR_GRILLA, logger
 
 SALIDA = "grilla_colombia_5km.csv"
 

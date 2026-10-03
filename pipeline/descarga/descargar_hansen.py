@@ -5,7 +5,7 @@ Descarga los granulos de Hansen Global Forest Change (GFC) que cubren
 Colombia: dos capas por granulo espacial (treecover2000, lossyear),
 alojadas por Google en Cloud Storage, sin autenticacion.
 
-    python descargar_hansen.py
+    python main_local.py hansen
 
 REANUDABLE: si un archivo ya existe con tamaño plausible, se salta.
 Puede interrumpir con Ctrl+C y relanzar.
@@ -19,7 +19,7 @@ from typing import List, Tuple
 
 import requests
 
-from config_local import Config, DIR_HANSEN, logger
+from pipeline.config_local import Config, DIR_HANSEN, logger
 
 # URL base publica del producto Hansen GFC. No requiere autenticacion.
 HANSEN_BASE = "https://storage.googleapis.com/earthenginepartners-hansen"

@@ -54,7 +54,7 @@ from pathlib import Path
 
 import requests
 
-from config_local import Config, DIR_IDEAM, logger
+from pipeline.config_local import Config, DIR_IDEAM, logger
 
 BASE = ("https://bart.ideam.gov.co/smbyc/"
         "Cambio%20en%20la%20superficie%20cubierta%20por%20bosque%20natural/Capas")

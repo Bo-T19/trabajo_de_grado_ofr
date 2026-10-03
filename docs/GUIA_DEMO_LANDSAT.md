@@ -1,6 +1,6 @@
 # Cómo se deriva deforestación desde Landsat, paso a paso
 
-Recorrido completo de [`demo_landsat_caqueta.py`](demo_landsat_caqueta.py):
+Recorrido completo de [`demo_landsat_caqueta.py`](../pipeline/entendimiento/demo_landsat_caqueta.py):
 qué hace cada bloque de código, por qué está escrito así, y qué significa
 cada número del resultado.
 
@@ -1749,7 +1749,7 @@ su cifra nacional (ver `METODOLOGIA.md`, sección 8).
 ## Cómo volver a correrlo
 
 ```powershell
-python demo_landsat_caqueta.py
+python main_local.py demo-landsat
 ```
 
 La primera vez toma unos 13 minutos. Las siguientes, segundos, porque los

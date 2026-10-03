@@ -31,10 +31,11 @@ logger = logging.getLogger("pipeline")
 # ---------------------------------------------------------------------
 # RUTAS
 # ---------------------------------------------------------------------
-# RAIZ = la carpeta donde vive este archivo (la raiz del proyecto),
-# calculada de forma robusta sin depender de cual sea el directorio
-# de trabajo desde donde se lanzo python.
-RAIZ = Path(__file__).resolve().parent
+# RAIZ = la raiz del proyecto: la carpeta que contiene pipeline/, un
+# nivel arriba de este archivo. Se calcula a partir de la ubicacion del
+# archivo, asi que no depende del directorio de trabajo desde donde se
+# lanzo python.
+RAIZ = Path(__file__).resolve().parents[1]
 DIR_DATOS = RAIZ / "datos"
 
 # Cada carpeta corresponde a UNA etapa del pipeline. Ver GUIA_CODIGO.md

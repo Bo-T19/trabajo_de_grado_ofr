@@ -6,7 +6,7 @@ integrado de alertas de Global Forest Watch. Cual producto exactamente
 lo decide config_local.py (gfw_dataset); por defecto
 "gfw_integrated_alerts", que integra GLAD-L, GLAD-S2 y RADD.
 
-    python descargar_gfw.py
+    python main_local.py gfw
 
 Salida: datos/crudo/nacional.csv, formato ANCHO:
 
@@ -67,8 +67,8 @@ import pandas as pd
 import requests
 import shapely.geometry as sg
 
-from calcular_bosque import bosque_ha_por_celda
-from config_local import Config, DIR_CRUDO, DIR_GFW, DIR_GRILLA, DIR_LOG, logger
+from pipeline.calcular_bosque import bosque_ha_por_celda
+from pipeline.config_local import Config, DIR_CRUDO, DIR_GFW, DIR_GRILLA, DIR_LOG, logger
 
 GRILLA_CSV = DIR_GRILLA / "grilla_colombia_5km.csv"
 SALIDA = DIR_CRUDO / "nacional.csv"
@@ -87,8 +87,8 @@ def _api_key() -> str:
         return ARCHIVO_KEY.read_text().strip()
     raise SystemExit(
         "Falta la API key de GFW. Corra primero:\n"
-        "  python configurar_gfw.py signup --nombre ... --email ...\n"
-        "  python configurar_gfw.py apikey --email ... --password ...\n"
+        "  python main_local.py configurar-gfw signup --nombre ... --email ...\n"
+        "  python main_local.py configurar-gfw apikey --email ... --password ...\n"
         "O defina la variable de entorno GFW_API_KEY.")
 
 

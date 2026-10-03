@@ -34,7 +34,7 @@ import rasterio
 from rasterio.transform import Affine
 from rasterio.warp import Resampling, reproject
 
-from config_local import Config, DIR_GRILLA, logger
+from pipeline.config_local import Config, DIR_GRILLA, logger
 
 ARCHIVO_GRILLA = DIR_GRILLA / "grilla_colombia_5km.csv"
 

@@ -5,7 +5,7 @@ Descarga los limites municipales de Colombia directamente del DANE,
 sin descarga manual desde el navegador ni cuenta de ningun tipo --
 igual que exportar_grilla.py hace con los limites departamentales.
 
-    python descargar_municipios.py
+    python main_local.py municipios
     # equivale a: python main_local.py municipios
 
 Salida: datos/limites/municipios_dane_mgn2025.geojson
@@ -46,7 +46,7 @@ from pathlib import Path
 
 import requests
 
-from config_local import Config, DIR_LIMITES, logger
+from pipeline.config_local import Config, DIR_LIMITES, logger
 
 SALIDA = "municipios_dane_mgn2025.geojson"
 

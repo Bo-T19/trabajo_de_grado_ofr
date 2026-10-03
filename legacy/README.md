@@ -15,12 +15,12 @@ trazabilidad técnica, no porque siga en uso.
 
 ## Estado: congelado, no mantenido
 
-**Este código no corre contra la versión actual de `config_local.py`.**
+**Este código no corre contra la versión actual de `pipeline/config_local.py`.**
 El pipeline activo simplificó la configuración central a los parámetros
 que necesita su única fuente de datos; varios campos que estos scripts
 importan (`dist_short_name`, `capa_estado`, `capa_fecha`, `estados_evento`,
 `epoca_dist`, `cadencia_snapshot`, `tiles`, entre otros) ya no existen en
-`config_local.py`. Para volver a correr algo de esta carpeta haría falta
+`pipeline/config_local.py`. Para volver a correr algo de esta carpeta haría falta
 restaurar esos campos o darle a estos scripts su propia configuración
 aparte — no es un simple `python archivo.py`.
 
@@ -33,5 +33,5 @@ que hay archivado aquí.
 
 El proyecto pasó a construirse sobre una sola fuente de datos, más simple
 de entender y de documentar de principio a fin. Ver `METODOLOGIA.md` y
-`GUIA_CODIGO.md` en la raíz del proyecto para la metodología y el código
+`GUIA_CODIGO.md` en `docs/` para la metodología y el código
 activos.

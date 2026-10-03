@@ -42,7 +42,7 @@ USO (desde la raiz del proyecto, normalmente via main_local.py)
         las cuatro fuentes van a "staging"; "analitica" se reserva
         para las tablas ya integradas con los datos financieros).
 
-    (equivalente directo: python subir_bigquery.py [--solo ...] [--dataset ...])
+    (equivalente directo: python -m pipeline.bigquery.subir_bigquery [--solo ...] [--dataset ...])
 ======================================================================
 """
 from __future__ import annotations
@@ -53,7 +53,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from config_local import DIR_LOG, DIR_PANEL, logger
+from pipeline.config_local import DIR_LOG, DIR_PANEL, logger
 
 PROYECTO = "ofr-credito-deforestacion"
 DATASET_DEFAULT = "staging"

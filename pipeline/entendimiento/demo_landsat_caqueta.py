@@ -6,7 +6,7 @@ de una zona piloto de Caqueta, el tipo de calculo con que los productos
 publicados detectan perdida de bosque, y la contrasta con las alertas
 GLAD-L.
 
-    python demo_landsat_caqueta.py
+    python main_local.py demo-landsat
 
 Salidas: datos/demo/  (ver la seccion SALIDAS mas abajo)
 
@@ -145,8 +145,8 @@ from rasterio.warp import Resampling, reproject, transform_bounds
 from rasterio.windows import Window, from_bounds
 from scipy import ndimage
 
-from config_local import DIR_DATOS, DIR_HANSEN, DIR_LOG, logger
-from zonal import reproyectar_sobre_bloque
+from pipeline.config_local import DIR_DATOS, DIR_HANSEN, DIR_LOG, logger
+from pipeline.zonal import reproyectar_sobre_bloque
 
 # =====================================================================
 # CONSTANTES
@@ -595,8 +595,8 @@ def _api_key() -> str:
         return archivo.read_text().strip()
     raise SystemExit(
         "Falta la API key de GFW.\n"
-        "  python configurar_gfw.py signup --nombre \"...\" --email ...\n"
-        "  python configurar_gfw.py apikey --email ... --password ...")
+        "  python main_local.py configurar-gfw signup --nombre \"...\" --email ...\n"
+        "  python main_local.py configurar-gfw apikey --email ... --password ...")
 
 
 def _version_glad(clave: str, intentos: int = 3, espera_s: int = 10) -> str:
@@ -623,7 +623,7 @@ def _version_glad(clave: str, intentos: int = 3, espera_s: int = 10) -> str:
                 raise SystemExit(
                     f"GFW rechazo la API key (HTTP {r.status_code}).\n"
                     "  Renuevela con:\n"
-                    "  python configurar_gfw.py apikey "
+                    "  python main_local.py configurar-gfw apikey "
                     "--email ... --password ...")
             if r.status_code != 200:
                 motivo = f"HTTP {r.status_code}"
@@ -1266,7 +1266,7 @@ def referencia_entre_productos(perfil, dominio, region, glad_cod,
                   ("IDEAM vs Hansen", str(anio), ideam_anio, hansen_anio, dom_ideam)]
     else:
         logger.info("  %s no esta en disco; se omiten las filas del IDEAM "
-                    "(python descargar_ideam.py)", capa_ideam.name)
+                    "(python main_local.py ideam)", capa_ideam.name)
 
     filas = []
     for par, ventana, prueba, ref, dom in pares:
@@ -1372,7 +1372,7 @@ def mapa_revision(capas: Dict[str, np.ndarray], perfil: dict,
     try:
         import folium
         from folium.plugins import Fullscreen
-        from mapa_folium import TILES_DEFECTO, atenuar_mapa_base
+        from pipeline.mapa_folium import TILES_DEFECTO, atenuar_mapa_base
     except ImportError as e:
         logger.warning("No se pudo armar el mapa (%s); se omite.", e)
         return False

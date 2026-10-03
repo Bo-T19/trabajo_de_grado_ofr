@@ -3,7 +3,7 @@
 Este documento explica **cómo está construido el software** y **cómo
 correrlo desde cero**, paso a paso, con suficiente detalle para que alguien
 que no participó en escribirlo —el director de tesis, un jurado, un
-colaborador futuro— pueda reproducir **las dos tablas** en su propio
+colaborador futuro— pueda reproducir **las cuatro tablas** en su propio
 computador.
 
 Este documento **no** explica por qué se tomaron las decisiones de diseño
@@ -36,52 +36,52 @@ se explica su implementación.
 
 ```
 trabajo_de_grado/
-├── config_local.py           configuración central — todo parámetro vive aquí
-├── exportar_grilla.py        genera la grilla de 5 km — una sola vez
-├── zonal.py                  reparte cualquier ráster entre las celdas de la grilla
-├── descargar_municipios.py   límites municipales del DANE (MGN), automático
-│
-│   ── LINEA BASE de bosque (Hansen) ───────────────────────────────
-├── descargar_hansen.py       descarga los granulos de Hansen GFC
-├── calcular_bosque.py        bosque_ha por celda — el DENOMINADOR comun
-│
-│   ── TABLA 1: alertas de disturbio (GFW), mensual ────────────────
-├── configurar_gfw.py         registro de una sola vez en la API de GFW
-├── descargar_gfw.py          descarga el evento -> datos/crudo/nacional.csv
-├── consolidar.py             arma la tabla celda x mes + cruce municipal
-│
-│   ── TABLA 2: perdida de cobertura (Hansen), anual ───────────────
-├── panel_hansen.py           celda x año, desde los granulos ya descargados
-│
-│   ── TABLA 3: deforestacion oficial (IDEAM), por periodo ─────────
-├── descargar_ideam.py        capas de cambio de bosque del SMByC
-├── panel_ideam.py            celda x periodo, con columnas de calidad
-│
-│   ── TABLA 4: alertas tempranas oficiales (IDEAM), trimestral ────
-├── descargar_dtd.py          detecciones tempranas del SMByC (KML por trimestre)
-├── panel_dtd.py              celda x trimestre, conteo de detecciones
-│
-├── catalogo_paneles.ipynb    describe las cuatro tablas propias y las mapea (seccion 10: EDA)
-├── main_local.py             orquestador de línea de comandos
-│
-│   ── BIGQUERY Y EDA (Paso 1) ──────────────────────────────────────
-├── subir_bigquery.py         sube las cuatro tablas propias a BigQuery (opcional)
-├── describir_fuentes.py      Paso 1 del EDA: describe las 4 tablas propias -> DESCRIPCION_FUENTES.md
-├── DESCRIPCION_FUENTES.md    salida de describir_fuentes.py (se regenera cada corrida)
-├── describir_fuentes_profesor.py  igual, para las 3 tablas del profesor (cuenta de servicio, reporte aparte)
-├── DESCRIPCION_FUENTES_PROFESOR.md  salida de describir_fuentes_profesor.py
-│
-│   ── ENTENDIMIENTO DE LOS DATOS: réplica del cálculo desde imagen cruda ──
-├── demo_landsat_caqueta.py   replica el cálculo de pérdida desde Landsat
-├── mapa_folium.py            mapa interactivo (Leaflet) de la tabla de alertas
-│
+├── main_local.py             ÚNICO punto de entrada: python main_local.py <subcomando>
 ├── requirements_local.txt    dependencias de Python (pip)
+├── README.md                 presentación corta y por dónde empezar
 ├── .dodsrc                   (sin uso en este pipeline; ver legacy/)
 │
-├── METODOLOGIA.md            ← el "qué y por qué" (léalo primero)
-├── GUIA_CODIGO.md            ← este documento, el "cómo"
-├── GUIA_BIGQUERY.md          ← acceso y arquitectura de BigQuery (equipo + Observatorio)
-├── GUIA_DEMO_LANDSAT.md      ← recorrido de la réplica con Landsat (sección 9)
+├── pipeline/                 todo el código, como paquete de Python
+│   ├── config_local.py       configuración central — todo parámetro vive aquí
+│   ├── zonal.py              reparte cualquier ráster entre las celdas de la grilla
+│   ├── calcular_bosque.py    bosque_ha por celda — el DENOMINADOR común
+│   ├── mapa_folium.py        mapa interactivo (Leaflet) de la Tabla 1
+│   │
+│   ├── descarga/             ── ETAPA 1: grilla e insumos ─────────────────
+│   │   ├── exportar_grilla.py        grilla de 5 km — una sola vez
+│   │   ├── descargar_hansen.py       gránulos de Hansen GFC
+│   │   ├── configurar_gfw.py         registro de una sola vez en la API de GFW
+│   │   ├── descargar_gfw.py          bosque base + alertas -> datos/crudo/nacional.csv
+│   │   ├── descargar_municipios.py   límites municipales del DANE (MGN)
+│   │   ├── descargar_ideam.py        capas de cambio de bosque del SMByC
+│   │   └── descargar_dtd.py          detecciones tempranas del SMByC (KML por trimestre)
+│   │
+│   ├── paneles/              ── ETAPA 2: las cuatro tablas ────────────────
+│   │   ├── consolidar.py             TABLA 1: alertas GFW, celda × mes + cruce municipal
+│   │   ├── panel_hansen.py           TABLA 2: pérdida de cobertura, celda × año
+│   │   ├── panel_ideam.py            TABLA 3: deforestación oficial, celda × periodo
+│   │   └── panel_dtd.py              TABLA 4: alertas tempranas, celda × trimestre
+│   │
+│   ├── bigquery/             ── ETAPA 3: publicación ──────────────────────
+│   │   └── subir_bigquery.py         sube las tablas del panel a BigQuery (opcional)
+│   │
+│   └── entendimiento/        ── ENTENDIMIENTO DE LOS DATOS ────────────────
+│       ├── describir_fuentes.py           Paso 1 del EDA: las 4 tablas propias
+│       ├── describir_fuentes_profesor.py  igual, para las 3 tablas del profesor
+│       └── demo_landsat_caqueta.py        réplica del cálculo de pérdida desde Landsat
+│
+├── notebooks/
+│   ├── catalogo_paneles.ipynb            describe las cuatro tablas propias y las mapea (sección 10)
+│   ├── consultar_tablas_profesor.ipynb   consulta de las tablas del profesor
+│   └── exploratorio_sfc414.ipynb         análisis exploratorio de SFC 414
+│
+├── docs/
+│   ├── METODOLOGIA.md                    ← el "qué y por qué" (léalo primero)
+│   ├── GUIA_CODIGO.md                    ← este documento, el "cómo"
+│   ├── GUIA_DEMO_LANDSAT.md              ← recorrido de la réplica con Landsat (sección 9)
+│   ├── GUIA_BIGQUERY.md                  ← acceso y arquitectura de BigQuery
+│   ├── DESCRIPCION_FUENTES.md            salida de describir-fuentes (se regenera)
+│   └── DESCRIPCION_FUENTES_PROFESOR.md   salida de describir-fuentes-profesor
 │
 ├── legacy/                   código archivado, fuera del pipeline activo
 │                              (ver legacy/README.md)
@@ -92,6 +92,31 @@ trabajo_de_grado/
     ├── dtd/                   detecciones tempranas del SMByC
     └── demo/                  salidas de la réplica con Landsat
 ```
+
+### Cómo se corre
+
+**Todo se corre desde la raíz del repositorio**, con
+`python main_local.py <subcomando>`. Cada subcomando lanza un módulo del
+paquete `pipeline/`, y las opciones que vienen después del subcomando se
+le pasan a ese módulo:
+
+```powershell
+python main_local.py ideam --todos         # opciones de descargar_ideam.py
+python main_local.py mapa --umbral-ha 1    # opciones de mapa_folium.py
+python main_local.py ideam --help          # ayuda del módulo
+python main_local.py --help                # lista de subcomandos
+```
+
+El equivalente directo de cada subcomando es `python -m` con la ruta del
+módulo, también desde la raíz. Por ejemplo,
+`python main_local.py demo-landsat` equivale a
+`python -m pipeline.entendimiento.demo_landsat_caqueta`. Se usa `-m`, y
+no la ruta del archivo, para que el módulo pueda importar el resto del
+paquete.
+
+Los notebooks se pueden abrir desde `notebooks/`: su primera celda de
+código busca la raíz del repositorio y trabaja desde ahí, así que las
+rutas `datos/...` y los imports de `pipeline` funcionan igual.
 
 ### Las cuatro tablas
 
@@ -130,7 +155,7 @@ hace comparables entre sí.
 > código.
 
 **Regla general del repositorio**: todo parámetro que pueda cambiar el
-resultado vive en `config_local.py`, nunca hardcodeado dentro de otro
+resultado vive en `pipeline/config_local.py`, nunca hardcodeado dentro de otro
 script. Si algo en las tablas se ve distinto a lo esperado, el primer
 lugar a revisar es ese archivo, no el resto del código.
 
@@ -210,9 +235,9 @@ Para construir las cuatro tablas (Pasos 1-10) este pipeline necesita
 **una sola** credencial: una API key gratuita de Global Forest Watch.
 
 ```bash
-python configurar_gfw.py signup --nombre "Su Nombre" --email correo@ejemplo.com
+python main_local.py configurar-gfw signup --nombre "Su Nombre" --email correo@ejemplo.com
 # revise su correo: GFW manda una contraseña temporal
-python configurar_gfw.py apikey --email correo@ejemplo.com --password "la-del-correo"
+python main_local.py configurar-gfw apikey --email correo@ejemplo.com --password "la-del-correo"
 ```
 
 La API key queda en `datos/logs/gfw_api_key.txt` (fuera de control de
@@ -279,7 +304,7 @@ Ver sección 2.
 
 ```bash
 python main_local.py grilla
-# equivale a: python exportar_grilla.py
+# equivale a: python -m pipeline.descarga.exportar_grilla
 ```
 
 Descarga los límites departamentales del DANE (Marco Geoestadístico
@@ -294,7 +319,7 @@ AL ORIGEN", no continúe — ver sección 12.
 
 ```bash
 python main_local.py hansen
-# equivale a: python descargar_hansen.py
+# equivale a: python -m pipeline.descarga.descargar_hansen
 ```
 
 Descarga los granulos de 10°×10° de Hansen Global Forest Change que cubren
@@ -310,7 +335,7 @@ gránulo espacial listado en el log ("Granulos Hansen sobre Colombia: N ->
 
 ```bash
 python main_local.py gfw
-# equivale a: python descargar_gfw.py
+# equivale a: python -m pipeline.descarga.descargar_gfw
 ```
 
 Este es el paso central. Hace dos cosas, en este orden:
@@ -334,14 +359,14 @@ apenas se descarga, y el cálculo de bosque se cachea completo en
 
 **Verificación**: el log final imprime celdas con bosque, bosque total en
 hectáreas y deforestación total detectada. Si "deforestación total" da 0,
-revise que `gfw_confianza_minima` en `config_local.py` no se haya cambiado
+revise que `gfw_confianza_minima` en `pipeline/config_local.py` no se haya cambiado
 por error a algo vacío.
 
 ### Paso 4 — límites municipales del DANE (automático)
 
 ```bash
 python main_local.py municipios
-# equivale a: python descargar_municipios.py
+# equivale a: python -m pipeline.descarga.descargar_municipios
 ```
 
 Descarga los polígonos de los 1.122 municipios del Marco Geoestadístico
@@ -414,8 +439,8 @@ no requieren cuenta ni credencial. Toma menos de un minuto.
 Para bajar otros periodos, o el catálogo completo desde 2000:
 
 ```bash
-python descargar_ideam.py --periodos 2018-2019 2019-2020
-python descargar_ideam.py --todos
+python main_local.py ideam --periodos 2018-2019 2019-2020
+python main_local.py ideam --todos
 ```
 
 > **El servidor del IDEAM solo responde por HTTPS.** Tiene el puerto 80
@@ -455,7 +480,7 @@ secundario, los trimestres nuevos que publique el IDEAM aparecen solos.
 Para bajar otros años:
 
 ```bash
-python descargar_dtd.py --anios 2017 2018 2019
+python main_local.py dtd --anios 2017 2018 2019
 ```
 
 ### Paso 10 — Tabla 4: alertas tempranas por celda y trimestre
@@ -770,7 +795,7 @@ print(f"{len(convergen)} municipios en el top-50 de las tres fuentes")
 
 ## 5. Referencia de cada script
 
-### 5.1 `config_local.py` — configuración central
+### 5.1 `pipeline/config_local.py` — configuración central
 
 Todos los parámetros que afectan el resultado viven en un `dataclass`
 congelado (`frozen=True`, no se puede mutar por accidente). También crea
@@ -786,11 +811,11 @@ importa cualquier script del pipeline.
 | `bbox` | Rectángulo usado para seleccionar gránulos de Hansen | METODOLOGIA §4, decisión 11 |
 | `gfw_dataset`, `gfw_version` | Identificador del dataset GFW en la API SQL. Cambiarlo es todo lo que hace falta para usar otra fuente de evento; el archivo lista otros datasets de alertas disponibles | METODOLOGIA §2.2 |
 | `fecha_inicio`, `fecha_fin`, `frecuencia` | Ventana temporal del panel y su resolución mensual | METODOLOGIA §1.3 |
-| `gfw_confianza_minima` | Niveles de confianza de GFW que cuentan como evento. Usar solo `("highest",)` aplica el criterio más estricto, a costa de un panel más disperso — ver la nota en `config_local.py` | METODOLOGIA §2.2, decisión 2 |
+| `gfw_confianza_minima` | Niveles de confianza de GFW que cuentan como evento. Usar solo `("highest",)` aplica el criterio más estricto, a costa de un panel más disperso — ver la nota en `pipeline/config_local.py` | METODOLOGIA §2.2, decisión 2 |
 | `gfw_celdas_por_lote`, `gfw_lotes_en_paralelo` | Tamaño de lote y paralelismo de las consultas a la API de GFW | sección 7 |
 | `reintentos`, `timeout_s`, `hilos_descarga` | Robustez de red para las descargas de Hansen | — |
 
-### 5.2 `exportar_grilla.py` — grilla de 5 km
+### 5.2 `pipeline/descarga/exportar_grilla.py` — grilla de 5 km
 
 Genera la grilla localmente con `geopandas` y los límites del DANE (Marco
 Geoestadístico Nacional), sin ninguna cuenta de Google ni de la NASA.
@@ -800,16 +825,16 @@ para algún par de enteros `ix, iy` — alineación garantizada por
 construcción, no por verificación posterior) y descarta las que no tocan
 el territorio continental.
 
-### 5.3 `descargar_hansen.py` — descarga de Hansen GFC
+### 5.3 `pipeline/descarga/descargar_hansen.py` — descarga de Hansen GFC
 
 Calcula qué gránulos de 10°×10° intersectan el `bbox` de Colombia y los
 descarga de un bucket público (sin autenticación), con el patrón de
 descarga atómica de siempre (escribe a `.parcial`, solo renombra al
 nombre final si terminó bien) y en paralelo con un `ThreadPoolExecutor`.
 
-### 5.4 `calcular_bosque.py` — bosque base (detalle en sección 6)
+### 5.4 `pipeline/calcular_bosque.py` — bosque base (detalle en sección 6)
 
-### 5.5 `configurar_gfw.py` — registro en la API de GFW
+### 5.5 `pipeline/descarga/configurar_gfw.py` — registro en la API de GFW
 
 Automatiza el flujo de autenticación de la API de GFW en tres llamadas
 (`/auth/sign-up` → `/auth/token` → `/auth/apikey`), guardando la API key
@@ -818,9 +843,9 @@ respuestas no está documentado públicamente por la API; el script imprime
 la respuesta cruda del servidor si no encuentra el campo esperado, en vez
 de fallar en silencio.
 
-### 5.6 `descargar_gfw.py` — bosque + evento (detalle en sección 6)
+### 5.6 `pipeline/descarga/descargar_gfw.py` — bosque + evento (detalle en sección 6)
 
-### 5.7 `descargar_municipios.py` — límites municipales del DANE
+### 5.7 `pipeline/descarga/descargar_municipios.py` — límites municipales del DANE
 
 Trae los 1.122 polígonos municipales del Marco Geoestadístico Nacional
 2025 (nivel Municipio, capa "Gráfico") del mismo servicio ArcGIS público
@@ -829,9 +854,9 @@ cuenta, sin descarga manual desde el navegador—, y los guarda en
 `datos/limites/municipios_dane_mgn2025.geojson`. `consolidar.py` lo
 invoca automáticamente si ese archivo todavía no existe.
 
-### 5.8 `consolidar.py` — Tabla 1, alertas GFW (detalle en sección 7)
+### 5.8 `pipeline/paneles/consolidar.py` — Tabla 1, alertas GFW (detalle en sección 7)
 
-### 5.9 `zonal.py` — maquinaria zonal compartida
+### 5.9 `pipeline/zonal.py` — maquinaria zonal compartida
 
 Reparte los píxeles de **cualquier** ráster entre las celdas de la
 grilla. Lo usan las dos tablas y el atributo de causas, y esa es la razón
@@ -845,7 +870,7 @@ Expone `cargar_grilla()`, `bloques()`, `perfil_bloque()`,
 bordes de celda, ráster sintético en EPSG:3116, índice por aritmética
 directa sin `pyproj`) está en la sección 6.
 
-### 5.10 `panel_hansen.py` — Tabla 2, pérdida anual
+### 5.10 `pipeline/paneles/panel_hansen.py` — Tabla 2, pérdida anual
 
 Cuenta píxeles de la capa `lossyear` por celda y por año, aplicando la
 misma definición de bosque que `calcular_bosque.py` (un píxel que nunca
@@ -856,7 +881,7 @@ Su encabezado documenta los dos papeles de Hansen en el proyecto —línea
 base y fuente de evento— y la relación de su cifra con la del IDEAM:
 entre 1,5 y 2,5 veces esa cifra, con una razón que varía cada año.
 
-### 5.11 `descargar_ideam.py` — capas oficiales del SMByC
+### 5.11 `pipeline/descarga/descargar_ideam.py` — capas oficiales del SMByC
 
 Descarga los rásteres de cambio de bosque del IDEAM a `datos/ideam/`.
 El catálogo de archivos está en el diccionario `CAPAS` (el sufijo de
@@ -868,7 +893,7 @@ daría por bueno.
 **El servidor solo responde por HTTPS** (puerto 80 cerrado). Con `http://`
 no da error: se cuelga hasta agotar el tiempo de espera.
 
-### 5.12 `panel_ideam.py` — Tabla 3, deforestación oficial
+### 5.12 `pipeline/paneles/panel_ideam.py` — Tabla 3, deforestación oficial
 
 Cuenta las cinco clases de la capa de cambio por celda y periodo. Los
 cinco periodos se procesan **dentro** del recorrido de bloques, no uno
@@ -880,7 +905,7 @@ Calcula además `bosque_ideam_ha` (clase 1 + clase 2), que es el
 denominador correcto para las tasas de esta tabla — ver la advertencia de
 la sección 4.
 
-### 5.13 `descargar_dtd.py` — detecciones tempranas del SMByC
+### 5.13 `pipeline/descarga/descargar_dtd.py` — detecciones tempranas del SMByC
 
 Baja los puntos de alerta trimestrales a `datos/dtd/`. En vez de
 construir los nombres de archivo, **lista el índice del servidor** y toma
@@ -892,7 +917,7 @@ Se usan los **puntos** y no los **núcleos** porque la serie de puntos no
 tiene huecos (2016-III a 2026-I), mientras la de núcleos carece del año
 2024 completo en el servidor.
 
-### 5.14 `panel_dtd.py` — Tabla 4, alertas tempranas
+### 5.14 `pipeline/paneles/panel_dtd.py` — Tabla 4, alertas tempranas
 
 Reproyecta los puntos a `cfg.grid_crs` y los asigna a su celda con la
 misma regla aritmética que usa `zonal.py` para los rásteres
@@ -901,16 +926,27 @@ mismo lugar caen en la misma celda. Emite un panel balanceado.
 
 ### 5.15 `main_local.py` — orquestador
 
-Cada subcomando (`grilla`, `hansen`, `gfw`, `municipios`, `consolidar`,
-`panel-hansen`, `ideam`, `panel-ideam`, `dtd`, `panel-dtd`,
-`subir-bigquery`, `describir-fuentes`, `describir-fuentes-profesor`,
-`estado`) arma la línea de comandos correcta y lanza el script
-correspondiente como subproceso
-(`subprocess.call`), excepto `consolidar`, que importa la función
-directamente. `estado` es el único que no delega: lista lo que hay en
-disco en cada etapa y cuáles de las cuatro tablas ya existen.
+Es el único punto de entrada. Vive en la raíz; todo lo demás está en
+`pipeline/`.
 
-### 5.16 `subir_bigquery.py` — subir las cuatro tablas a BigQuery
+Cada subcomando (`grilla`, `hansen`, `configurar-gfw`, `gfw`,
+`municipios`, `consolidar`, `panel-hansen`, `ideam`, `panel-ideam`,
+`dtd`, `panel-dtd`, `mapa`, `subir-bigquery`, `describir-fuentes`,
+`describir-fuentes-profesor`, `demo-landsat`, `estado`) arma la línea de
+comandos correcta y lanza el módulo correspondiente como subproceso, con
+`python -m pipeline.<carpeta>.<módulo>` desde la raíz. La tabla `ETAPAS`
+del archivo dice qué módulo corre cada subcomando.
+
+Las opciones que siguen al subcomando se reenvían al módulo, así que
+`python main_local.py ideam --todos` llega a `descargar_ideam.py` como
+`--todos`, y `--help` después del subcomando muestra la ayuda del
+módulo.
+
+Hay dos excepciones. `consolidar` importa la función directamente en vez
+de lanzar un subproceso, y `estado` no delega: lista lo que hay en disco
+en cada etapa y cuáles de las cuatro tablas ya existen.
+
+### 5.16 `pipeline/bigquery/subir_bigquery.py` — subir las cuatro tablas a BigQuery
 
 Sube cada tabla de `datos/panel/*.csv` que ya exista al dataset
 `staging` del proyecto de BigQuery del equipo (`ofr-credito-deforestacion`),
@@ -970,7 +1006,7 @@ Tablas destino (todas en el dataset `staging`):
 Uso: `python main_local.py subir-bigquery` (o `--solo gfw,hansen` para
 subir solo algunas). Ver el docstring del propio script para el detalle.
 
-### 5.17 `describir_fuentes.py` — Paso 1 del EDA: describir las cuatro tablas propias
+### 5.17 `pipeline/entendimiento/describir_fuentes.py` — Paso 1 del EDA: describir las cuatro tablas propias
 
 Corresponde al primer paso del EDA acordado con el tutor ("organizar
 la información: extracción" y "analizar datos y declarar si se
@@ -1005,7 +1041,7 @@ decisión explícita del equipo, no es un requisito técnico.
 
 Uso: `python main_local.py describir-fuentes`.
 
-### 5.18 `describir_fuentes_profesor.py` — Paso 1 del EDA: las tres tablas del profesor
+### 5.18 `pipeline/entendimiento/describir_fuentes_profesor.py` — Paso 1 del EDA: las tres tablas del profesor
 
 Hace exactamente lo mismo que `describir_fuentes.py` (columnas y tipos
 de dato, número de filas, muestra de 5 filas) pero solo para las tres
@@ -1154,7 +1190,7 @@ GROUP BY gfw_integrated_alerts__confidence, gfw_integrated_alerts__date
 `cfg.gfw_dataset` (ver `sql_lote()`): en todos los datasets de alertas de
 GFW verificados, los campos se llaman `<nombre_del_dataset>__confidence` y
 `<nombre_del_dataset>__date`. Por eso cambiar de fuente de evento es
-cambiar una sola línea en `config_local.py`, sin tocar código.
+cambiar una sola línea en `pipeline/config_local.py`, sin tocar código.
 
 (el operador SQL `IN` no está soportado por este endpoint — se confirmó
 empíricamente que devuelve `"Unsupported filter operator: in"` — por eso
@@ -1176,7 +1212,7 @@ Genera un mapa Leaflet (vía `folium`) para inspeccionar visualmente el
 la tabla de alertas, sin abrir el CSV ni un SIG de escritorio:
 
 ```bash
-python mapa_folium.py
+python main_local.py mapa
 ```
 
 Produce `datos/panel/mapa_deforestacion.html` (ábrase con doble clic en
@@ -1194,8 +1230,8 @@ cualquier navegador). Agrega el panel largo a una fila por celda (suma de
 - **Bosque base** (contexto), apagada por defecto.
 
 ```bash
-python mapa_folium.py --umbral-ha 1 --top-n 5000   # ajustar el filtro de marcadores
-python mapa_folium.py --salida otro_nombre.html
+python main_local.py mapa --umbral-ha 1 --top-n 5000   # ajustar el filtro de marcadores
+python main_local.py mapa --salida otro_nombre.html
 ```
 
 Cae automáticamente al CSV si `pyarrow` no está instalado y por lo tanto no
@@ -1219,7 +1255,7 @@ panel ni el modelo.
 > hace y qué dio; esa guía explica cómo y por qué.
 
 ```powershell
-python demo_landsat_caqueta.py
+python main_local.py demo-landsat
 ```
 
 No hace falta instalar nada adicional ni ninguna credencial nueva: usa la
@@ -1383,7 +1419,7 @@ geometría del reparto es la misma del panel.
 Para una descripción rápida de qué contiene cada tabla —dimensiones,
 columnas, tipos, una muestra y un mapa en folium que compara el patrón
 espacial de las cuatro fuentes— está
-[`catalogo_paneles.ipynb`](catalogo_paneles.ipynb), que lee las cifras de
+[`catalogo_paneles.ipynb`](../notebooks/catalogo_paneles.ipynb), que lee las cifras de
 los propios archivos y por tanto se mantiene al día. Cubre únicamente las
 cuatro tablas propias de deforestación (GFW, Hansen, IDEAM, DTD).
 
@@ -1488,7 +1524,7 @@ la API).
 
 ### Extender la ventana temporal (nuevos meses)
 
-Cambiar `fecha_fin` en `config_local.py` y volver a correr
+Cambiar `fecha_fin` en `pipeline/config_local.py` y volver a correr
 `python main_local.py gfw` — la API de GFW se consulta de nuevo con la
 ventana ampliada (los lotes ya cacheados con la fecha vieja no sirven para
 el rango nuevo, así que sí vuelve a consultar la API; el cálculo de bosque
@@ -1496,21 +1532,21 @@ sí se reutiliza de caché, porque no depende de la ventana temporal).
 
 ### Cambiar el umbral de confianza del evento
 
-Modificar `gfw_confianza_minima` en `config_local.py` (p. ej. incluir
+Modificar `gfw_confianza_minima` en `pipeline/config_local.py` (p. ej. incluir
 también `nominal` si se quiere una definición más laxa de disturbio) y
 volver a correr `python main_local.py gfw` — cambia la consulta SQL que se
 manda a la API.
 
 ### Cambiar el tamaño de celda de la grilla
 
-Modificar `grid_scale_m` en `config_local.py` y volver a correr **desde el
+Modificar `grid_scale_m` en `pipeline/config_local.py` y volver a correr **desde el
 Paso 1** (`grilla`) — cambia la geometría de la grilla, así que todo lo que
 depende de ella debe rehacerse. Conviene borrar `datos/cache/*.npy`
 explícitamente en este caso.
 
 ### Adaptar a otro país o región
 
-Cambiar `bbox` en `config_local.py` y reescribir `exportar_grilla.py` para
+Cambiar `bbox` en `pipeline/config_local.py` y reescribir `exportar_grilla.py` para
 usar la fuente de límites administrativos apropiada para ese país (el
 DANE es específico de Colombia).
 
@@ -1530,7 +1566,7 @@ Se agrega como una columna nueva dentro de `derivar_variables()` en
 | `exportar_grilla.py` falla al descargar del DANE (timeout o error HTTP) | El servicio de ArcGIS del DANE puede estar temporalmente caído, o cambió de URL/item id | Reintentar en unos minutos; si persiste, buscar "Marco Geoestadístico Nacional Departamento" en el geoportal del DANE o en su ArcGIS Hub para encontrar la URL vigente y actualizar `DANE_MGN_DEPARTAMENTOS` en el script |
 | `exportar_grilla.py` tarda varios minutos en el filtro espacial | Falta la simplificación del polígono nacional — el MGN del DANE sin simplificar tiene ~280 000 vértices | No debería pasar en la versión actual (ya incluye `pais.simplify(100, ...)`); si se quitó esa línea, restaurarla |
 | `pd.read_parquet` falla con `ImportError` | Falta `pyarrow` en el entorno, aunque esté listado en `requirements_local.txt` | `pip install pyarrow`, o usar el `.csv` equivalente — `mapa_folium.py` y el notebook ya caen automáticamente al CSV si el Parquet no se puede leer |
-| La descarga de Hansen (Paso 2) es muy lenta | Límite de ancho de banda, o `hilos_descarga` muy bajo/alto para la red disponible | Ajustar `hilos_descarga` en `config_local.py` |
+| La descarga de Hansen (Paso 2) es muy lenta | Límite de ancho de banda, o `hilos_descarga` muy bajo/alto para la red disponible | Ajustar `hilos_descarga` en `pipeline/config_local.py` |
 | `descargar_gfw.py` falla con `SystemExit` pidiendo la API key | Falta `datos/logs/gfw_api_key.txt` o la variable de entorno `GFW_API_KEY` | Correr `configurar_gfw.py` (sección 5.5) primero |
 | `descargar_gfw.py` falla con `"Unsupported filter operator: in"` | El endpoint `/query/batch` de GFW no soporta `IN (...)` en el SQL | No debería pasar en la versión actual (`sql_lote()` ya usa `OR` encadenados, confirmado empíricamente); si se editó esa función para usar `IN`, revertir |
 | `descargar_gfw.py` falla con `"extra fields not permitted"` en `feature_collection.features[i].id` | `geopandas`/`shapely` agregan un campo `"id"` a nivel de *feature* al exportar a GeoJSON, que la API de GFW rechaza | No debería pasar en la versión actual (`procesar_lote()` ya hace `feat.pop("id", None)` antes de enviar); si se quitó esa línea, restaurarla |
