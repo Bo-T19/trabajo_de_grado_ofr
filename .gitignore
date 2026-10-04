@@ -14,6 +14,9 @@
 !/datos/ideam/
 !/datos/dtd/
 !/datos/demo/
+!/datos/profesor/
+!/datos/analisis/
+
 
 /datos/grilla/*
 !/datos/grilla/.gitkeep
@@ -37,6 +40,10 @@
 !/datos/dtd/.gitkeep
 /datos/demo/*
 !/datos/demo/.gitkeep
+/datos/profesor/*
+!/datos/profesor/.gitkeep
+/datos/analisis/*
+!/datos/analisis/.gitkeep
 
 # Archivos de credenciales y pruebas
 .dodsrc
