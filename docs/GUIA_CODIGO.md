@@ -605,7 +605,7 @@ perfecto, sin huecos, que es la condición para modelar. Área con alerta
 | 12-14 | `lag_1_ha`…`lag_3_ha` | float | `area_def_ha` de la celda, 1-3 meses atrás |
 | 15 | `media_movil_3` | float | promedio de `area_def_ha` de los 3 meses previos |
 | 16-17 | `anio`, `mes` | int | descompuestos de `periodo` |
-| 18 | `cod_dane` | int | código DANE del municipio — **la llave para cruces** |
+| 18 | `cod_dane` | texto (5 dígitos) | código DANE del municipio — **la llave para cruces**; conserva el cero a la izquierda (`05001`) |
 | 19 | `municipio` | texto | nombre, solo para lectura humana |
 
 Definición matemática de las variables derivadas en
@@ -623,7 +623,7 @@ Definición matemática de las variables derivadas en
 | 4-5 | `lon`, `lat` | float | centroide de la celda |
 | 6 | `departamento` | texto | departamento del centroide |
 | 7 | `bosque_base_ha` | float | **idéntico** al de las otras dos tablas |
-| 8-9 | `cod_dane`, `municipio` | int, texto | cruce municipal del DANE |
+| 8-9 | `cod_dane`, `municipio` | texto (5 dígitos), texto | cruce municipal del DANE |
 
 > **Para qué sirve esta tabla.** Habilita tres usos concretos:
 >
@@ -661,7 +661,7 @@ la capa de cambio, no solo la deforestación.
 | 9-10 | `lon`, `lat` | float | centroide de la celda |
 | 11 | `departamento` | texto | departamento del centroide |
 | 12 | `bosque_base_ha` | float | línea base de Hansen, idéntica a las otras dos |
-| 13-14 | `cod_dane`, `municipio` | int, texto | cruce municipal del DANE |
+| 13-14 | `cod_dane`, `municipio` | texto (5 dígitos), texto | cruce municipal del DANE |
 
 > **`periodo` designa una transición entre dos composiciones anuales de
 > imágenes**, cuya ventana difiere del año calendario. Su cifra
@@ -690,7 +690,7 @@ balanceado, igual que el de alertas.
 | 8-9 | `lon`, `lat` | float | centroide de la celda |
 | 10 | `departamento` | texto | departamento del centroide |
 | 11 | `bosque_base_ha` | float | línea base de Hansen, idéntica a las otras |
-| 12-13 | `cod_dane`, `municipio` | int, texto | cruce municipal del DANE |
+| 12-13 | `cod_dane`, `municipio` | texto (5 dígitos), texto | cruce municipal del DANE |
 
 > **Los datos son puntos, sin superficie asociada.** Cada registro marca
 > un sitio donde el IDEAM detectó un cambio compatible con deforestación,
