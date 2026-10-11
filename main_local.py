@@ -89,11 +89,14 @@ USO — en este orden
         Ver pipeline/entendimiento/describir_fuentes.py.
 
     python main_local.py describir-fuentes-profesor
-        Igual, pero para las tres tablas de solo lectura del
-        Observatorio en prueba-ofr. Desde el 02/10/2026 usa la misma
+        Igual, pero para las cinco tablas de solo lectura del
+        Observatorio en prueba-ofr: las tres financieras (FINAGRO,
+        SFC414, Municipios.CODIGO) desde el 02/10/2026 con la misma
         cuenta de servicio "pipeline-satelital" que describir-fuentes
         (el profesor confirmo el acceso de lectura de la cuenta de
-        servicio sobre estas tres tablas). Genera
+        servicio sobre esas tres tablas), y las dos de produccion
+        (EVA, ICA pecuario) agregadas el 09/10/2026 directo a esa
+        misma cuenta de servicio. Genera
         docs/DESCRIPCION_FUENTES_PROFESOR.md aparte, como script separado,
         mientras se valida el comportamiento y se decide si se
         fusiona con describir-fuentes. Ver
@@ -165,7 +168,7 @@ ETAPAS = {
     "describir-fuentes": ("pipeline.entendimiento.describir_fuentes",
                           "Paso 1 del EDA: describe las 4 tablas propias"),
     "describir-fuentes-profesor": ("pipeline.entendimiento.describir_fuentes_profesor",
-                                   "Paso 1 del EDA: describe las 3 tablas del profesor"),
+                                   "Paso 1 del EDA: describe las 5 tablas del profesor"),
     "demo-landsat": ("pipeline.entendimiento.demo_landsat_caqueta",
                      "replica del calculo de perdida de bosque desde Landsat"),
 }

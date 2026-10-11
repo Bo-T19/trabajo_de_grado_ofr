@@ -67,13 +67,16 @@ trabajo_de_grado/
 │   │
 │   └── entendimiento/        ── ENTENDIMIENTO DE LOS DATOS ────────────────
 │       ├── describir_fuentes.py           Paso 1 del EDA: las 4 tablas propias
-│       ├── describir_fuentes_profesor.py  igual, para las 3 tablas del profesor
+│       ├── describir_fuentes_profesor.py  igual, para las 5 tablas del profesor
 │       └── demo_landsat_caqueta.py        réplica del cálculo de pérdida desde Landsat
 │
 ├── notebooks/
-│   ├── catalogo_paneles.ipynb            describe las cuatro tablas propias y las mapea (sección 10)
-│   ├── consultar_tablas_profesor.ipynb   consulta de las tablas del profesor
-│   └── exploratorio_sfc414.ipynb         análisis exploratorio de SFC 414
+│   ├── catalogo_paneles.ipynb                 describe las cuatro tablas propias y las mapea (sección 10)
+│   ├── consultar_tablas_profesor.ipynb        consulta de las tablas del profesor
+│   ├── exploratorio_sfc414.ipynb              análisis exploratorio de SFC 414
+│   ├── exploratorio_eva_ica_pecuario.ipynb    análisis exploratorio de EVA e ICA pecuario (sección 11)
+│   ├── panel_municipal_armado.ipynb           integra deforestación + crédito + EVA + ICA en municipio × año/mes
+│   └── panel_municipal_analisis.ipynb         análisis sobre el panel integrado
 │
 ├── docs/
 │   ├── METODOLOGIA.md                    ← el "qué y por qué" (léalo primero)
@@ -245,7 +248,7 @@ versiones) o puede definirse en la variable de entorno `GFW_API_KEY`, si
 se prefiere no dejarla en disco.
 
 Adicionalmente, y solo si va a subir las tablas a BigQuery o correr el
-Paso 1 del EDA (Pasos 11-13, incluyendo las tres tablas del profesor),
+Paso 1 del EDA (Pasos 11-13, incluyendo las cinco tablas del profesor),
 hace falta una segunda credencial: la llave de la cuenta de servicio
 `pipeline-satelital` en `datos/logs/bigquery-key.json`. Ver sección
 5.16 para cómo conseguirla. Desde el 02/10/2026 esta misma credencial
@@ -519,22 +522,25 @@ limpieza o proponer KPIs, hay que revisar ese reporte para confirmar
 qué columnas trae cada fuente (por ejemplo, si ya existe población o
 área por municipio, o si hay que conseguirlas aparte).
 
-### Paso 13 — describir las tres tablas del profesor (cuenta de servicio, reporte aparte)
+### Paso 13 — describir las cinco tablas del profesor (cuenta de servicio, reporte aparte)
 
 ```bash
 python main_local.py describir-fuentes-profesor
 ```
 
-Igual que el paso anterior, pero para las tres tablas de solo lectura
-del Observatorio (`prueba-ofr`). Desde el 02/10/2026 usa la misma
-cuenta de servicio `pipeline-satelital` que el Paso 12 -- el profesor
-confirmó el acceso de lectura sobre estas tres tablas, así que ya no
-hace falta cuenta personal de Google ni `gcloud auth application-default
-login`. Deja el resultado en `DESCRIPCION_FUENTES_PROFESOR.md`, aparte
-de `DESCRIPCION_FUENTES.md`. Ver sección 5.18 para el detalle. El
-script se mantiene separado por ahora (reporte aparte); fusionar estas
-tres tablas de vuelta a `describir_fuentes.py` para que el Paso 12
-cubra las siete de una vez es una decisión pendiente del equipo.
+Igual que el paso anterior, pero para las cinco tablas de solo lectura
+del Observatorio (`prueba-ofr`): las tres financieras (FINAGRO, SFC414,
+Municipios.CODIGO), que desde el 02/10/2026 usan la misma cuenta de
+servicio `pipeline-satelital` que el Paso 12 -- el profesor confirmó el
+acceso de lectura sobre esas tres tablas, así que ya no hace falta
+cuenta personal de Google ni `gcloud auth application-default login` --
+y las dos de producción (EVA, ICA pecuario), compartidas el 09/10/2026
+directo a esa misma cuenta de servicio. Deja el resultado en
+`DESCRIPCION_FUENTES_PROFESOR.md`, aparte de `DESCRIPCION_FUENTES.md`.
+Ver sección 5.18 para el detalle. El script se mantiene separado por
+ahora (reporte aparte); fusionar estas cinco tablas de vuelta a
+`describir_fuentes.py` para que el Paso 12 cubra las nueve de una vez
+es una decisión pendiente del equipo.
 
 ### Comando de estado (en cualquier momento)
 
@@ -1030,41 +1036,52 @@ para todo el equipo). Se regenera completo cada vez que se corre —no
 es incremental— así que basta con volver a correrlo cuando cambien las
 tablas de origen para mantenerlo al día.
 
-Las tres tablas de solo lectura del Observatorio (`prueba-ofr`) NO
+Las cinco tablas de solo lectura del Observatorio (`prueba-ofr`) NO
 están en este script: se describen aparte, con su propio reporte, en
 `describir_fuentes_profesor.py` (sección 5.18). Desde el 02/10/2026 ese
-script ya usa la misma cuenta de servicio que este -- el profesor
-confirmó el acceso de lectura de `pipeline-satelital` sobre las tres
-tablas -- pero se mantiene separado por ahora. Fusionarlas de vuelta a
-`FUENTES` aquí y retirar el script aparte queda pendiente de una
-decisión explícita del equipo, no es un requisito técnico.
+script ya usa la misma cuenta de servicio que este para las tres
+financieras -- el profesor confirmó el acceso de lectura de
+`pipeline-satelital` sobre esas tres tablas -- y desde el 09/10/2026
+también para las dos de producción (EVA, ICA pecuario), compartidas
+directo a la cuenta de servicio. Se mantiene separado por ahora.
+Fusionarlas de vuelta a `FUENTES` aquí y retirar el script aparte queda
+pendiente de una decisión explícita del equipo, no es un requisito
+técnico.
 
 Uso: `python main_local.py describir-fuentes`.
 
-### 5.18 `pipeline/entendimiento/describir_fuentes_profesor.py` — Paso 1 del EDA: las tres tablas del profesor
+### 5.18 `pipeline/entendimiento/describir_fuentes_profesor.py` — Paso 1 del EDA: las cinco tablas del profesor
 
 Hace exactamente lo mismo que `describir_fuentes.py` (columnas y tipos
-de dato, número de filas, muestra de 5 filas) pero solo para las tres
-tablas de solo lectura del Observatorio (`prueba-ofr.Inclusion_Financiera.FINAGRO_Desembolsos_EFECTIVA`,
-`prueba-ofr.Inclusion_Financiera.SFC414_DASH`, `prueba-ofr.Municipios.CODIGO`),
-y deja el resultado en un reporte aparte: `DESCRIPCION_FUENTES_PROFESOR.md`.
-Reutiliza `_describir_tabla()` y `_credenciales()` de `describir_fuentes.py`
-(mismo import), así que tanto la lógica de consulta -- siempre `SELECT`,
-nunca metadatos del dataset, porque el permiso del profesor es solo a
-nivel de tabla puntual (ver `GUIA_BIGQUERY.md`) -- como la credencial
-son una sola, compartida entre los dos scripts.
+de dato, número de filas, muestra de 5 filas) pero solo para las cinco
+tablas de solo lectura del Observatorio: las tres financieras
+(`prueba-ofr.Inclusion_Financiera.FINAGRO_Desembolsos_EFECTIVA`,
+`prueba-ofr.Inclusion_Financiera.SFC414_DASH`, `prueba-ofr.Municipios.CODIGO`)
+y, agregadas el 09/10/2026, las dos de producción agropecuaria
+(`prueba-ofr.Produccion.eva_full_enriquecido`,
+`prueba-ofr.Produccion.ICA_pecuario` -- esta última "aún se está
+arreglando", según el correo del profesor, y puede tener
+inconsistencias). El resultado queda en un reporte aparte:
+`DESCRIPCION_FUENTES_PROFESOR.md`. Reutiliza `_describir_tabla()` y
+`_credenciales()` de `describir_fuentes.py` (mismo import), así que
+tanto la lógica de consulta -- siempre `SELECT`, nunca metadatos del
+dataset, porque el permiso del profesor es solo a nivel de tabla
+puntual (ver `GUIA_BIGQUERY.md`) -- como la credencial son una sola,
+compartida entre los dos scripts.
 
 **Por qué sigue siendo un script aparte, y no una bandera dentro de
-`describir_fuentes.py`.** El profesor le dio acceso de lectura a estas
-tres tablas a las cuentas personales del equipo desde el 14/09/2026, y
-confirmó el acceso de la cuenta de servicio `pipeline-satelital` el
-02/10/2026. Hasta esa fecha este script usaba SIEMPRE la cuenta
-personal (Application Default Credentials / ADC); desde entonces ya NO
-la usa -- usa la misma credencial de servicio que `describir_fuentes.py`.
-El script se mantiene separado, con su propio reporte, mientras el
-equipo decide si fusionarlo con `describir_fuentes.py`; ya no es por un
-problema de credenciales, sino una decisión de organización del código
-pendiente.
+`describir_fuentes.py`.** El profesor le dio acceso de lectura a las
+tres tablas financieras a las cuentas personales del equipo desde el
+14/09/2026, y confirmó el acceso de la cuenta de servicio
+`pipeline-satelital` el 02/10/2026. Hasta esa fecha este script usaba
+SIEMPRE la cuenta personal (Application Default Credentials / ADC);
+desde entonces ya NO la usa -- usa la misma credencial de servicio que
+`describir_fuentes.py`. Las dos tablas de producción, en cambio, se
+compartieron directo a la cuenta de servicio (09/10/2026): nunca
+pasaron por ADC ni por las cuentas personales. El script se mantiene
+separado, con su propio reporte, mientras el equipo decide si
+fusionarlo con `describir_fuentes.py`; ya no es por un problema de
+credenciales, sino una decisión de organización del código pendiente.
 
 **Requiere:** la misma llave de la cuenta de servicio que
 `describir-fuentes` y `subir-bigquery` (`datos/logs/bigquery-key.json`,
@@ -1427,9 +1444,9 @@ El EDA acordado con el tutor (puntos 1, 2, 5 y 6 de su lista) ya está
 completo sobre las cuatro tablas propias, en cinco piezas dentro del
 notebook:
 
-1. **Paso 1 — inventario de las 7 fuentes** (secciones 5.17 y 5.18):
+1. **Paso 1 — inventario de las 9 fuentes** (secciones 5.17 y 5.18):
    columnas, tipos, número de filas y una muestra de cada una. Las
-   cuatro propias en `DESCRIPCION_FUENTES.md`; las tres del Observatorio,
+   cuatro propias en `DESCRIPCION_FUENTES.md`; las cinco del Observatorio,
    con la cuenta de servicio, en `DESCRIPCION_FUENTES_PROFESOR.md`.
 2. **Distribución de cada fuente** (sección "5. Distribución de cada
    fuente" del notebook): % de ceros, histogramas de la medida principal
@@ -1440,8 +1457,16 @@ notebook:
    Llave municipal" del notebook): 1,113 de 1,114 municipios propios
    (99.9%) cruzan bien contra `Municipios.CODIGO` del profesor al tratar
    `cod_dane` como texto de 5 caracteres con cero a la izquierda. El
-   único caso sin match (`27493`, Chocó) no es un problema de formato y
-   queda por revisar aparte. **La tabla `staging.*` de BigQuery guardaba
+   único caso sin match (`27493`, Chocó = Nuevo Belén de Bajirá, el
+   municipio más nuevo de Colombia) no es un problema de formato -- está
+   investigado y resuelto (11/10/2026) en
+   `notebooks/investigacion_municipio_27493.ipynb`: el municipio tiene
+   datos reales en EVA, FINAGRO y SFC414, solo falta en el catálogo
+   `Municipios.CODIGO` del profesor y por tanto en las variables que
+   dependen de ese cruce (región, ruralidad, PDET). Se trata como
+   faltante estructural documentado, sin imputar -- ver la decisión
+   completa en la sección 6 (Hallazgos) del notebook. **La tabla
+   `staging.*` de BigQuery guardaba
    `cod_dane` como INTEGER (perdía el cero) -- se corrigió en
    `subir_bigquery.py` el 17/09/2026 (sección 5.16), forzando
    `dtype={"cod_dane": "string"}` al leer el CSV; tras volver a correr
@@ -1468,15 +1493,66 @@ notebook:
    un error de datos. Conclusión: no hace falta limpieza; las decisiones
    de imputación/transformación quedan para la fase de modelado.
 
-Las tres tablas del profesor (FINAGRO, SFC414, Municipios.CODIGO) se
-describen en el Paso 1 (`DESCRIPCION_FUENTES_PROFESOR.md`), pero no
-tienen un EDA equivalente en este notebook -- este cuaderno no va más
-allá del inventario para esas tres tablas.
+De las tres tablas financieras del profesor, FINAGRO y Municipios.CODIGO
+solo cuentan con el inventario del Paso 1
+(`DESCRIPCION_FUENTES_PROFESOR.md`) y la consulta de
+`consultar_tablas_profesor.ipynb`; SFC414 sí tiene su propio EDA
+(`exploratorio_sfc414.ipynb`). Las dos tablas de producción agropecuaria
+(EVA, ICA pecuario) también tienen EDA completo -- ver más abajo.
 
-Lo que todavía está pendiente de elaborar sobre las cuatro tablas propias:
+### Producción agropecuaria: EVA / ICA pecuario (`exploratorio_eva_ica_pecuario.ipynb`)
 
-- **`27493` (Chocó)**: el único municipio del panel propio sin match en
-  `Municipios.CODIGO`, por revisar aparte (sección 6, Hallazgos).
+Mismo propósito que `catalogo_paneles.ipynb`, pero para las dos tablas
+de producción que el profesor compartió el 09/10/2026
+(`prueba-ofr.Produccion.eva_full_enriquecido` y
+`prueba-ofr.Produccion.ICA_pecuario`): descripción, exploración,
+verificación de calidad y síntesis frente a los objetivos del negocio,
+antes de que el cruce con deforestación y crédito las use (ese cruce ya
+está armado en `panel_municipal_armado.ipynb` y analizado en
+`panel_municipal_analisis.ipynb` -- este cuaderno no repite esa parte,
+documenta las dos fuentes en sí mismas). Sigue la misma estructura que
+`catalogo_paneles.ipynb` y `exploratorio_sfc414.ipynb`:
+
+1. **Descarga y carga** (sección 0): mismo mecanismo que
+   `panel_municipal_armado.ipynb` (`list_rows`, sin costo de consulta,
+   cacheado en `datos/profesor/<nombre>/`), reimplementado aquí para que
+   el cuaderno no dependa de que ese otro notebook haya corrido antes.
+2. **Descripción de las variables** (sección 1): tipo de cada columna,
+   variables numéricas (incluye el chequeo de que
+   `Rendimiento ≈ Producción / Cosechada` en EVA) y categóricas
+   (`Tipo_match`, el cruce de nomenclatura EVA↔cadenas de FINAGRO), y un
+   diccionario descriptivo de las 23 columnas de EVA y los siete
+   bloques de ICA pecuario.
+3. **Cobertura temporal y llave municipal** (sección 2): mismo chequeo
+   de `cod_dane` contra `Municipios.CODIGO` que la sección 6 de
+   `catalogo_paneles.ipynb`.
+4. **Calidad de datos** (sección 3) y **decisiones sobre atípicos,
+   vacíos e irreales** (sección 4): mismo criterio ya documentado en
+   `catalogo_paneles.ipynb` (sección 8.4) -- no se recorta ni se
+   transforma nada en esta fase, los NaN reales no se imputan -- más
+   diagnósticos propios de estas dos tablas (valores negativos,
+   `Cosechada > Sembrada`, inconsistencias entre `total_bovinos` y la
+   suma de sus componentes por edad/sexo).
+5. **Diccionario de variables** (sección 5): mismo criterio explícito de
+   tres condiciones (llave de cruce / ya se usa en el panel integrado /
+   necesaria para juzgar calidad o comparabilidad) que luego se
+   reaplicó también en `catalogo_paneles.ipynb` para las cuatro tablas
+   de deforestación, de modo que el criterio de selección es consistente
+   entre las dos fuentes.
+6. **Síntesis** (sección 6): relación de los hallazgos con OBJ-N1/N2/N3,
+   ODM-2, CDM-1 y CDM-5 del documento de entendimiento del negocio.
+
+Las secciones 4, 5 y 6 se agregaron el 10/10/2026 y todavía no se han
+corrido con datos reales (el "Resumen" del cuaderno queda pendiente de
+completar con los números de esa corrida). Por el mismo límite de fase
+que ya se documentó en `catalogo_paneles.ipynb`, este cuaderno
+deliberadamente **no cubre** construcción, integración ni formato de los
+datos (esos pasos ya están ejecutados como código real en
+`panel_municipal_armado.ipynb`, no se duplican aquí como EDA).
+
+Lo que todavía está pendiente de elaborar sobre las cuatro tablas propias
+de deforestación:
+
 - **Columnas de fecha**: parte 2/2 del punto 1 de la lista del tutor --
   revisar sección 2.5 y las columnas de fecha.
 - **Periodo de tiempo a usar y por qué** (pendiente del tutor) y
@@ -1487,9 +1563,18 @@ Lo que todavía está pendiente de elaborar sobre las cuatro tablas propias:
   definido el periodo, cruzar FINAGRO/SFC414 con el panel de
   deforestación por `cod_dane` y periodo.
 
+Y sobre EVA/ICA pecuario:
+
+- **Correr el cuaderno completo** con la cuenta de servicio y completar
+  el "Resumen" y los cuatro diagnósticos de irreales (sección 4) con los
+  números reales.
+- **4.3, 4.4 y 4.5** (construcción, integración y formato): decisión
+  explícita de dejarlos fuera de este notebook -- documentados como
+  código ya ejecutado en `panel_municipal_armado.ipynb`, no como EDA.
+
 Las dependencias para hacerlo (`matplotlib`, `jupyter`, `scipy`,
-`google-cloud-bigquery`, `db-dtypes`, `tabulate`, `google-auth`) están
-declaradas en `requirements_local.txt`.
+`google-cloud-bigquery`, `db-dtypes`, `tabulate`, `google-auth`,
+`pyarrow`) están declaradas en `requirements_local.txt`.
 
 ---
 

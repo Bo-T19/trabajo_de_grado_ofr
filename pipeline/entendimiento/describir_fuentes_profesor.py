@@ -1,35 +1,43 @@
 """
 describir_fuentes_profesor.py
 ======================================================================
-Extension de describir_fuentes.py (Paso 1 del EDA) para las tres tablas
+Extension de describir_fuentes.py (Paso 1 del EDA) para las cinco tablas
 de solo lectura del Observatorio (proyecto prueba-ofr, del profesor
 Jairo):
     Inclusion_Financiera.FINAGRO_Desembolsos_EFECTIVA
     Inclusion_Financiera.SFC414_DASH
     Municipios.CODIGO
+    Produccion.eva_full_enriquecido      (agregado 09/10/2026)
+    Produccion.ICA_pecuario              (agregado 09/10/2026, "aun se
+                                           esta arreglando" segun el
+                                           profesor -- puede tener
+                                           inconsistencias)
 
 Hace exactamente lo mismo que describir_fuentes.py (columnas y tipos de
 dato, numero de filas, muestra de 5 filas por tabla) pero solo para
-estas tres, y deja el resultado en un reporte aparte:
+estas cinco, y deja el resultado en un reporte aparte:
 DESCRIPCION_FUENTES_PROFESOR.md.
 
 Por que un script aparte, y no un modo/bandera dentro de describir_fuentes.py
 --------------------------------------------------------------------------------
-Hasta el 02/10/2026 el profesor solo habia autorizado estas tres tablas
-para las cuentas personales de Google del equipo, no para la cuenta de
-servicio "pipeline-satelital" que usa el resto del pipeline, asi que
-este script usaba Application Default Credentials (ADC) en vez de la
+Hasta el 02/10/2026 el profesor solo habia autorizado las tres tablas
+financieras (FINAGRO, SFC414, Municipios.CODIGO) para las cuentas
+personales de Google del equipo, no para la cuenta de servicio
+"pipeline-satelital" que usa el resto del pipeline, asi que este
+script usaba Application Default Credentials (ADC) en vez de la
 credencial de servicio. El profesor ya confirmo el acceso de lectura
-de la cuenta de servicio sobre las tres tablas (02/10/2026), asi que
+de la cuenta de servicio sobre esas tres tablas (02/10/2026), asi que
 este script ahora usa la MISMA credencial de servicio que
-describir_fuentes.py (ver _credenciales() en ese modulo). Se mantiene
-como script aparte, con su propio reporte, mientras se valida que el
-acceso de la cuenta de servicio funciona igual de bien que con la
-cuenta personal; una vez validado, lo natural es fusionar estas tres
-tablas de vuelta a FUENTES en describir_fuentes.py y retirar este
-script, para que "python main_local.py describir-fuentes" vuelva a
-cubrir las siete tablas de una vez (pendiente de decision -- ver
-GUIA_CODIGO.md seccion 5.18).
+describir_fuentes.py (ver _credenciales() en ese modulo). Las dos
+tablas de produccion (EVA, ICA pecuario) se compartieron despues
+(09/10/2026) y, a diferencia de las tres primeras, el acceso de
+lectura se dio directo a la cuenta de servicio -- no hizo falta pasar
+primero por las cuentas personales ni por ADC. Se mantiene como script
+aparte, con su propio reporte, mientras el equipo decide fusionar
+estas cinco tablas de vuelta a FUENTES en describir_fuentes.py y
+retirar este script, para que "python main_local.py describir-fuentes"
+vuelva a cubrir las nueve tablas de una vez (pendiente de decision --
+ver GUIA_CODIGO.md seccion 5.18).
 
 CREDENCIAL: cuenta de servicio "pipeline-satelital"
 ---------------------------------------------------
@@ -63,6 +71,11 @@ FUENTES = {
         "prueba-ofr.Inclusion_Financiera.SFC414_DASH",
     "Municipios - codigo (Observatorio, solo lectura)":
         "prueba-ofr.Municipios.CODIGO",
+    "EVA - produccion agropecuaria enriquecida (Observatorio, solo lectura)":
+        "prueba-ofr.Produccion.eva_full_enriquecido",
+    "ICA pecuario - inventario pecuario (Observatorio, solo lectura; "
+    "aun se esta arreglando, puede tener inconsistencias)":
+        "prueba-ofr.Produccion.ICA_pecuario",
 }
 
 

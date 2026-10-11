@@ -242,15 +242,20 @@ llaves activas a la vez, cada una revocable por separado.
   las regiones son compatibles y no hace falta copiar datos primero.
 - ~~Acceso de la cuenta de servicio al proyecto del profesor~~ —
   **resuelto**: el profesor le dio acceso de lectura a las tres tablas
-  puntuales (`FINAGRO_Desembolsos_EFECTIVA`, `SFC414_DASH`,
+  financieras puntuales (`FINAGRO_Desembolsos_EFECTIVA`, `SFC414_DASH`,
   `Municipios.CODIGO`) primero a las cuentas personales del equipo
   (14/09/2026) y luego, el 02/10/2026, también a la **cuenta de
   servicio** `pipeline-satelital`. Ya verificado y en uso:
   `describir_fuentes_profesor.py` usa esa cuenta de servicio (la misma
   de `describir_fuentes.py`), no la cuenta personal vía ADC -- ver
-  GUIA_CODIGO.md sección 5.18. No hace falta copiar las tablas del
-  profesor a este proyecto: se consultan directamente con su
-  `proyecto.dataset.tabla` completo en cualquier `JOIN`.
+  GUIA_CODIGO.md sección 5.18. El 09/10/2026 el profesor compartió dos
+  tablas más, de producción agropecuaria (`Produccion.eva_full_enriquecido`
+  y `Produccion.ICA_pecuario`, esta última "aún se está arreglando" según
+  su propio correo), esta vez directo a la cuenta de servicio -- sin pasar
+  primero por las cuentas personales. En total son cinco tablas de solo
+  lectura del Observatorio. No hace falta copiar ninguna al proyecto
+  propio: se consultan directamente con su `proyecto.dataset.tabla`
+  completo en cualquier `JOIN`.
 - **Tablas de `analitica`**: todavía no existen. Se crearán cuando el
   equipo defina el cruce municipal entre el índice de deforestación
   (`staging`) y las variables financieras del Observatorio (Fase 3 del
