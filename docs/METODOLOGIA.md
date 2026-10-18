@@ -671,6 +671,11 @@ requerirían tomar el máximo entre piezas para no duplicar bosque).
 | 11 | Rectángulo (`bbox`) para seleccionar gránulos de Hansen | Enviar la geometría exacta de Colombia | Los gránulos de Hansen son de 10×10 grados: un `bbox` simple basta para identificar cuáles hacen falta, sin construir ni depurar una consulta con geometría compleja | Se descargan gránulos que cubren de más (países vecinos, océano) — costo de almacenamiento marginal, no de tiempo de cómputo relevante |
 | 12 | **La réplica con Landsat queda como entendimiento de los datos**, no como fuente del panel (§2.6) | Construir un indicador propio de deforestación desde imagen cruda y usarlo en el panel o en el modelo | Ningún integrante del trabajo es experto en detección de deforestación, y proponer un indicador propio frente a productos de equipos especializados sería pretencioso. Replicar su cálculo, acercarse lo más posible a sus valores y entender dónde y por qué se aparta sí aporta: permite leer las fuentes sin tomarlas como dadas. Decisión tomada con el profesor | La réplica no produce datos para el modelo. Preguntas como la forma de ponderar cada píxel al agregar a un departamento quedan abiertas, con la réplica como punto de partida para responderlas |
 | 13 | **Municipio 27493 (Belén de Bajirá, Chocó): tratado como faltante estructural, limitado a las variables que dependen de `Municipios.CODIGO`** (departamento, región, ruralidad, PDET) | Rellenar con el agregado departamental de Chocó (sugerencia original del profesor Jairo); usar un código puente hacia Mutatá/Riosucio; faltante estructural + sensibilidad departamental como híbrido | Es el municipio más nuevo de Colombia (creado administrativamente en 2022, con gobierno propio desde junio de 2024), y el catálogo `Municipios.CODIGO` del profesor, generado antes de esa fecha, no lo incluye -- confirmado por código y por nombre sobre la tabla completa (20,196 filas). Pero el municipio sí tiene datos reales y verificables en las otras tablas del profesor: 30 filas en EVA (producción agropecuaria 2024), 197 créditos de FINAGRO ($5.298.393.300 COP) y 202 registros de SFC414 (348 créditos, $6.717.495.922 COP) -- solo ICA pecuario no tiene ningún registro. Rellenar con el agregado departamental diluiría ese dato real y preciso en el promedio de los otros 30 municipios de Chocó; no hay código alternativo al que "puentear" (se buscó explícitamente, por código y por nombre); un híbrido de sensibilidad compararía un valor departamental inventado contra cifras que ya se conocen con exactitud. Investigación completa, con las consultas y resultados reales, en `notebooks/investigacion_municipio_27493.ipynb` | Las variables de región/ruralidad/PDET quedan en NaN solo para este municipio -- cualquier análisis que dependa de esas etiquetas para el panel municipal debe manejar ese caso explícitamente. `panel_municipal_armado.ipynb` ya lo hace correctamente (`codigos = municipios.index.union(fijas.index)` mantiene el municipio en el panel vía el propio panel de deforestación, y el `.join(municipios)` final es un left join), sin que haya hecho falta ningún cambio de código |
+| 14 | **Análisis municipal solo en los municipios rurales y rurales dispersos** (clasificación del DNP, en su versión más reciente de `Municipios.CODIGO`), sin filtro de bosque: 642 municipios | Todos los municipios; solo los que tienen al menos 1 000 ha de bosque; la ruralidad de cada año | Indicación del Observatorio. Estos municipios concentran el 92,6 % de la deforestación de 2021-2025, y el filtro deja fuera las ciudades donde las empresas registran el crédito de su sede. La clasificación más reciente es la misma de 2023 a 2026 | Sin filtro de bosque, la tasa es ruidosa en los 106 municipios rurales con menos de 1 000 ha de bosque, y 3 no tienen tasa. El 27493 no tiene ruralidad y queda fuera de la muestra |
+| 15 | **Crédito: solo el eslabón de producción de FINAGRO**, de todos los tipos de productor, en total y por cadena (ganadería, palma de aceite, cacao, café y arroz) | Crédito total; solo pequeños y medianos productores; producción de pequeños y medianos | Indicación del Observatorio: es el crédito que financia directamente la actividad agropecuaria. Con el filtro rural, el sesgo hacia las ciudades sede ya queda por fuera, así que el de pequeños y medianos deja de hacer falta | El crédito que una empresa registra en una ciudad, pero que se usa en un municipio rural, no se le atribuye a ese municipio. Falta confirmar si el municipio de FINAGRO es el de la inversión o el del domicilio. Va en pesos corrientes |
+| 16 | **Cultivos: área cosechada de la EVA**, no la sembrada | Área sembrada | Indicación del Observatorio: desde 2019 la EVA pierde la información de `Ciclo`, y no se puede saber si `Cosechada > Sembrada` es normal | En el arroz se suman los semestres A y B, así que un lote sembrado dos veces cuenta dos veces. La EVA no mide pastos ni coca |
+| 17 | **Sin rezagos en el panel municipal**: crédito, cultivos y ganado van en el mismo año que la deforestación | Explicativas del año anterior (`_t1`) | El análisis compara promedios municipales de cinco años, y en ese diseño el rezago no cambia los resultados: las correlaciones con y sin rezago difieren a lo sumo en 0,005 | Sin rezago, el panel no permite decir qué ocurre primero; para eso haría falta un análisis de cambios dentro de cada municipio |
+| 18 | **Correlación de Spearman sobre promedios municipales en intensidad, repetida dentro de grupos de tamaño** (quintiles de área) | Pearson; juntar las filas municipio-año; correlación parcial por el área | Las variables tienen muchos ceros y valores extremos, y el área del municipio se relaciona con casi todas; comparar municipios de tamaño parecido evita que el tamaño explique la correlación | Los intervalos por bootstrap de municipios son optimistas por la dependencia espacial; con muchas comparaciones, algunas pueden parecer importantes por azar |
 
 ---
 
@@ -723,6 +728,15 @@ requerirían tomar el máximo entre piezas para no duplicar bosque).
   estaban confirmando cuando arrancó el monitoreo. El notebook de EDA
   cuantifica esto empíricamente sobre cada corrida (sección 5 del
   notebook) — no se asume que ocurre, se verifica.
+- **En el panel municipal, el ganado de 2025 se reparte distinto**: el ICA
+  reasigna bovinos entre municipios vecinos (más de 100 municipios cambian
+  más de 50 % frente a 2024, aunque el total del país solo crece 3,9 %).
+  Los promedios de cinco años lo suavizan, pero las cifras de un municipio
+  en 2025 deben leerse con cuidado.
+- **Las correlaciones del panel municipal son asociaciones entre
+  municipios**, en un mismo periodo: no indican causalidad ni orden en el
+  tiempo, y sus intervalos por bootstrap de municipios son optimistas
+  porque los municipios vecinos se parecen entre sí.
 
 ---
 
@@ -780,8 +794,8 @@ comparables.
 |---|---|---|---|
 | `panel_deforestacion_colombia` | celda × mes (79 periodos, 2020-01 a 2026-07) | 3 524 664 | 19 |
 | `panel_hansen` | celda × año (6 años, 2020-2025) | 267 696 | 9 |
-| `panel_ideam` | celda × periodo (5 transiciones, 2020-2021 a 2024-2025) | 223 080 | 14 |
-| `panel_dtd` | celda × trimestre (25 trimestres, 2020-T1 a 2026-T1) | 1 115 400 | 13 |
+| `panel_ideam` | celda × periodo (5 transiciones, 2020-2021 a 2024-2025) | 223 080 | 15 |
+| `panel_dtd` | celda × trimestre (25 trimestres, 2020-T1 a 2026-T1) | 1 115 400 | 14 |
 
 En el panel de alertas, `filas = celdas × periodos` exactamente: es un
 rectángulo perfecto, sin huecos, que es la condición para modelar. Área

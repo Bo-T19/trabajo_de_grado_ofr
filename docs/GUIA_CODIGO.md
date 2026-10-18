@@ -3,8 +3,8 @@
 Este documento explica **cómo está construido el software** y **cómo
 correrlo desde cero**, paso a paso, con suficiente detalle para que alguien
 que no participó en escribirlo —el director de tesis, un jurado, un
-colaborador futuro— pueda reproducir **las cuatro tablas** en su propio
-computador.
+colaborador futuro— pueda reproducir **las cuatro tablas** de deforestación
+y el **panel municipal** en su propio computador.
 
 Este documento **no** explica por qué se tomaron las decisiones de diseño
 (qué fuentes de datos, qué umbrales, qué supuestos): eso está en
@@ -74,9 +74,11 @@ trabajo_de_grado/
 │   ├── catalogo_paneles.ipynb                 describe las cuatro tablas propias y las mapea (sección 10)
 │   ├── consultar_tablas_profesor.ipynb        consulta de las tablas del profesor
 │   ├── exploratorio_sfc414.ipynb              análisis exploratorio de SFC 414
-│   ├── exploratorio_eva_ica_pecuario.ipynb    análisis exploratorio de EVA e ICA pecuario (sección 11)
-│   ├── panel_municipal_armado.ipynb           integra deforestación + crédito + EVA + ICA en municipio × año/mes
-│   └── panel_municipal_analisis.ipynb         análisis sobre el panel integrado
+│   ├── exploratorio_eva_ica_pecuario.ipynb    análisis exploratorio de EVA e ICA pecuario (sección 10)
+│   ├── investigacion_municipio_27493.ipynb    el municipio 27493 en los catálogos del Observatorio
+│   ├── panel_municipal_armado.ipynb           arma el panel municipal: municipio × año, × mes y × cultivo (sección 10)
+│   ├── panel_municipal_analisis.ipynb         análisis de los municipios rurales sobre ese panel (sección 10)
+│   └── estadisticas_descriptivas.ipynb        estadística descriptiva de todas las tablas (sección 10)
 │
 ├── docs/
 │   ├── METODOLOGIA.md                    ← el "qué y por qué" (léalo primero)
@@ -84,7 +86,9 @@ trabajo_de_grado/
 │   ├── GUIA_DEMO_LANDSAT.md              ← recorrido de la réplica con Landsat (sección 9)
 │   ├── GUIA_BIGQUERY.md                  ← acceso y arquitectura de BigQuery
 │   ├── DESCRIPCION_FUENTES.md            salida de describir-fuentes (se regenera)
-│   └── DESCRIPCION_FUENTES_PROFESOR.md   salida de describir-fuentes-profesor
+│   ├── DESCRIPCION_FUENTES_PROFESOR.md   salida de describir-fuentes-profesor (se regenera)
+│   ├── figuras/                          figuras exportadas para el documento del trabajo
+│   └── tablas/                           tablas exportadas (estadísticas descriptivas en .xlsx)
 │
 ├── legacy/                   código archivado, fuera del pipeline activo
 │                              (ver legacy/README.md)
@@ -93,7 +97,9 @@ trabajo_de_grado/
     ├── grilla/  hansen/  gfw/  cache/  crudo/  limites/  panel/  logs/
     ├── ideam/                 capas de cambio de bosque del SMByC
     ├── dtd/                   detecciones tempranas del SMByC
-    └── demo/                  salidas de la réplica con Landsat
+    ├── demo/                  salidas de la réplica con Landsat
+    ├── profesor/              tablas del Observatorio descargadas de BigQuery
+    └── analisis/              panel municipal (municipio × año, × mes y × cultivo)
 ```
 
 ### Cómo se corre
@@ -253,7 +259,9 @@ hace falta una segunda credencial: la llave de la cuenta de servicio
 `pipeline-satelital` en `datos/logs/bigquery-key.json`. Ver sección
 5.16 para cómo conseguirla. Desde el 02/10/2026 esta misma credencial
 también sirve para el Paso 13 (tablas del profesor) -- ya no hace
-falta una cuenta personal de Google aparte. Ver sección 5.18.
+falta una cuenta personal de Google aparte. Ver sección 5.18. La misma
+llave hace falta para el Paso 14 (panel municipal), porque
+`panel_municipal_armado.ipynb` descarga las tablas del Observatorio.
 
 ### 2.6 Verificar la instalación (antes de lanzar nada largo)
 
@@ -542,6 +550,31 @@ ahora (reporte aparte); fusionar estas cinco tablas de vuelta a
 `describir_fuentes.py` para que el Paso 12 cubra las nueve de una vez
 es una decisión pendiente del equipo.
 
+### Paso 14 — panel municipal, análisis y estadísticas (notebooks, requiere credencial)
+
+```bash
+jupyter nbconvert --to notebook --execute --inplace --ExecutePreprocessor.timeout=-1 notebooks/panel_municipal_armado.ipynb
+jupyter nbconvert --to notebook --execute --inplace notebooks/panel_municipal_analisis.ipynb
+jupyter nbconvert --to notebook --execute --inplace notebooks/estadisticas_descriptivas.ipynb
+```
+
+También se pueden abrir y correr celda por celda. Van en ese orden:
+
+1. **`panel_municipal_armado.ipynb`** necesita los paneles del IDEAM y de
+   GFW (Pasos 5 y 8) y la llave de BigQuery. Descarga las cinco tablas del
+   Observatorio a `datos/profesor/`, pero solo vuelve a bajar una tabla si
+   cambió en BigQuery. La primera vez, FINAGRO (6,2 millones de filas) tarda
+   unos 25 minutos; por eso el `timeout=-1`. Deja las tres tablas del panel
+   municipal en `datos/analisis/`.
+2. **`panel_municipal_analisis.ipynb`** lee `datos/analisis/` y, para el
+   mapa, `datos/limites/`. Tarda un par de minutos.
+3. **`estadisticas_descriptivas.ipynb`** lee los cuatro paneles y
+   `datos/profesor/`, y exporta la tabla a `docs/figuras/` y `docs/tablas/`.
+   Su última sección compara las cifras con `psych::describe()` de R, si R
+   está instalado; si no, la salta.
+
+El detalle de cada uno está en la sección 10.
+
 ### Comando de estado (en cualquier momento)
 
 ```bash
@@ -564,8 +597,8 @@ municipal (1 114 municipios).
 |---|---|---|---|---|
 | `panel_deforestacion_colombia` | Disturbio, ha (GFW) | celda × mes | 3 524 664 | 19 |
 | `panel_hansen` | Pérdida de cobertura, ha (Hansen) | celda × año | 267 696 | 9 |
-| `panel_ideam` | Deforestación oficial, ha (IDEAM) | celda × periodo | 223 080 | 14 |
-| `panel_dtd` | Detecciones, conteo (IDEAM) | celda × trimestre | 1 115 400 | 13 |
+| `panel_ideam` | Deforestación oficial, ha (IDEAM) | celda × periodo | 223 080 | 15 |
+| `panel_dtd` | Detecciones, conteo (IDEAM) | celda × trimestre | 1 115 400 | 14 |
 
 Cada uno en `.csv` y `.parquet`.
 
@@ -651,7 +684,7 @@ Definición matemática de las variables derivadas en
 
 ### Tabla 3 — `panel_ideam` (deforestación oficial, por periodo)
 
-14 columnas, 44 616 celdas × 5 periodos. Guarda las **cinco clases** de
+15 columnas, 44 616 celdas × 5 periodos. Guarda las **cinco clases** de
 la capa de cambio, no solo la deforestación.
 
 | # | Columna | Tipo | Qué es |
@@ -664,10 +697,11 @@ la capa de cambio, no solo la deforestación.
 | 6 | `regeneracion_ha` | float | clase 4 — recuperación de bosque |
 | 7 | `no_bosque_ha` | float | clase 5 — no bosque que siguió siendo no bosque |
 | 8 | `bosque_ideam_ha` | float | clase 1 + clase 2 = **bosque natural al inicio del periodo** |
-| 9-10 | `lon`, `lat` | float | centroide de la celda |
-| 11 | `departamento` | texto | departamento del centroide |
-| 12 | `bosque_base_ha` | float | línea base de Hansen, idéntica a las otras dos |
-| 13-14 | `cod_dane`, `municipio` | texto (5 dígitos), texto | cruce municipal del DANE |
+| 9 | `bosque_ideam_fin_ha` | float | clase 1 + clase 4 = bosque natural al final del periodo |
+| 10-11 | `lon`, `lat` | float | centroide de la celda |
+| 12 | `departamento` | texto | departamento del centroide |
+| 13 | `bosque_base_ha` | float | línea base de Hansen, idéntica a las otras dos |
+| 14-15 | `cod_dane`, `municipio` | texto (5 dígitos), texto | cruce municipal del DANE |
 
 > **`periodo` designa una transición entre dos composiciones anuales de
 > imágenes**, cuya ventana difiere del año calendario. Su cifra
@@ -682,7 +716,7 @@ la capa de cambio, no solo la deforestación.
 
 ### Tabla 4 — `panel_dtd` (alertas tempranas oficiales, trimestral)
 
-13 columnas, 44 616 celdas × 25 trimestres (2020-T1 a 2026-T1). Panel
+14 columnas, 44 616 celdas × 25 trimestres (2020-T1 a 2026-T1). Panel
 balanceado, igual que el de alertas.
 
 | # | Columna | Tipo | Qué es |
@@ -693,10 +727,11 @@ balanceado, igual que el de alertas.
 | 4-5 | `anio`, `trimestre` | int | descompuestos |
 | 6 | `n_alertas` | int | **número de puntos de alerta** publicados en esa celda |
 | 7 | `n_alertas_sinap` | int | cuántos de esos caen en un área protegida del SINAP |
-| 8-9 | `lon`, `lat` | float | centroide de la celda |
-| 10 | `departamento` | texto | departamento del centroide |
-| 11 | `bosque_base_ha` | float | línea base de Hansen, idéntica a las otras |
-| 12-13 | `cod_dane`, `municipio` | texto (5 dígitos), texto | cruce municipal del DANE |
+| 8 | `sinap_disponible` | bool | si ese trimestre trae el dato de área protegida (18 de los 25) |
+| 9-10 | `lon`, `lat` | float | centroide de la celda |
+| 11 | `departamento` | texto | departamento del centroide |
+| 12 | `bosque_base_ha` | float | línea base de Hansen, idéntica a las otras |
+| 13-14 | `cod_dane`, `municipio` | texto (5 dígitos), texto | cruce municipal del DANE |
 
 > **Los datos son puntos, sin superficie asociada.** Cada registro marca
 > un sitio donde el IDEAM detectó un cambio compatible con deforestación,
@@ -1558,10 +1593,9 @@ de deforestación:
 - **Periodo de tiempo a usar y por qué** (pendiente del tutor) y
   **KPIs propuestos** (ver METODOLOGIA.md y las notas de reunión) --
   ninguno de los dos depende de código, son decisiones a documentar.
-- **Cruce e integración con las variables financieras del profesor**
-  (Fase 3 del proyecto, Preparación de datos, semanas 11-12): una vez
-  definido el periodo, cruzar FINAGRO/SFC414 con el panel de
-  deforestación por `cod_dane` y periodo.
+- El **cruce con las variables financieras y de producción** ya está hecho
+  en el panel municipal (ver más abajo). SFC 414 queda fuera de esa versión
+  porque su serie empieza en septiembre de 2023.
 
 Y sobre EVA/ICA pecuario:
 
@@ -1575,6 +1609,86 @@ Y sobre EVA/ICA pecuario:
 Las dependencias para hacerlo (`matplotlib`, `jupyter`, `scipy`,
 `google-cloud-bigquery`, `db-dtypes`, `tabulate`, `google-auth`,
 `pyarrow`) están declaradas en `requirements_local.txt`.
+
+### Panel municipal: armado (`panel_municipal_armado.ipynb`)
+
+Junta la deforestación del IDEAM y de GFW con las tablas del Observatorio, y
+deja tres tablas en `datos/analisis/`:
+
+| Tabla | Unidad | Filas × columnas | Qué tiene |
+|---|---|---|---|
+| `municipio_anio` | municipio × año, 2020-2025 | 6 738 × 28 | IDEAM (`def_ideam_ha`, `bosque_ideam_ha`, `sin_info_ideam_ha`, `tasa_def_ideam`, `bosque_ideam_inicial_ha`); GFW (`alertas_gfw_ha`); FINAGRO (`credito_mm`, `credito_produccion_mm` y `credito_<cadena>_produccion_mm`); EVA (`area_cosechada_ha` y `cosechada_<cultivo>_ha`); ICA (`bovinos`, `fincas_bovinas`); grilla (`n_celdas`, `area_grilla_ha`) y catálogo (`nombre_departamento`, `nombre_municipio`, `region`, `ruralidad`) |
+| `municipio_mes` | municipio × mes, 2020-01 a 2026-06 | 87 594 × 11 | `alertas_gfw_ha`, las siete columnas de crédito y la región |
+| `municipio_cultivo_anio` | municipio × cultivo × año, 2019-2024 | 93 486 × 5 | área cosechada de cada cultivo de la EVA, con su grupo |
+
+Lo que conviene saber al usarlas:
+
+- **Municipios.** Son 1 123: los 1 122 del catálogo del Observatorio más el
+  27493 (Nuevo Belén de Bajirá), que está en los paneles pero no en el
+  catálogo. El panel es balanceado: todo municipio tiene fila en todo
+  periodo.
+- **Crédito.** Además del total, va el del eslabón de producción de la
+  cadena (`eslabon_cadena = Producción`), de todos los tipos de productor, y
+  dentro de él cinco cadenas: ganadería (toda cadena que, sin tildes, empieza
+  por "ganad": doble propósito, leche y carne), palma de aceite, cacao, café
+  y arroz. Está en millones de pesos corrientes.
+- **Cultivos.** Se usa el área **cosechada** de la EVA, no la sembrada. Los
+  semestres A y B y las variantes de un cultivo (por ejemplo, arroz riego y
+  secano) se suman en el año.
+- **Sin rezagos.** Todas las columnas van en su propio año; no hay columnas
+  `_t1`.
+- **Chequeos.** Al final de cada tabla, el notebook compara los totales con
+  los de la fuente: deforestación, crédito, área cosechada y bovinos cuadran
+  al 100 %.
+
+Las decisiones detrás de estos criterios están en la bitácora de
+[METODOLOGIA.md](METODOLOGIA.md#4-bitácora-de-decisiones-de-diseño)
+(decisiones 14 a 18).
+
+### Panel municipal: análisis (`panel_municipal_analisis.ipynb`)
+
+Trabaja solo con los **642 municipios rurales y rurales dispersos** (según la
+clasificación más reciente de la tabla de municipios), en 2021-2025, sin
+filtro de bosque. Tiene una sección de datos y filtros y cinco análisis:
+
+1. **Índice 2021 = 100** de la deforestación, el crédito, el ganado y los
+   cultivos.
+2. **Concentración**: curvas de Lorenz, Gini, regla 80-20 y Pareto de la
+   deforestación.
+3. **Los 10 municipios que más deforestan**: sus cultivos (área cosechada
+   por grupo y por cultivo) y su ganadería.
+4. **Correlaciones de Spearman**, con una fila por municipio (promedio
+   2021-2025) y las variables en intensidad: cada variable frente a la
+   deforestación, con intervalos por bootstrap (4.1); la matriz entre todas
+   las variables (4.2), y las mismas correlaciones dentro de cinco grupos de
+   municipios de tamaño parecido (quintiles de área), con una revisión con 3
+   y 10 grupos (4.3). La deforestación se mide como tasa y como hectáreas
+   por 100 km².
+5. **Mapa** de la deforestación de todos los municipios del país, con los
+   límites del MGN 2025.
+
+El notebook solo explica qué se hace y cómo leer cada gráfico; la
+interpretación de los resultados va en el documento del trabajo. Dos
+advertencias para leerlo: los intervalos por bootstrap remuestrean
+municipios y son optimistas, porque los municipios vecinos se parecen; y en
+2025 el ICA reasigna bovinos entre municipios vecinos (más de 100 municipios
+cambian más de 50 % frente a 2024), así que las cifras municipales de ganado
+de ese año deben leerse con cuidado.
+
+### Estadísticas descriptivas (`estadisticas_descriptivas.ipynb`)
+
+Calcula, para las variables numéricas principales de nueve tablas (la grilla,
+los cuatro paneles, FINAGRO, SFC 414, EVA e ICA pecuario), las estadísticas
+de `summary()` y `psych::describe()` de R: n, faltantes, % de ceros, media,
+desviación estándar, mínimo, cuartiles, máximo, asimetría y curtosis. Cada
+tabla se describe tal como está, sin limpiar; por eso aparecen, por ejemplo,
+las tasas negativas de FINAGRO. Los montos van en millones de pesos.
+
+Exporta la tabla completa y una por grupo a `docs/figuras/` (PNG) y los
+valores sin redondear a `docs/tablas/estadisticas_descriptivas.xlsx`. La
+última sección toma una muestra de tres variables y comprueba con R que las
+cifras coinciden; en la corrida de referencia, la diferencia máxima fue de
+2 × 10⁻¹¹.
 
 ---
 
@@ -1592,13 +1706,15 @@ Las dependencias para hacerlo (`matplotlib`, `jupyter`, `scipy`,
 | `datos/dtd/` | `atd_<año>_<trim>.kml` — detecciones tempranas (~167 MB en total) | `descargar_dtd.py` |
 | `datos/demo/` | Salidas de la réplica con Landsat | `demo_landsat_caqueta.py` |
 | `datos/panel/` | **Las cuatro tablas** (`.csv` + `.parquet`) + `mapa_deforestacion.html` | `consolidar.py`, `panel_hansen.py`, `panel_ideam.py`, `panel_dtd.py`, `mapa_folium.py` |
-| `datos/logs/` | `gfw_api_key.txt` | `configurar_gfw.py` |
+| `datos/profesor/` | Las cinco tablas del Observatorio (`finagro/`, `sfc414/`, `municipios/`, `eva/`, `ica_pecuario/`), en partes Parquet con un `_metadatos.json`, y `CODIGO.csv` | `panel_municipal_armado.ipynb` |
+| `datos/analisis/` | Panel municipal: `municipio_anio`, `municipio_mes` y `municipio_cultivo_anio` (`.parquet`) | `panel_municipal_armado.ipynb` |
+| `datos/logs/` | `gfw_api_key.txt` y `bigquery-key.json` (esta última se copia a mano) | `configurar_gfw.py` |
 
 Si algo se ve raro o hay que reconstruir desde cero, casi siempre basta con
 borrar la carpeta correspondiente y volver a correr el paso que la genera
 — **excepto** `datos/hansen/` (varios minutos de descarga),
-`datos/ideam/` (~260 MB) y `datos/dtd/` (~167 MB), que conviene
-conservar. Borrar `datos/cache/` es seguro y barato de regenerar
+`datos/ideam/` (~260 MB), `datos/dtd/` (~167 MB) y `datos/profesor/`
+(la descarga de FINAGRO tarda unos 25 minutos), que conviene conservar. Borrar `datos/cache/` es seguro y barato de regenerar
 (se recalcula solo en la siguiente corrida de `descargar_gfw.py`). Borrar
 `datos/gfw/` es igual de seguro (son solo cachés de lotes ya descargados de
 la API).
