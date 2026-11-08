@@ -39,6 +39,10 @@ Los notebooks del panel municipal se corren en este orden:
 3. [`estadisticas_descriptivas.ipynb`](notebooks/estadisticas_descriptivas.ipynb):
    estadística descriptiva de todas las tablas, que se exporta a
    `docs/figuras/` y `docs/tablas/`.
+4. [`segmentacion_municipios.ipynb`](notebooks/segmentacion_municipios.ipynb):
+   segmenta los municipios rurales según su perfil productivo y financiero
+   (K-means) y compara la deforestación de cada segmento. Exporta la
+   asignación a `docs/tablas/`.
 
 ## Cómo empezar
 

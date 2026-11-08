@@ -78,7 +78,8 @@ trabajo_de_grado/
 │   ├── investigacion_municipio_27493.ipynb    el municipio 27493 en los catálogos del Observatorio
 │   ├── panel_municipal_armado.ipynb           arma el panel municipal: municipio × año, × mes y × cultivo (sección 10)
 │   ├── panel_municipal_analisis.ipynb         análisis de los municipios rurales sobre ese panel (sección 10)
-│   └── estadisticas_descriptivas.ipynb        estadística descriptiva de todas las tablas (sección 10)
+│   ├── estadisticas_descriptivas.ipynb        estadística descriptiva de todas las tablas (sección 10)
+│   └── segmentacion_municipios.ipynb          segmentación de los municipios rurales con K-means (sección 10)
 │
 ├── docs/
 │   ├── METODOLOGIA.md                    ← el "qué y por qué" (léalo primero)
@@ -88,7 +89,7 @@ trabajo_de_grado/
 │   ├── DESCRIPCION_FUENTES.md            salida de describir-fuentes (se regenera)
 │   ├── DESCRIPCION_FUENTES_PROFESOR.md   salida de describir-fuentes-profesor (se regenera)
 │   ├── figuras/                          figuras exportadas para el documento del trabajo
-│   └── tablas/                           tablas exportadas (estadísticas descriptivas en .xlsx)
+│   └── tablas/                           tablas exportadas (estadísticas descriptivas y segmentación, en .xlsx)
 │
 ├── legacy/                   código archivado, fuera del pipeline activo
 │                              (ver legacy/README.md)
@@ -550,12 +551,13 @@ ahora (reporte aparte); fusionar estas cinco tablas de vuelta a
 `describir_fuentes.py` para que el Paso 12 cubra las nueve de una vez
 es una decisión pendiente del equipo.
 
-### Paso 14 — panel municipal, análisis y estadísticas (notebooks, requiere credencial)
+### Paso 14 — panel municipal, análisis, estadísticas y segmentación (notebooks, requiere credencial)
 
 ```bash
 jupyter nbconvert --to notebook --execute --inplace --ExecutePreprocessor.timeout=-1 notebooks/panel_municipal_armado.ipynb
 jupyter nbconvert --to notebook --execute --inplace notebooks/panel_municipal_analisis.ipynb
 jupyter nbconvert --to notebook --execute --inplace notebooks/estadisticas_descriptivas.ipynb
+jupyter nbconvert --to notebook --execute --inplace --ExecutePreprocessor.timeout=-1 notebooks/segmentacion_municipios.ipynb
 ```
 
 También se pueden abrir y correr celda por celda. Van en ese orden:
@@ -572,6 +574,10 @@ También se pueden abrir y correr celda por celda. Van en ese orden:
    `datos/profesor/`, y exporta la tabla a `docs/figuras/` y `docs/tablas/`.
    Su última sección compara las cifras con `psych::describe()` de R, si R
    está instalado; si no, la salta.
+4. **`segmentacion_municipios.ipynb`** lee `datos/analisis/` y, para el
+   mapa, `datos/limites/`. Exporta `docs/tablas/segmentacion_municipios.xlsx`.
+   Tarda unos 5 minutos, casi todos en las pruebas de estabilidad, que
+   vuelven a entrenar K-means cientos de veces; por eso el `timeout=-1`.
 
 El detalle de cada uno está en la sección 10.
 
@@ -1690,6 +1696,37 @@ valores sin redondear a `docs/tablas/estadisticas_descriptivas.xlsx`. La
 cifras coinciden; en la corrida de referencia, la diferencia máxima fue de
 2 × 10⁻¹¹.
 
+### Segmentación de los municipios (`segmentacion_municipios.ipynb`)
+
+Agrupa con K-means a los 640 municipios rurales y rurales dispersos que
+tienen celdas en la grilla. Los agrupa según su perfil productivo y
+financiero, con diez variables relativas promediadas en 2021-2024:
+
+- el bosque;
+- los bovinos por km² y por finca;
+- el área cosechada y la participación de palma, cacao, café y arroz;
+- el crédito de producción por km² y la parte que va a la ganadería.
+
+La deforestación no entra en la segmentación: se usa después para comparar
+los segmentos.
+
+El notebook sigue este orden:
+
+1. **Preprocesamiento** en un `Pipeline` de scikit-learn: imputación con la
+   mediana, `log(1 + x)` a las intensidades y estandarización.
+2. **Elección de k** con el codo, la silueta y la estabilidad por
+   bootstrap. La silueta se compara con la de datos sin estructura, que son
+   las mismas variables barajadas por separado.
+3. **Robustez**: la estabilidad de cada segmento, medida con el Jaccard
+   medio en 200 remuestreos bootstrap.
+4. **Perfiles**: centros, medianas y componentes principales.
+5. **Deforestación de cada segmento** y el mapa.
+
+A diferencia de `panel_municipal_analisis.ipynb`, este notebook sí trae la
+interpretación de los resultados. Todo lo aleatorio parte de una semilla
+fija, así que los textos coinciden con las cifras mientras los datos no
+cambien. Si se vuelve a armar el panel, hay que releer los textos.
+
 ---
 
 ## 11. Estructura de `datos/`
@@ -1707,7 +1744,7 @@ cifras coinciden; en la corrida de referencia, la diferencia máxima fue de
 | `datos/demo/` | Salidas de la réplica con Landsat | `demo_landsat_caqueta.py` |
 | `datos/panel/` | **Las cuatro tablas** (`.csv` + `.parquet`) + `mapa_deforestacion.html` | `consolidar.py`, `panel_hansen.py`, `panel_ideam.py`, `panel_dtd.py`, `mapa_folium.py` |
 | `datos/profesor/` | Las cinco tablas del Observatorio (`finagro/`, `sfc414/`, `municipios/`, `eva/`, `ica_pecuario/`), en partes Parquet con un `_metadatos.json`, y `CODIGO.csv` | `panel_municipal_armado.ipynb` |
-| `datos/analisis/` | Panel municipal: `municipio_anio`, `municipio_mes` y `municipio_cultivo_anio` (`.parquet`) | `panel_municipal_armado.ipynb` |
+| `datos/analisis/` | Panel municipal: `municipio_anio`, `municipio_mes` y `municipio_cultivo_anio` (`.parquet`). Lo leen `panel_municipal_analisis.ipynb` y `segmentacion_municipios.ipynb` | `panel_municipal_armado.ipynb` |
 | `datos/logs/` | `gfw_api_key.txt` y `bigquery-key.json` (esta última se copia a mano) | `configurar_gfw.py` |
 
 Si algo se ve raro o hay que reconstruir desde cero, casi siempre basta con
