@@ -1,0 +1,6 @@
+,clasificación,regresión
+learning_rate,0.1,0.01
+max_depth,6.0,6.0
+metrica,0.8069811974651767,0.09031653009595524
+min_child_samples,40.0,40.0
+n_estimators,54.0,262.0

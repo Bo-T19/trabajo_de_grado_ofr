@@ -1,0 +1,14 @@
+modelo,métrica,prueba_temporal_2025,prueba_departamentos_fuera,brecha_%
+Gradient boosting — ¿deforesta?,exactitud balanceada,0.8298540845670466,0.8132372562695211,7.762802090999926
+Gradient boosting — ¿deforesta?,AUC,0.9277665353072744,0.9087964928418124,
+Gradient boosting — ¿deforesta?,precisión,0.8780487804878049,0.8611521418020679,
+Gradient boosting — ¿deforesta?,recall / sensibilidad,0.8780487804878049,0.8662704309063893,
+Gradient boosting — ¿deforesta?,especificidad,0.7816593886462883,0.7602040816326531,
+Gradient boosting — ¿deforesta?,F1,0.8780487804878049,0.8637037037037038,
+Gradient boosting — ¿deforesta?,"precisión promedio (AP, área bajo precisión-recall)",0.9619185012538808,0.9467835680645815,
+Gradient boosting — ¿cuánto?,R²,0.05873215025234657,0.050845485787823774,84.65113825869614
+Gradient boosting — ¿cuánto?,RMSE,4.362503849537146,2.136554068519717,
+Gradient boosting — ¿cuánto?,error absoluto promedio (MAE),0.5505709938697825,0.40875646759963763,
+Gradient boosting — ¿cuánto?,error absoluto mediano (MedAE),0.11828858808749762,0.14878835485132239,
+Gradient boosting — ¿cuánto?,"R² excluyendo a Pedraza (diagnóstico, 5.3)",0.3537098824400793,,7.5626542059268855
+Gradient boosting — ¿cuánto?,"R² una sola regresión sin separar, solo donde sí deforestó (diagnóstico, 5.2)",0.015857016917533717,,
