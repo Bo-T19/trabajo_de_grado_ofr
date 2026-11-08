@@ -31,18 +31,19 @@ rurales dispersos:
 
 Los notebooks del panel municipal se corren en este orden:
 
-1. [`panel_municipal_armado.ipynb`](notebooks/panel_municipal_armado.ipynb):
+1. [`panel_municipal_armado.ipynb`](procesamiento%20y%20eda/panel_municipal_armado.ipynb):
    descarga las tablas del Observatorio y arma las tres tablas.
-2. [`panel_municipal_analisis.ipynb`](notebooks/panel_municipal_analisis.ipynb):
+2. [`panel_municipal_analisis.ipynb`](procesamiento%20y%20eda/panel_municipal_analisis.ipynb):
    índice de cambio, concentración (Lorenz y Pareto), cultivos y ganado de
    los 10 municipios que más deforestan, correlaciones y mapa.
-3. [`estadisticas_descriptivas.ipynb`](notebooks/estadisticas_descriptivas.ipynb):
+3. [`estadisticas_descriptivas.ipynb`](procesamiento%20y%20eda/estadisticas_descriptivas.ipynb):
    estadística descriptiva de todas las tablas, que se exporta a
    `docs/figuras/` y `docs/tablas/`.
-4. [`segmentacion_municipios.ipynb`](notebooks/segmentacion_municipios.ipynb):
+4. [`segmentacion_municipios.ipynb`](modelos%20y%20clusters/segmentacion_municipios.ipynb):
    segmenta los municipios rurales según su perfil productivo y financiero
-   (K-means) y compara la deforestación de cada segmento. Exporta la
-   asignación a `docs/tablas/`.
+   (K-means) y compara la deforestación de cada segmento. Guarda el cluster
+   de cada municipio en `modelos y clusters/resultados/` y el detalle en
+   `docs/tablas/`.
 
 ## Cómo empezar
 
@@ -75,7 +76,8 @@ Observatorio (sección 2.5 de la guía). Las dos credenciales quedan en
 | `pipeline/paneles/` | Etapa 2: las cuatro tablas |
 | `pipeline/bigquery/` | Etapa 3: subida de las tablas a BigQuery |
 | `pipeline/entendimiento/` | Descripción de las fuentes y réplica del cálculo con imágenes Landsat |
-| `notebooks/` | Catálogo de las tablas, exploración de las tablas del Observatorio, panel municipal y estadísticas descriptivas |
+| `procesamiento y eda/` | Notebooks del catálogo de las tablas, la exploración de las tablas del Observatorio, el panel municipal y las estadísticas descriptivas |
+| `modelos y clusters/` | Notebooks de modelos sobre el panel municipal: segmentación de los municipios (K-means) y gradient boosting. Sus salidas van en `resultados/` |
 | `docs/` | Metodología, guías y descripción de las fuentes |
 | `docs/figuras/`, `docs/tablas/` | Figuras y tablas exportadas para el documento del trabajo |
 | `datos/` | Todo lo que se descarga y se produce. No se versiona; solo se conserva la estructura de carpetas |

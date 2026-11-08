@@ -70,7 +70,7 @@ trabajo_de_grado/
 │       ├── describir_fuentes_profesor.py  igual, para las 5 tablas del profesor
 │       └── demo_landsat_caqueta.py        réplica del cálculo de pérdida desde Landsat
 │
-├── notebooks/
+├── procesamiento y eda/
 │   ├── catalogo_paneles.ipynb                 describe las cuatro tablas propias y las mapea (sección 10)
 │   ├── consultar_tablas_profesor.ipynb        consulta de las tablas del profesor
 │   ├── exploratorio_sfc414.ipynb              análisis exploratorio de SFC 414
@@ -78,8 +78,12 @@ trabajo_de_grado/
 │   ├── investigacion_municipio_27493.ipynb    el municipio 27493 en los catálogos del Observatorio
 │   ├── panel_municipal_armado.ipynb           arma el panel municipal: municipio × año, × mes y × cultivo (sección 10)
 │   ├── panel_municipal_analisis.ipynb         análisis de los municipios rurales sobre ese panel (sección 10)
-│   ├── estadisticas_descriptivas.ipynb        estadística descriptiva de todas las tablas (sección 10)
-│   └── segmentacion_municipios.ipynb          segmentación de los municipios rurales con K-means (sección 10)
+│   └── estadisticas_descriptivas.ipynb        estadística descriptiva de todas las tablas (sección 10)
+│
+├── modelos y clusters/
+│   ├── segmentacion_municipios.ipynb          segmentación de los municipios rurales con K-means (sección 10)
+│   ├── gradient_boosting.ipynb                modelos de gradient boosting sobre el panel municipal
+│   └── resultados/                            salidas de los dos notebooks (tablas, métricas y modelos)
 │
 ├── docs/
 │   ├── METODOLOGIA.md                    ← el "qué y por qué" (léalo primero)
@@ -124,9 +128,10 @@ módulo, también desde la raíz. Por ejemplo,
 no la ruta del archivo, para que el módulo pueda importar el resto del
 paquete.
 
-Los notebooks se pueden abrir desde `notebooks/`: su primera celda de
-código busca la raíz del repositorio y trabaja desde ahí, así que las
-rutas `datos/...` y los imports de `pipeline` funcionan igual.
+Los notebooks se pueden abrir desde `procesamiento y eda/` o desde
+`modelos y clusters/`: su primera celda de código busca la raíz del
+repositorio y trabaja desde ahí, así que las rutas `datos/...` y los
+imports de `pipeline` funcionan igual.
 
 ### Las cuatro tablas
 
@@ -554,10 +559,10 @@ es una decisión pendiente del equipo.
 ### Paso 14 — panel municipal, análisis, estadísticas y segmentación (notebooks, requiere credencial)
 
 ```bash
-jupyter nbconvert --to notebook --execute --inplace --ExecutePreprocessor.timeout=-1 notebooks/panel_municipal_armado.ipynb
-jupyter nbconvert --to notebook --execute --inplace notebooks/panel_municipal_analisis.ipynb
-jupyter nbconvert --to notebook --execute --inplace notebooks/estadisticas_descriptivas.ipynb
-jupyter nbconvert --to notebook --execute --inplace --ExecutePreprocessor.timeout=-1 notebooks/segmentacion_municipios.ipynb
+jupyter nbconvert --to notebook --execute --inplace --ExecutePreprocessor.timeout=-1 "procesamiento y eda/panel_municipal_armado.ipynb"
+jupyter nbconvert --to notebook --execute --inplace "procesamiento y eda/panel_municipal_analisis.ipynb"
+jupyter nbconvert --to notebook --execute --inplace "procesamiento y eda/estadisticas_descriptivas.ipynb"
+jupyter nbconvert --to notebook --execute --inplace --ExecutePreprocessor.timeout=-1 "modelos y clusters/segmentacion_municipios.ipynb"
 ```
 
 También se pueden abrir y correr celda por celda. Van en ese orden:
@@ -575,7 +580,9 @@ También se pueden abrir y correr celda por celda. Van en ese orden:
    Su última sección compara las cifras con `psych::describe()` de R, si R
    está instalado; si no, la salta.
 4. **`segmentacion_municipios.ipynb`** lee `datos/analisis/` y, para el
-   mapa, `datos/limites/`. Exporta `docs/tablas/segmentacion_municipios.xlsx`.
+   mapa, `datos/limites/`. Guarda el cluster de cada municipio en
+   `modelos y clusters/resultados/segmentacion_municipios_clusters.xlsx` y
+   el detalle en `docs/tablas/segmentacion_municipios.xlsx`.
    Tarda unos 5 minutos, casi todos en las pruebas de estabilidad, que
    vuelven a entrenar K-means cientos de veces; por eso el `timeout=-1`.
 
@@ -1477,7 +1484,7 @@ geometría del reparto es la misma del panel.
 Para una descripción rápida de qué contiene cada tabla —dimensiones,
 columnas, tipos, una muestra y un mapa en folium que compara el patrón
 espacial de las cuatro fuentes— está
-[`catalogo_paneles.ipynb`](../notebooks/catalogo_paneles.ipynb), que lee las cifras de
+[`catalogo_paneles.ipynb`](../procesamiento%20y%20eda/catalogo_paneles.ipynb), que lee las cifras de
 los propios archivos y por tanto se mantiene al día. Cubre únicamente las
 cuatro tablas propias de deforestación (GFW, Hansen, IDEAM, DTD).
 
@@ -1501,7 +1508,7 @@ notebook:
    único caso sin match (`27493`, Chocó = Nuevo Belén de Bajirá, el
    municipio más nuevo de Colombia) no es un problema de formato -- está
    investigado y resuelto (11/10/2026) en
-   `notebooks/investigacion_municipio_27493.ipynb`: el municipio tiene
+   `procesamiento y eda/investigacion_municipio_27493.ipynb`: el municipio tiene
    datos reales en EVA, FINAGRO y SFC414, solo falta en el catálogo
    `Municipios.CODIGO` del profesor y por tanto en las variables que
    dependen de ese cruce (región, ruralidad, PDET). Se trata como
