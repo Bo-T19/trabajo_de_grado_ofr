@@ -9,8 +9,13 @@ folium>=0.15               # mapa interactivo (mapa_folium.py)
 branca>=0.7                # escala de color del mapa; igual que shapely, llega con folium pero se importa directo
 scipy>=1.11               # componentes conexas para el filtro de parche (demo_landsat_caqueta.py) y spearmanr (catalogo_paneles.ipynb, seccion 7: correlacion entre fuentes)
 matplotlib>=3.7            # graficas del analisis exploratorio (catalogo_paneles.ipynb, seccion 5)
+seaborn>=0.13               # estilo y graficas de panel_municipal_analisis.ipynb, exploratorio_eva_ica_pecuario.ipynb y modelos/gradient_boosting.ipynb (faltaba en esta lista)
 jupyter>=1.0               # entorno del analisis exploratorio
 google-cloud-bigquery>=3.25 # subir_bigquery.py y describir_fuentes(_profesor).py: leer/cargar tablas de BigQuery (propias y del profesor)
 db-dtypes>=1.2              # describir_fuentes(_profesor).py: to_dataframe() de un resultado de BigQuery
 tabulate>=0.9               # describir_fuentes(_profesor).py: DataFrame.to_markdown() para el reporte
 google-auth>=2.23           # describir_fuentes.py (y describir_fuentes_profesor.py, que reutiliza su credencial): cuenta de servicio pipeline-satelital via google.oauth2.service_account; llega con google-cloud-bigquery, pero el codigo lo importa de forma explicita
+lightgbm>=4.3               # modelos/gradient_boosting.ipynb: tecnica Gradient Boosting (Tabla 26), via LGBMClassifier/LGBMRegressor
+scikit-learn>=1.3           # modelos/gradient_boosting.ipynb: metricas (balanced_accuracy_score, r2_score, mean_absolute_error, roc_auc_score) y GroupKFold para validar dejando departamentos completos por fuera
+joblib>=1.3                 # modelos/gradient_boosting.ipynb: guarda los modelos entrenados (.joblib) en modelos/resultados
+shap>=0.44                  # modelos/gradient_boosting.ipynb: TreeExplainer para la direccion del efecto de cada variable (seccion 7.3). >=0.54 exige Python 3.11+; se bajo el minimo porque se verifico que 0.44-0.49 ya devuelven el mismo formato (array 2D) que usa el notebook
