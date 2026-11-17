@@ -1,0 +1,5 @@
+,clasificación,regresión
+max_depth,None,8
+min_samples_leaf,10,20
+max_features,1.0,0.5
+class_weight,balanced_subsample,
