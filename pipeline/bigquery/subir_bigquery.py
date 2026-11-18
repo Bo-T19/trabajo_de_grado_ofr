@@ -59,7 +59,7 @@ PROYECTO = "ofr-credito-deforestacion"
 DATASET_DEFAULT = "staging"
 
 # Ruta esperada de la llave de la cuenta de servicio "pipeline-satelital".
-# Ver GUIA_CODIGO.md seccion 5.16.
+# Ver GUIA_CODIGO.md seccion 3.16.
 ARCHIVO_KEY = DIR_LOG / "bigquery-key.json"
 
 # alias en linea de comandos -> (archivo local generado por el pipeline, tabla destino en BigQuery)

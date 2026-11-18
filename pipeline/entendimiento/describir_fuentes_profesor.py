@@ -37,13 +37,13 @@ aparte, con su propio reporte, mientras el equipo decide fusionar
 estas cinco tablas de vuelta a FUENTES en describir_fuentes.py y
 retirar este script, para que "python main_local.py describir-fuentes"
 vuelva a cubrir las nueve tablas de una vez (pendiente de decision --
-ver GUIA_CODIGO.md seccion 5.18).
+ver GUIA_CODIGO.md seccion 3.18).
 
 CREDENCIAL: cuenta de servicio "pipeline-satelital"
 ---------------------------------------------------
 Igual que describir_fuentes.py: datos/logs/bigquery-key.json, o la
 variable de entorno GOOGLE_APPLICATION_CREDENTIALS. Ver GUIA_CODIGO.md
-seccion 5.16. Ya NO requiere "gcloud auth application-default login"
+seccion 3.16. Ya NO requiere "gcloud auth application-default login"
 ni la cuenta personal de Google.
 
 USO (desde la raiz del proyecto, normalmente via main_local.py)
@@ -61,7 +61,7 @@ from __future__ import annotations
 from pipeline.config_local import RAIZ, logger
 from pipeline.entendimiento.describir_fuentes import _credenciales, _describir_tabla
 
-ARCHIVO_REPORTE = RAIZ / "docs" / "DESCRIPCION_FUENTES_PROFESOR.md"
+ARCHIVO_REPORTE = RAIZ / "guias" / "columnas" / "DESCRIPCION_FUENTES_PROFESOR.md"
 
 # etiqueta legible -> tabla completamente calificada (proyecto.dataset.tabla)
 FUENTES = {

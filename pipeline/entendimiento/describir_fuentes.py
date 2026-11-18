@@ -9,7 +9,7 @@ cruzar -- hoy eso no esta documentado en ningun lado del codigo.
 Este script consulta BigQuery directamente y para cada una de las
 CUATRO tablas propias obtiene: columnas y tipos de dato, numero de
 filas, y una muestra de 5 filas. Deja todo consolidado en
-docs/DESCRIPCION_FUENTES.md, para poder
+guias/columnas/DESCRIPCION_FUENTES.md, para poder
 revisarlo y decidir sobre eso (llaves de cruce municipal, columnas de
 fecha, si falta poblacion/area para los KPIs, etc.) sin tener que
 volver a entrar a la consola de BigQuery.
@@ -24,7 +24,7 @@ staging -- ver GUIA_BIGQUERY.md):
 Las tres tablas de solo lectura del Observatorio (proyecto prueba-ofr,
 del profesor Jairo) se describen aparte, con
 describir_fuentes_profesor.py -- ver esa docstring y GUIA_CODIGO.md
-seccion 5.18 para el porque de un script aparte (en resumen: mientras
+seccion 3.18 para el porque de un script aparte (en resumen: mientras
 el profesor autoriza la cuenta de servicio, esas tres tablas solo son
 legibles con la cuenta personal de Google, no con la credencial que
 usa este script).
@@ -34,7 +34,7 @@ CREDENCIAL
 Usa la cuenta de servicio "pipeline-satelital" (la misma que
 subir_bigquery.py): datos/logs/bigquery-key.json, o la variable de
 entorno GOOGLE_APPLICATION_CREDENTIALS. Ver GUIA_CODIGO.md seccion
-5.16.
+3.16.
 
 USO (desde la raiz del proyecto, normalmente via main_local.py)
 ------------------------------------------------------------------
@@ -55,10 +55,10 @@ from pathlib import Path
 from pipeline.config_local import DIR_LOG, RAIZ, logger
 
 # Ruta esperada de la llave de la cuenta de servicio "pipeline-satelital".
-# Ver GUIA_CODIGO.md seccion 5.16.
+# Ver GUIA_CODIGO.md seccion 3.16.
 ARCHIVO_KEY = DIR_LOG / "bigquery-key.json"
 
-ARCHIVO_REPORTE = RAIZ / "docs" / "DESCRIPCION_FUENTES.md"
+ARCHIVO_REPORTE = RAIZ / "guias" / "columnas" / "DESCRIPCION_FUENTES.md"
 
 # etiqueta legible -> tabla completamente calificada (proyecto.dataset.tabla)
 FUENTES = {
@@ -90,7 +90,7 @@ def _credenciales():
     if not ruta.exists():
         logger.error(
             "No se encontro la credencial de BigQuery en %s. Ver "
-            "subir_bigquery.py y GUIA_CODIGO.md seccion 5.16.", ruta)
+            "subir_bigquery.py y GUIA_CODIGO.md seccion 3.16.", ruta)
         return None
     return service_account.Credentials.from_service_account_file(str(ruta))
 

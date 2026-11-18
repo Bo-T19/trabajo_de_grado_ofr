@@ -61,7 +61,7 @@ USO — en este orden
     -- disturbio (GFW), perdida de cobertura arborea (Hansen) y
     deforestacion de bosque natural (IDEAM) -- y por eso NUNCA se suman
     entre si. Comparten grilla, bosque base y cruce municipal, que es lo
-    que las hace comparables. Ver docs/METODOLOGIA.md seccion 2.
+    que las hace comparables. Ver guias/referencia/METODOLOGIA.md seccion 2.
 
     python main_local.py consolidar --dane ruta/al/otro_archivo.shp
         Igual, pero usando un shapefile/geojson municipal distinto en
@@ -79,13 +79,13 @@ USO — en este orden
         (ofr-credito-deforestacion). Requiere la llave de la cuenta de
         servicio "pipeline-satelital" en datos/logs/bigquery-key.json
         (o en la variable de entorno GOOGLE_APPLICATION_CREDENTIALS).
-        Ver docs/GUIA_CODIGO.md seccion 5.16.
+        Ver guias/referencia/GUIA_CODIGO.md seccion 3.16.
 
     python main_local.py describir-fuentes
         Paso 1 del EDA: describe las cuatro tablas del panel propio en
         BigQuery -- columnas, tipos de dato, numero de filas y una
         muestra de 5 filas por tabla. Requiere la misma credencial que
-        subir-bigquery. Genera/actualiza docs/DESCRIPCION_FUENTES.md.
+        subir-bigquery. Genera/actualiza guias/columnas/DESCRIPCION_FUENTES.md.
         Ver pipeline/entendimiento/describir_fuentes.py.
 
     python main_local.py describir-fuentes-profesor
@@ -97,7 +97,7 @@ USO — en este orden
         servicio sobre esas tres tablas), y las dos de produccion
         (EVA, ICA pecuario) agregadas el 09/10/2026 directo a esa
         misma cuenta de servicio. Genera
-        docs/DESCRIPCION_FUENTES_PROFESOR.md aparte, como script separado,
+        guias/columnas/DESCRIPCION_FUENTES_PROFESOR.md aparte, como script separado,
         mientras se valida el comportamiento y se decide si se
         fusiona con describir-fuentes. Ver
         pipeline/entendimiento/describir_fuentes_profesor.py.
@@ -106,7 +106,7 @@ USO — en este orden
         Replica, en una zona piloto de Caqueta, el calculo de perdida de
         bosque desde imagenes Landsat crudas, y lo compara con GLAD-L.
         Es entendimiento de los datos: no alimenta ninguna tabla. Ver
-        docs/GUIA_DEMO_LANDSAT.md.
+        guias/4_DEMO_LANDSAT.md.
 ======================================================================
 """
 from __future__ import annotations
@@ -215,7 +215,7 @@ def main() -> int:
     """Punto de entrada: python main_local.py <subcomando> [opciones].
 
     Ver el docstring del inicio del archivo para el orden recomendado
-    de subcomandos, y docs/GUIA_CODIGO.md para la explicacion completa
+    de subcomandos, y guias/referencia/GUIA_CODIGO.md para la explicacion completa
     de cada paso.
     """
     p = argparse.ArgumentParser(

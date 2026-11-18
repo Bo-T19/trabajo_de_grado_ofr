@@ -1,7 +1,10 @@
 # Metodología — Panel espacio-temporal de deforestación en Colombia
 
 Este documento explica **qué mide el panel, de dónde sale cada dato, y por
-qué se diseñó así** — el "qué y por qué". El "cómo está programado" vive en
+qué se diseñó así** — el "qué y por qué". Es documentación de referencia:
+para correr el trabajo no hace falta leerlo. El catálogo de todas las
+fuentes, incluidas las del Observatorio, está en
+[1_FUENTES.md](../1_FUENTES.md), y el "cómo está programado", en
 [GUIA_CODIGO.md](GUIA_CODIGO.md).
 
 El destino declarado de este panel abarca, además del uso académico, su
@@ -95,11 +98,12 @@ casi en tiempo real. Sirve para saber qué está ocurriendo ahora y para
 modelar la dinámica del fenómeno, que es el destino previsto de este
 panel.
 
-Su serie sigue de cerca la magnitud oficial: la correlación anual entre
-las hectáreas con alerta y la cifra del IDEAM es **+0,971**. Reporta
-entre 1,13 y 1,55 veces esa cifra según el año, porque una alerta señala
-disturbio de la vegetación y no toda alteración del dosel es conversión
-del uso del suelo.
+Su serie sigue de cerca la magnitud oficial: la correlación entre las
+hectáreas con alerta y la cifra oficial del IDEAM, año a año, es
+**+0,971** en 2021-2024 (+0,945 si se incluye 2025). Reporta entre 1,13 y
+1,55 veces la deforestación del IDEAM según el año, porque una alerta
+señala disturbio de la vegetación y no toda alteración del dosel es
+conversión del uso del suelo.
 
 #### Panel 2 — Hansen: **comparación con otros países**
 
@@ -113,7 +117,7 @@ Cumple además otras dos funciones: aporta la **línea base de bosque**
 constituye una fuente **independiente del Estado evaluado**, lo que le da
 valor probatorio en una debida diligencia de importación.
 
-Reporta entre 1,53 y 2,50 veces la cifra oficial, porque contabiliza toda
+Reporta entre 1,53 y 2,50 veces la deforestación del IDEAM, porque contabiliza toda
 pérdida de cobertura arbórea: cosecha de plantación, incendio y daño
 natural, además de la deforestación.
 
@@ -144,7 +148,8 @@ Sus cuatro usos, cada uno verificado:
 
 **1. Priorización espacial.** El ranking municipal por detecciones llega
 a la misma respuesta que la cifra oficial anual, con meses de
-anticipación:
+anticipación. Comparando, por municipio, el total de detecciones de
+2020-2026 con la deforestación del IDEAM de 2021-2025:
 
 | Coincidencia | Resultado |
 |---|---|
@@ -158,21 +163,22 @@ municipios con detección contra los que no la tienen:
 
 | Municipios en el trimestre | Hectáreas con alerta GFW (mediana) |
 |---|---|
-| **Con** detección del IDEAM | **30,6** |
+| **Con** detección del IDEAM | **29,8** |
 | **Sin** detección del IDEAM | 0,2 |
 
-Un municipio señalado concentra del orden de **130 veces** más superficie
+Un municipio señalado concentra del orden de **160 veces** más superficie
 con alerta que uno no señalado. Y dentro del trimestre el conteo ordena
-razonablemente por magnitud, aunque no la cuantifique: la correlación de
-rangos entre número de detecciones y hectáreas de GFW tiene mediana
-**0,651** (rango 0,513 a 0,784 sobre los 25 trimestres).
+razonablemente por magnitud, aunque no la cuantifique: entre los
+municipios con detección, la correlación de rangos entre número de
+detecciones y hectáreas de GFW tiene mediana **0,651** (rango 0,513 a
+0,784 sobre los 25 trimestres).
 
 **2. Valor probatorio.** La afirmación "el IDEAM detectó alertas aquí"
 proviene de la autoridad ambiental del país. Cada punto identifica
 además el municipio, la vereda y la corporación autónoma regional
 competente sobre ese territorio.
 
-**3. Validación del panel mensual.** El **92,1 %** de las celda-trimestre
+**3. Validación del panel mensual.** El **92,1 %** de las celdas-trimestre
 con detección oficial tiene también alerta de GFW en ese mismo trimestre.
 Eso confirma, contra una fuente oficial e independiente, que el panel de
 alertas señala los lugares correctos. La correlación entre el conteo de
@@ -200,8 +206,8 @@ sentido contrario a la deforestación real:
 | Agregado del panel DTD | Correlación con la cifra oficial |
 |---|---|
 | Conteo de puntos | −0,669 |
-| Celdas con alerta | **−0,994** |
-| Municipios con alerta | −0,978 |
+| Celdas distintas con alerta en el año | **−0,994** |
+| Municipios distintos con alerta en el año | −0,978 |
 | *(referencia: alertas GFW en hectáreas)* | *+0,971* |
 
 El indicador de presencia, que en principio debería ser más robusto que
@@ -305,7 +311,7 @@ reflectancia Landsat con % de cobertura de dosel.
 | Capa | Qué mide | Cómo se usa aquí |
 |---|---|---|
 | `treecover2000` | % de cobertura de dosel arbóreo en el año 2000 | Umbral para decidir si un píxel *era* bosque en el año base |
-| `lossyear` | Año (codificado 1–24 → 2001–2024) en que el píxel perdió cobertura | Descuenta del bosque base los píxeles que ya se sabía habían perdido cobertura antes del inicio de la ventana de eventos |
+| `lossyear` | Año (codificado 1–25 → 2001–2025 en la versión GFC-2025-v1.13 que usa el pipeline) en que el píxel perdió cobertura | Descuenta del bosque base los píxeles que ya se sabía habían perdido cobertura antes del inicio de la ventana de eventos |
 
 **Por qué Hansen y no otra fuente de línea base.** Se consideraron:
 
@@ -424,7 +430,8 @@ año de referencia se verificó empíricamente (ver abajo): `cambio_YYYY_ZZZZ`
 corresponde al año **ZZZZ**.
 
 **Validación contra la cifra publicada.** El total nacional de la clase 2
-en cada capa se contrastó con la cifra oficial del año correspondiente:
+en cada capa —el ráster completo, antes de cruzarlo con la grilla— se
+contrastó con la cifra oficial del año correspondiente:
 
 | Capa | Calculado (ha) | Oficial IDEAM (ha) | Razón |
 |---|---|---|---|
@@ -435,14 +442,17 @@ en cada capa se contrastó con la cifra oficial del año correspondiente:
 | `cambio_2024_2025` | 119.481 | 119.483 (2025) | 1,000 |
 
 La diferencia es de 2 a 3 hectáreas sobre totales de 79.000 a 174.000, es
-decir 0,002%, atribuible al redondeo del área de píxel. Esto confirma dos
-cosas: la convención de nombres de las capas, y que el procedimiento de
-agregación de este trabajo reproduce el dato oficial.
+decir 0,002 %, atribuible al redondeo del área de píxel. Esto confirma la
+convención de nombres de las capas. Ya cruzado con la grilla, el panel
+recupera entre el 99,65 % y el 99,84 % de la cifra oficial: lo que falta
+son las celdas con menos de `bosque_minimo_ha` (50 ha) de bosque, que los
+cuatro paneles excluyen por igual (sección 8).
 
 **Cobertura de nubes, muy desigual entre periodos.** La superficie
-clasificada como "sin información" cae de forma abrupta en la serie:
-116.461 ha en 2020-2021 y 148.472 ha en 2021-2022, frente a 648 ha en
-2022-2023 y 377 ha en 2023-2024. Los dos primeros periodos tienen, por
+clasificada como "sin información" en el ráster cae de forma abrupta en
+la serie: 116.461 ha en 2020-2021 y 148.472 ha en 2021-2022, frente a
+648 ha en 2022-2023, 377 ha en 2023-2024 y 343 ha en 2024-2025. Los dos
+primeros periodos tienen, por
 tanto, más incertidumbre por vacíos de observación que los siguientes.
 Por eso la tabla conserva `sin_info_ha` como columna: permite filtrar o
 ponderar las celdas afectadas, dado que un vacío de observación y una
@@ -476,9 +486,9 @@ disponible para Colombia:
 | Capas de cambio del IDEAM | Sí | Anual |
 | **Detecciones tempranas (DTD)** | **Sí** | **Trimestral** |
 
-Su cobertura alcanza las cinco regiones naturales del país (Amazónica,
-Andina, Pacífica, Orinoquía y Caribe) y 1 114 municipios, de modo que
-resulta utilizable también en la zona andina.
+Entre 2020 y 2026 hay detecciones en 615 de los 1 114 municipios de la
+grilla, repartidos en todas las regiones del país, de modo que resulta
+utilizable también en la zona andina.
 
 **Unidad de medida.** El conteo de detecciones, no la hectárea. Cada
 punto marca un sitio donde el instituto detectó un cambio compatible con
@@ -525,7 +535,7 @@ al conteo consolidado.
 | Fuente | Uso | Por qué esta y no otra |
 |---|---|---|
 | DANE — Marco Geoestadístico Nacional (MGN) 2023, nivel departamento | Recorta la grilla al territorio continental de Colombia y etiqueta cada celda con su departamento | Fuente oficial colombiana, servida como *Feature Service* público de ArcGIS (sin autenticación), licencia **CC BY 4.0** (uso comercial permitido con atribución) |
-| DANE — MGN, nivel municipal | Cruce **opcional** por centroide para obtener el código de municipio (`cod_dane`) | Misma fuente; es la oficial para unir variables socioeconómicas o de crédito rural del Observatorio. Opcional porque requiere descargar el shapefile municipal aparte |
+| DANE — MGN 2025, nivel municipal | Asigna a cada celda, por su centroide, el código de municipio (`cod_dane`) | Misma fuente; es la oficial para unir las variables de crédito y producción del Observatorio. Se descarga sola: con el Paso 4 o, si falta, al consolidar |
 
 Ninguna de las dos aporta información temporal ni de cambio: solo definen
 **dónde** está cada celda y **cómo se llama** administrativamente.
@@ -567,7 +577,7 @@ que los productos publicados no responden, como la forma de ponderar
 cada píxel al agregar a un departamento.
 
 El recorrido completo, con cada decisión y cada cifra, está en
-[`GUIA_DEMO_LANDSAT.md`](GUIA_DEMO_LANDSAT.md).
+[`4_DEMO_LANDSAT.md`](../4_DEMO_LANDSAT.md).
 
 ---
 
@@ -590,8 +600,9 @@ con `anio_mascara = 2019`, un año antes de que arranque la ventana de
 eventos (2020-01) — el bosque base tiene que quedar definido *antes* de que
 arranque la fuente de evento, para que Hansen y la fuente de evento nunca
 se atribuyan la misma pérdida dos veces (ver decisión 3, sección 4). El
-umbral del 30% de cobertura de dosel es uno de los de referencia usados
-por la FAO para operacionalizar "bosque" de forma comparable entre países.
+umbral del 30 % de cobertura de dosel es el que Global Forest Watch usa
+por defecto con los datos de Hansen; la definición de bosque de la FAO
+usa un umbral más bajo, de 10 %.
 
 **Cómo se calcula sin depender de ninguna cuadrícula externa.** Hansen
 viene en gránulos de 10°×10° en su propia proyección geográfica; para
@@ -656,12 +667,12 @@ requerirían tomar el máximo entre piezas para no duplicar bosque).
 | # | Decisión | Alternativas consideradas | Por qué esta opción | Riesgo/costo aceptado |
 |---|---|---|---|---|
 | 0 | **Cuatro paneles separados** (alertas GFW, pérdida Hansen, deforestación IDEAM, detecciones tempranas IDEAM) sobre la misma grilla, en vez de una sola tabla con las fuentes como columnas | Una tabla única con todas las fuentes; quedarse con una sola y descartar las demás | Miden conceptos distintos (*disturbio* / *pérdida de cobertura* / *deforestación* / *detecciones*) y tienen unidades temporales distintas (mes / año calendario / transición entre composiciones de imágenes / trimestre). Ponerlas en una misma fila bajo una columna "año" afirmaría una equivalencia temporal que el dato no respalda. Y descartar fuentes perdería capacidades que solo una tiene: cadencia mensual (GFW), comparabilidad internacional (Hansen), validez oficial de la magnitud (capas de cambio del IDEAM) y respaldo oficial sub-anual de la ubicación (detecciones tempranas) | Toda comparación entre paneles exige un `join` explícito y declarar el desfase temporal. Se acepta a cambio de no falsear la alineación de periodos |
-| 0b | **El denominador de cada panel corresponde a su propio numerador** | Un único denominador para todo (el de Hansen, o el del IDEAM) | El denominador debe **contener** al numerador. Verificado empíricamente: con el bosque del IDEAM como denominador de las alertas, 843 celdas darían tasas superiores al 100 % (máximo 130,3), porque las alertas se disparan también fuera del bosque natural; con el de Hansen, ninguna. A la inversa, dividir la deforestación oficial entre el bosque de Hansen —que incluye plantaciones— subestima la tasa entre un 30 % y un 45 % | El panel del IDEAM lleva dos columnas de bosque y hay que elegir bien cuál usar. Se documenta de forma explícita en la propia tabla, en la guía y en la sección 8 |
+| 0b | **El denominador de cada panel corresponde a su propio numerador** | Un único denominador para todo (el de Hansen, o el del IDEAM) | El denominador debe **contener** al numerador. Verificado empíricamente: en 843 celdas las alertas acumuladas de 2020-2026 superan el bosque natural del IDEAM de 2020-2021 (en 693 de ellas el IDEAM no registra bosque natural, y en las otras 150 las alertas llegan hasta 130 veces ese bosque), porque las alertas se disparan también fuera del bosque natural; con el bosque de Hansen, ninguna. A la inversa, dividir la deforestación oficial entre el bosque de Hansen —que incluye plantaciones— subestima la tasa: un 24 % a nivel nacional y, en promedio, entre un 30 % y un 35 % en las celdas con deforestación | El panel del IDEAM lleva dos columnas de bosque y hay que elegir bien cuál usar. Se documenta de forma explícita en la propia tabla, en la guía y en la sección 8 |
 | 1 | Fuente del evento: producto integrado de GFW (`gfw_integrated_alerts`) | Combinar a mano, por separado, cada uno de los sistemas de alerta que este producto ya integra (sección 2.2); usar un producto de un solo sensor; usar Hansen anual | El producto integrado ya es una metodología publicada por el equipo que produce los datos: evita que la fusión de sensores sea una decisión artesanal de esta tesis. Cubre la ventana completa 2020-presente con cadencia casi en tiempo real, algo que un producto anual no permite | Al combinar sistemas con sensibilidades distintas, la homogeneidad metodológica interna del evento es algo menor que la de un solo sensor — aceptado a cambio de mejor cobertura de detección (el radar complementa al óptico bajo nubes) |
-| 1b | Fuente oficial: capas rásteres de cambio del SMByC, agregadas por celda | Usar solo la cifra nacional o departamental publicada en los informes del IDEAM; prescindir del IDEAM | Las capas rásteres permiten llevar el dato oficial a la misma celda de 5 km que las otras dos fuentes, en vez de quedarse en un agregado nacional. La agregación se validó contra la cifra publicada y la reproduce al 99,75 % (sección 8), lo que confirma de paso la convención de nombres de las capas | Los periodos son transiciones entre composiciones de imágenes, no años calendario, y hay que declararlo en todo cruce. Además el dato llega con rezago de publicación |
+| 1b | Fuente oficial: capas rásteres de cambio del SMByC, agregadas por celda | Usar solo la cifra nacional o departamental publicada en los informes del IDEAM; prescindir del IDEAM | Las capas rásteres permiten llevar el dato oficial a la misma celda de 5 km que las otras dos fuentes, en vez de quedarse en un agregado nacional. La agregación se validó contra la cifra publicada y la reproduce entre el 99,65 % y el 99,84 % según el periodo (sección 8), lo que confirma de paso la convención de nombres de las capas | Los periodos son transiciones entre composiciones de imágenes, no años calendario, y hay que declararlo en todo cruce. Además el dato llega con rezago de publicación |
 | 2 | Confianza mínima del evento: `high` + `highest`, se descarta `nominal` | Incluir también `nominal` | `nominal` es la detección menos confiable (análoga a "primera detección, sin confirmar"); incluirla infla falsos positivos | El panel mide deforestación con confianza alta/altísima, no cualquier disturbio detectado — subestima disturbios de baja confianza que luego sí podrían confirmarse |
 | 3 | Máscara de bosque con corte de Hansen en `anio_mascara = 2019`, un año antes del inicio de la ventana de eventos (2020-01) | Usar Hansen `lossyear` también para 2020 en adelante | Traza una línea clara: Hansen = línea base estática (hasta el corte), la fuente de evento = único registro de pérdida dentro de su ventana. Cortar justo antes evita que una misma pérdida se atribuya dos veces | Se asume que el bosque es estático entre el corte de Hansen (2019) y el inicio de la ventana de eventos (2020-01) — un margen de días, no de años |
-| 4 | Grilla regular de 5×5 km como unidad de análisis | Píxel nativo; unidad administrativa (municipio) | Balance entre volumen computacional, señal estadística y resolución espacial útil (sección 1.2) | Se pierde la ubicación exacta del evento dentro de la celda |
+| 4 | Grilla regular de 5×5 km como unidad de análisis | Píxel nativo; unidad administrativa (municipio) | Balance entre volumen computacional, señal estadística y resolución espacial útil (sección 1.3) | Se pierde la ubicación exacta del evento dentro de la celda |
 | 5 | Proyección `EPSG:3116` para el indexado de la grilla | UTM por zona; una proyección de área equivalente (p. ej. Albers) | Proyección oficial colombiana (MAGNA-SIRGAS), de uso común en cartografía nacional; un único sistema de indexado simplifica el código | Alguna distorsión de forma/área lejos del meridiano central — mitigado porque el área reportada no depende de esta proyección (el área de evento la calcula la API de GFW; el área de bosque es conteo de píxeles a resolución fija) |
 | 6 | Bosque base calculado en bloques de la propia grilla nacional (25 m/píxel, sin ninguna cuadrícula externa) | Apoyarse en la cuadrícula de descarga de algún otro producto satelital como "molde" geométrico | Evita una dependencia innecesaria: el bosque base es, conceptualmente, independiente de cualquier fuente de evento, y no hay razón para que su cálculo dependa de descargar algo de un producto distinto a Hansen | Hubo que construir el manejo de bloques (partición de la grilla, reproyección por bloque) en vez de reutilizar una cuadrícula ya existente — más código propio, pero sin la dependencia |
 | 7 | Combinar bloques con suma directa, no `max()` | Tomar el máximo entre bloques, por seguridad | Los bloques se definen como partición exacta de la grilla (alineados a bordes de celda): nunca se solapan, así que sumar es correcto y no hace falta la protección adicional que sí necesitaría un esquema con piezas traslapadas | Ninguno relevante: depende de que la partición en bloques preserve la alineación de la grilla, verificado por construcción |
@@ -670,13 +681,14 @@ requerirían tomar el máximo entre piezas para no duplicar bosque).
 | 10 | Grilla construida localmente con `geopandas` y límites del DANE (MGN) | Google Earth Engine con `coveringGrid()` y assets `USDOS/LSIB_SIMPLE`/`FAO/GAUL_SIMPLIFIED`; GADM como fuente de límites | La edición gratuita/académica de Earth Engine **prohíbe explícitamente** su uso para "actividades de pago por servicio" o para "recibir compensación de una entidad comercial por aplicaciones o datos creados usando Earth Engine" — y este panel es insumo de consultorías comerciales del Observatorio. GADM es de uso no comercial únicamente, el mismo problema. El DANE (MGN, CC BY 4.0) permite uso comercial con atribución | El MGN del DANE es de precisión catastral completa (no generalizada), así que el polígono nacional sale con ~280 000 vértices; se simplifica con tolerancia de 100 m (irrelevante frente al lado de celda de 5000 m) para que el filtro espacial corra en segundos, no minutos |
 | 11 | Rectángulo (`bbox`) para seleccionar gránulos de Hansen | Enviar la geometría exacta de Colombia | Los gránulos de Hansen son de 10×10 grados: un `bbox` simple basta para identificar cuáles hacen falta, sin construir ni depurar una consulta con geometría compleja | Se descargan gránulos que cubren de más (países vecinos, océano) — costo de almacenamiento marginal, no de tiempo de cómputo relevante |
 | 12 | **La réplica con Landsat queda como entendimiento de los datos**, no como fuente del panel (§2.6) | Construir un indicador propio de deforestación desde imagen cruda y usarlo en el panel o en el modelo | Ningún integrante del trabajo es experto en detección de deforestación, y proponer un indicador propio frente a productos de equipos especializados sería pretencioso. Replicar su cálculo, acercarse lo más posible a sus valores y entender dónde y por qué se aparta sí aporta: permite leer las fuentes sin tomarlas como dadas. Decisión tomada con el profesor | La réplica no produce datos para el modelo. Preguntas como la forma de ponderar cada píxel al agregar a un departamento quedan abiertas, con la réplica como punto de partida para responderlas |
-| 13 | **Municipio 27493 (Belén de Bajirá, Chocó): tratado como faltante estructural, limitado a las variables que dependen de `Municipios.CODIGO`** (departamento, región, ruralidad, PDET) | Rellenar con el agregado departamental de Chocó (sugerencia original del profesor Jairo); usar un código puente hacia Mutatá/Riosucio; faltante estructural + sensibilidad departamental como híbrido | Es el municipio más nuevo de Colombia (creado administrativamente en 2022, con gobierno propio desde junio de 2024), y el catálogo `Municipios.CODIGO` del profesor, generado antes de esa fecha, no lo incluye -- confirmado por código y por nombre sobre la tabla completa (20,196 filas). Pero el municipio sí tiene datos reales y verificables en las otras tablas del profesor: 30 filas en EVA (producción agropecuaria 2024), 197 créditos de FINAGRO ($5.298.393.300 COP) y 202 registros de SFC414 (348 créditos, $6.717.495.922 COP) -- solo ICA pecuario no tiene ningún registro. Rellenar con el agregado departamental diluiría ese dato real y preciso en el promedio de los otros 30 municipios de Chocó; no hay código alternativo al que "puentear" (se buscó explícitamente, por código y por nombre); un híbrido de sensibilidad compararía un valor departamental inventado contra cifras que ya se conocen con exactitud. Investigación completa, con las consultas y resultados reales, en `procesamiento y eda/investigacion_municipio_27493.ipynb` | Las variables de región/ruralidad/PDET quedan en NaN solo para este municipio -- cualquier análisis que dependa de esas etiquetas para el panel municipal debe manejar ese caso explícitamente. `panel_municipal_armado.ipynb` ya lo hace correctamente (`codigos = municipios.index.union(fijas.index)` mantiene el municipio en el panel vía el propio panel de deforestación, y el `.join(municipios)` final es un left join), sin que haya hecho falta ningún cambio de código |
-| 14 | **Análisis municipal solo en los municipios rurales y rurales dispersos** (clasificación del DNP, en su versión más reciente de `Municipios.CODIGO`), sin filtro de bosque: 642 municipios | Todos los municipios; solo los que tienen al menos 1 000 ha de bosque; la ruralidad de cada año | Indicación del Observatorio. Estos municipios concentran el 92,6 % de la deforestación de 2021-2025, y el filtro deja fuera las ciudades donde las empresas registran el crédito de su sede. La clasificación más reciente es la misma de 2023 a 2026 | Sin filtro de bosque, la tasa es ruidosa en los 106 municipios rurales con menos de 1 000 ha de bosque, y 3 no tienen tasa. El 27493 no tiene ruralidad y queda fuera de la muestra |
+| 13 | **Municipio 27493 (Belén de Bajirá, Chocó): tratado como faltante estructural, limitado a las variables que dependen de `Municipios.CODIGO`** (departamento, región, ruralidad, PDET) | Rellenar con el agregado departamental de Chocó (sugerencia original del profesor Jairo); usar un código puente hacia Mutatá/Riosucio; faltante estructural + sensibilidad departamental como híbrido | Es el municipio más nuevo de Colombia (creado administrativamente en 2022, con gobierno propio desde junio de 2024), y el catálogo `Municipios.CODIGO` del profesor, generado antes de esa fecha, no lo incluye -- confirmado por código y por nombre sobre la tabla completa (20,196 filas). Pero el municipio sí tiene datos reales y verificables en las otras tablas del profesor: 30 filas en EVA (producción agropecuaria 2024), 197 créditos de FINAGRO ($5.298.393.300 COP) y 207 registros de SFC414 (353 créditos, $6.903.616.352 COP, al consultarla en noviembre de 2026; el notebook de la investigación, corrido antes, muestra 202 registros y $6.717.495.922 porque la tabla se sigue actualizando) -- solo ICA pecuario no tiene ningún registro. Rellenar con el agregado departamental diluiría ese dato real y preciso en el promedio de los otros 30 municipios de Chocó; no hay código alternativo al que "puentear" (se buscó explícitamente, por código y por nombre); un híbrido de sensibilidad compararía un valor departamental inventado contra cifras que ya se conocen con exactitud. Investigación completa, con las consultas y resultados reales, en `procesamiento y eda/investigacion_municipio_27493.ipynb` | Las variables de región/ruralidad/PDET quedan en NaN solo para este municipio -- cualquier análisis que dependa de esas etiquetas para el panel municipal debe manejar ese caso explícitamente. `panel_municipal_armado.ipynb` ya lo hace correctamente (`codigos = municipios.index.union(fijas.index)` mantiene el municipio en el panel vía el propio panel de deforestación, y el `.join(municipios)` final es un left join), sin que haya hecho falta ningún cambio de código |
+| 14 | **Análisis municipal solo en los municipios rurales y rurales dispersos** (clasificación del DNP, en su versión más reciente de `Municipios.CODIGO`), sin filtro de bosque: 642 municipios | Todos los municipios; solo los que tienen al menos 1 000 ha de bosque; la ruralidad de cada año | Indicación del Observatorio. Estos municipios concentran el 92,6 % de la deforestación de 2021-2025, y el filtro deja fuera las ciudades donde las empresas registran el crédito de su sede. La clasificación más reciente es la misma de 2023 a 2026 | Sin filtro de bosque, la tasa es ruidosa en los 109 municipios rurales con menos de 1 000 ha de bosque, y 3 no tienen tasa. El 27493 no tiene ruralidad y queda fuera de la muestra |
 | 15 | **Crédito: solo el eslabón de producción de FINAGRO**, de todos los tipos de productor, en total y por cadena (ganadería, palma de aceite, cacao, café y arroz) | Crédito total; solo pequeños y medianos productores; producción de pequeños y medianos | Indicación del Observatorio: es el crédito que financia directamente la actividad agropecuaria. Con el filtro rural, el sesgo hacia las ciudades sede ya queda por fuera, así que el de pequeños y medianos deja de hacer falta | El crédito que una empresa registra en una ciudad, pero que se usa en un municipio rural, no se le atribuye a ese municipio. Falta confirmar si el municipio de FINAGRO es el de la inversión o el del domicilio. Va en pesos corrientes |
 | 16 | **Cultivos: área cosechada de la EVA**, no la sembrada | Área sembrada | Indicación del Observatorio: desde 2019 la EVA pierde la información de `Ciclo`, y no se puede saber si `Cosechada > Sembrada` es normal | En el arroz se suman los semestres A y B, así que un lote sembrado dos veces cuenta dos veces. La EVA no mide pastos ni coca |
 | 17 | **Sin rezagos en el panel municipal**: crédito, cultivos y ganado van en el mismo año que la deforestación | Explicativas del año anterior (`_t1`) | El análisis compara promedios municipales de cinco años, y en ese diseño el rezago no cambia los resultados: las correlaciones con y sin rezago difieren a lo sumo en 0,005 | Sin rezago, el panel no permite decir qué ocurre primero; para eso haría falta un análisis de cambios dentro de cada municipio |
 | 18 | **Correlación de Spearman sobre promedios municipales en intensidad, repetida dentro de grupos de tamaño** (quintiles de área) | Pearson; juntar las filas municipio-año; correlación parcial por el área | Las variables tienen muchos ceros y valores extremos, y el área del municipio se relaciona con casi todas; comparar municipios de tamaño parecido evita que el tamaño explique la correlación | Los intervalos por bootstrap de municipios son optimistas por la dependencia espacial; con muchas comparaciones, algunas pueden parecer importantes por azar |
 | 19 | **Segmentación con K-means sobre el perfil productivo y financiero, sin la deforestación**: 10 variables relativas (2021-2024), `log(1 + x)` a las intensidades y 8 segmentos | Incluir la deforestación entre las variables; transformar también las participaciones de los cultivos; otro número de segmentos | Si la deforestación entrara, la comparación entre segmentos sería circular. Con las participaciones sin transformar, los segmentos se arman por el cultivo que domina. Con 8 segmentos la estabilidad por bootstrap es la más alta entre 3 y 10 segmentos (ARI de 0,88), y la silueta duplica la de datos sin estructura | La estructura de grupos es débil (silueta de 0,26). Los segmentos menos nítidos son el ganadero y el de bosque con ganadería dispersa (Jaccard de 0,85 y 0,81 en el bootstrap). Otras transformaciones de las participaciones, que les den más peso a los cultivos pequeños, pueden armar segmentos distintos |
+| 20 | **Modelos de riesgo en dos partes sobre el panel municipio × año**: *¿deforesta?* (clasificación con todas las filas) y *si deforesta, ¿cuánto?* (regresión solo con las filas que deforestan). Gradient boosting como modelo principal; random forest y regresión logística con el mismo diseño: la misma muestra (3.195 municipios-año rurales con bosque), las mismas 15 variables del mismo año, la misma partición y las mismas métricas | Una sola regresión sobre todas las filas; partir los datos al azar; que cada técnica tuviera su propia muestra y sus propias variables | La mayoría de los municipios-año no deforesta, y mezclar esos ceros con la magnitud distorsiona las dos estimaciones. Se entrena con 2021-2024 y se prueba con 2025, y la búsqueda de hiperparámetros agrupa por departamento, porque los años de un mismo municipio y los municipios vecinos no son independientes. Con el mismo diseño, las cifras de las tres técnicas se pueden comparar directamente (`comparacion_modelos.ipynb`) | La prueba es un solo año (639 municipios). Los modelos muestran asociaciones, no causas |
 
 ---
 
@@ -704,21 +716,22 @@ requerirían tomar el máximo entre piezas para no duplicar bosque).
 
 - **Subestimación de los últimos meses de la ventana** por el *reporting
   lag* de confirmación de alertas casi en tiempo real (sección 2.2).
-- **No se distingue causa del disturbio** en ninguna de las dos fuentes:
-  el panel mide pérdida de cobertura/vegetación de cualquier origen
-  (antrópico o natural), no específicamente deforestación por actividad
-  humana en el sentido estricto. Lo que registra `area_def_ha` es, con
-  precisión, *área con alerta de disturbio de alta confianza*.
+- **Ninguna fuente distingue la causa.** Las alertas de GFW y Hansen miden
+  disturbio o pérdida de cobertura de cualquier origen (antrópico o
+  natural), no específicamente deforestación por actividad humana. Lo que
+  registra `area_def_ha` en el panel de alertas es, con precisión, *área
+  con alerta de disturbio de alta confianza*. El IDEAM sí se limita a la
+  conversión de bosque natural, pero tampoco dice qué la causó.
 - **Posible confusión con plantaciones forestales de rotación corta** en
   la línea base de Hansen (sección 2.1).
 - **Al combinar tres sistemas de detección** (sección 2.2), la
   sensibilidad no es perfectamente homogénea a lo largo del país.
-- **Sin validación de campo local**: la precisión reportada de ambos
+- **Sin validación de campo local**: la precisión reportada de los
   productos proviene de sus respectivas validaciones globales/regionales,
   no de un ejercicio de verificación específico para Colombia dentro de
   esta tesis.
-- **El desbalance de clases es marcado** (ver sección 8 y
-  en el análisis exploratorio): cualquier modelo posterior debe tratar esto
+- **El desbalance de clases es marcado** (ver la sección 8 y el análisis
+  exploratorio): cualquier modelo posterior debe tratar esto
   explícitamente (de ahí el diseño de `evento` como variable separada,
   pensada para un enfoque de dos etapas). La proporción exacta y
   actualizada está siempre en el notebook de EDA, no hay que tomar
@@ -726,9 +739,9 @@ requerirían tomar el máximo entre piezas para no duplicar bosque).
 - **Posible efecto de arranque en el primer periodo del panel**: cualquier
   sistema de monitoreo casi en tiempo real tiene una fecha de inicio; el
   primer mes podría concentrar disturbios que ya existían pero apenas se
-  estaban confirmando cuando arrancó el monitoreo. El notebook de EDA
-  cuantifica esto empíricamente sobre cada corrida (sección 5 del
-  notebook) — no se asume que ocurre, se verifica.
+  estaban confirmando cuando arrancó el monitoreo. Este trabajo no lo ha
+  cuantificado: conviene revisar los primeros meses de la serie antes de
+  usarlos en un modelo.
 - **En el panel municipal, el ganado de 2025 se reparte distinto**: el ICA
   reasigna bovinos entre municipios vecinos (más de 100 municipios cambian
   más de 50 % frente a 2024, aunque el total del país solo crece 3,9 %).
@@ -756,9 +769,11 @@ de este panel.
 | Fuente | Licencia | Uso comercial | Obligación práctica |
 |---|---|---|---|
 | Hansen Global Forest Change | CC BY 4.0 | Permitido, incluida la reventa/redistribución | Atribución: *"Source: Hansen/UMD/Google/USGS/NASA"* + cita del paper (Hansen et al. 2013, sección 10) |
-| IDEAM — capas de cambio de bosque (SMByC) | Datos abiertos del Estado colombiano, publicados bajo el marco de la Ley 1712 de 2014 (transparencia y acceso a la información pública). El propio marco define los datos abiertos como información *"bajo licencia abierta y sin restricciones legales para su aprovechamiento"*. **No se encontró una licencia con nombre propio (tipo CC BY) declarada específicamente para estas capas rásteres**, a diferencia de Hansen o el DANE | Muy probablemente permitido, por el marco de datos abiertos — **confirmar con el IDEAM antes de comercializar** | Atribución al IDEAM / Sistema de Monitoreo de Bosques y Carbono, citando el año de la capa. Dado que es la fuente oficial del país, conviene además dejar claro en cualquier producto derivado que el IDEAM no avala ni valida el análisis propio |
+| IDEAM — capas de cambio de bosque y detecciones tempranas (SMByC) | Datos abiertos del Estado colombiano, publicados bajo el marco de la Ley 1712 de 2014 (transparencia y acceso a la información pública). El propio marco define los datos abiertos como información *"bajo licencia abierta y sin restricciones legales para su aprovechamiento"*. **No se encontró una licencia con nombre propio (tipo CC BY) declarada específicamente para estas capas rásteres**, a diferencia de Hansen o el DANE | Muy probablemente permitido, por el marco de datos abiertos — **confirmar con el IDEAM antes de comercializar** | Atribución al IDEAM / Sistema de Monitoreo de Bosques y Carbono, citando el año de la capa. Dado que es la fuente oficial del país, conviene además dejar claro en cualquier producto derivado que el IDEAM no avala ni valida el análisis propio |
 | DANE — Marco Geoestadístico Nacional | CC BY 4.0 | Permitido | Atribución, en las palabras del propio DANE: *"Departamento Administrativo Nacional de Estadística - DANE: www.dane.gov.co"* |
 | GFW / GLAD-L / GLAD-S2 / RADD (evento) | CC BY 4.0 (confirmado para GFW en general y para RADD directamente desde Wageningen University; GLAD-L es muy probablemente el mismo caso — mismo laboratorio que Hansen GFC — pero no se encontró una página que lo confirme en esas palabras exactas específicamente para GLAD-L) | Permitido | Atribución por dataset; GFW advierte que "cada dataset tiene su propia licencia", así que conviene guardar un archivo de atribuciones junto a las tablas publicadas |
+| Landsat 8 y 9 (USGS), vía Microsoft Planetary Computer | Dominio público (datos del USGS) | Permitido | Solo los usa la demo (§2.6), que no alimenta ningún panel. Atribución sugerida: *"Landsat imagery courtesy of the U.S. Geological Survey"* |
+| Tablas del Observatorio (FINAGRO, SFC 414, EVA, ICA pecuario, catálogo de municipios) | Compartidas por el Observatorio para este trabajo, en su proyecto de BigQuery; no se publican en este repositorio | Depende del Observatorio y de la entidad que produce cada tabla | Confirmar con el Observatorio antes de usarlas o publicarlas fuera del trabajo |
 | ~~Google Earth Engine~~ (no se usa) | Edición gratuita/académica: uso no comercial únicamente | **Prohibido explícitamente** para este caso de uso | Nunca se usó en este pipeline — ver decisión 10, sección 4, y cita textual abajo |
 
 **Por qué no se usa Earth Engine** (cita textual de los términos de la
@@ -804,7 +819,7 @@ con alerta 1 085 131 ha, 28,01 % de las celda-mes con evento.
 
 ### Qué reporta cada fuente, lado a lado
 
-| Año | GFW alerta (ha) | Hansen pérdida (ha) | IDEAM def. (ha) | Oficial IDEAM (ha) | Hansen/IDEAM | GFW/IDEAM |
+| Año | GFW alerta (ha) | Hansen pérdida (ha) | IDEAM def. (ha) | Oficial IDEAM (ha) | Hansen / IDEAM def. | GFW / IDEAM def. |
 |---|---|---|---|---|---|---|
 | 2021 | 195 833 | 265 200 | 173 663 | 174 103 | 1,53 | 1,13 |
 | 2022 | 172 082 | 266 168 | 123 204 | 123 517 | 2,16 | 1,40 |
@@ -845,7 +860,8 @@ intercambiables:
 | `bosque_base_ha` | Hansen: dosel ≥ `umbral_dosel`, plantaciones incluidas | 77 713 177 ha |
 | `bosque_ideam_ha` | IDEAM: bosque natural, definición nacional | 59 294 546 ha |
 
-**El mismo territorio, el mismo año, una diferencia del 31 %.** La brecha
+**El mismo territorio y casi el mismo momento: Hansen cuenta un 31 % más
+de bosque que el IDEAM.** La brecha
 proviene de la definición de la palabra "bosque": Hansen cuenta como
 bosque cualquier píxel con dosel suficiente, incluidas plantaciones
 forestales y rastrojo alto, mientras la definición nacional de bosque
@@ -856,9 +872,9 @@ denominador debe contener al numerador**:
 
 | Panel | Denominador correcto | Por qué |
 |---|---|---|
-| Alertas GFW | `bosque_base_ha` | Las alertas se disparan también fuera del bosque natural. Con el denominador del IDEAM, **843 celdas darían tasas superiores al 100 %** (máximo observado 130,3); con el de Hansen, ninguna |
+| Alertas GFW | `bosque_base_ha` | Las alertas se disparan también fuera del bosque natural. En **843 celdas** las alertas acumuladas superan el bosque natural del IDEAM: 693 no tienen bosque natural según el IDEAM, y en las otras 150 las alertas llegan hasta 130 veces ese bosque. Con el de Hansen, ninguna |
 | Hansen | `bosque_base_ha` | Numerador y denominador salen del mismo producto: son internamente consistentes |
-| IDEAM | `bosque_ideam_ha` | `def_ha` cuenta solo bosque natural destruido. Dividirlo entre el bosque de Hansen mezcla definiciones y **subestima la tasa entre un 30 % y un 45 %** |
+| IDEAM | `bosque_ideam_ha` | `def_ha` cuenta solo bosque natural destruido. Dividirlo entre el bosque de Hansen mezcla definiciones y **subestima la tasa**: un 24 % a nivel nacional y, en promedio, entre un 30 % y un 35 % en las celdas con deforestación |
 
 `bosque_base_ha` se conserva en los cuatro paneles pese a lo anterior,
 porque es lo que garantiza que cubran el mismo conjunto de celdas y
@@ -866,7 +882,7 @@ permite compararlos sobre un denominador común.
 
 La descripción columna por columna de los cuatro paneles, con ejemplos de
 cómo inspeccionarlos en `pandas`, está en
-[GUIA_CODIGO.md, sección 4](GUIA_CODIGO.md#4-cómo-se-ven-las-cuatro-tablas).
+[GUIA_CODIGO.md, sección 2](GUIA_CODIGO.md#2-cómo-se-ven-las-cuatro-tablas).
 
 ---
 

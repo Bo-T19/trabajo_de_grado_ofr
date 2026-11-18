@@ -1,4 +1,4 @@
-# Cómo se deriva deforestación desde Landsat, paso a paso
+# 4. Demo de Landsat: cómo se deriva deforestación, paso a paso
 
 Recorrido completo de [`demo_landsat_caqueta.py`](../pipeline/entendimiento/demo_landsat_caqueta.py):
 qué hace cada bloque de código, por qué está escrito así, y qué significa
@@ -7,11 +7,59 @@ cada número del resultado.
 **Qué papel cumple en la tesis.** Esta demo es parte del entendimiento de
 los datos. El panel usa cifras que calcularon otros —GLAD-L, Hansen, el
 IDEAM—, y la demo replica en una zona piloto el tipo de cálculo con que
-se obtienen, para entenderlo bien y no tomarlo como dado. Ver la
-sección 1.
+se obtienen, para entenderlo bien y no tomarlo como dado. Es opcional: no
+alimenta ninguna tabla ni ningún modelo.
 
-Este documento asume que ya leyó [`METODOLOGIA.md`](METODOLOGIA.md)
-sección 1.2, donde se explica qué mide cada fuente del proyecto.
+Lo que mide cada fuente del proyecto está en [`1_FUENTES.md`](1_FUENTES.md)
+y, con más detalle, en [`referencia/METODOLOGIA.md`](referencia/METODOLOGIA.md), sección 1.2.
+
+---
+
+## Resumen
+
+**Qué hace.** En una zona piloto de Caquetá, parte de imágenes Landsat 8 y
+9 crudas y detecta la pérdida de bosque con el mismo tipo de cálculo que
+usan los productos publicados. Después compara el resultado con las alertas
+GLAD-L y mide dónde y por qué se aparta.
+
+**Qué necesita y cómo se corre.**
+
+| Insumo | De dónde sale | Credencial |
+|---|---|---|
+| Escenas Landsat | Catálogo STAC de Microsoft Planetary Computer | Ninguna |
+| Bosque inicial | Los gránulos de Hansen de `datos/hansen/` (Paso 2 de `2_DESCARGA_DE_DATOS.md`) | Ninguna |
+| GLAD-L | Ráster `date_conf` de Global Forest Watch | La API key de GFW |
+
+```powershell
+python main_local.py demo-landsat
+```
+
+La primera vez tarda unos 13 minutos; las siguientes, segundos, porque los
+compuestos quedan en caché. Las salidas quedan en `datos/demo/`. El detalle
+está al final, en «Cómo volver a correrlo».
+
+**El método.** Un píxel cuenta como pérdida si cumple tres condiciones:
+
+1. era bosque al inicio, según Hansen (dosel de al menos 30 %);
+2. su índice NBR cayó más que un umbral entre la temporada seca de 2022 y
+   la de 2023;
+3. pertenece a un parche de al menos 1 ha.
+
+**Qué dio.** Sobre la mitad de la zona que no se usó para calibrar:
+
+| Métrica | Valor |
+|---|---|
+| Concordancia de Lin, hectáreas por celda de 5 km | **0,902** |
+| Correlación de Pearson, por celda | 0,909 |
+| Precisión, a nivel de píxel | 0,549 |
+| Sensibilidad, a nivel de píxel | 0,467 |
+| F1, a nivel de píxel | 0,505 |
+
+Como referencia, GLAD-L, Hansen y el IDEAM concuerdan entre sí en 2022 con
+un F1 por píxel de 0,44 a 0,61. La réplica cae dentro de ese rango. Por
+tamaño de claro, encuentra el 88 % de los claros de GLAD-L mayores de 30 ha
+y el 23 % de los de 1 a 3 ha. Qué significan estas cifras está en «Los
+resultados, interpretados» y en «¿Es bueno un F1 de 0,505?».
 
 ---
 
@@ -1742,11 +1790,22 @@ los productos publicados, y después cambiar una decisión a la vez y ver
 cuánto se mueve la cifra agregada. La vara para juzgar cada cambio sería
 el dato oficial agregado, porque el IDEAM reporta también por
 departamento y la agregación de sus capas en este proyecto ya reproduce
-su cifra nacional (ver `METODOLOGIA.md`, sección 8).
+su cifra nacional (ver `referencia/METODOLOGIA.md`, sección 8).
 
 ---
 
 ## Cómo volver a correrlo
+
+Antes hace falta:
+
+- los gránulos de Hansen en `datos/hansen/` (Paso 2 de `2_DESCARGA_DE_DATOS.md`),
+  para el bosque inicial;
+- la API key de Global Forest Watch (`2_DESCARGA_DE_DATOS.md`, sección 1.5), para
+  traer GLAD-L;
+- conexión a internet. Las imágenes Landsat se leen de Microsoft Planetary
+  Computer, que no pide cuenta.
+
+Desde la raíz del repositorio:
 
 ```powershell
 python main_local.py demo-landsat

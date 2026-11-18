@@ -9,15 +9,15 @@ folium>=0.15               # mapa interactivo (mapa_folium.py)
 branca>=0.7                # escala de color del mapa; igual que shapely, llega con folium pero se importa directo
 scipy>=1.11               # componentes conexas para el filtro de parche (demo_landsat_caqueta.py) y spearmanr (catalogo_paneles.ipynb, seccion 7: correlacion entre fuentes)
 matplotlib>=3.7            # graficas del analisis exploratorio (catalogo_paneles.ipynb, seccion 5)
-seaborn>=0.13               # estilo y graficas de panel_municipal_analisis.ipynb, exploratorio_eva_ica_pecuario.ipynb y modelos/gradient_boosting.ipynb (faltaba en esta lista)
+seaborn>=0.13               # estilo y graficas de los notebooks de "procesamiento y eda/" y de "modelos y clusters/"
 jupyter>=1.0               # entorno del analisis exploratorio
 google-cloud-bigquery>=3.25 # subir_bigquery.py y describir_fuentes(_profesor).py: leer/cargar tablas de BigQuery (propias y del profesor)
 db-dtypes>=1.2              # describir_fuentes(_profesor).py: to_dataframe() de un resultado de BigQuery
 tabulate>=0.9               # describir_fuentes(_profesor).py: DataFrame.to_markdown() para el reporte
 google-auth>=2.23           # describir_fuentes.py (y describir_fuentes_profesor.py, que reutiliza su credencial): cuenta de servicio pipeline-satelital via google.oauth2.service_account; llega con google-cloud-bigquery, pero el codigo lo importa de forma explicita
-lightgbm>=4.3               # modelos/gradient_boosting.ipynb: tecnica Gradient Boosting (Tabla 26), via LGBMClassifier/LGBMRegressor
-scikit-learn>=1.3           # modelos/gradient_boosting.ipynb: metricas (balanced_accuracy_score, r2_score, mean_absolute_error, roc_auc_score) y GroupKFold para validar dejando departamentos completos por fuera
-joblib>=1.3                 # modelos/gradient_boosting.ipynb: guarda los modelos entrenados (.joblib) en modelos/resultados
-shap>=0.44                  # modelos/gradient_boosting.ipynb: TreeExplainer para la direccion del efecto de cada variable (seccion 7.3). >=0.54 exige Python 3.11+; se bajo el minimo porque se verifico que 0.44-0.49 ya devuelven el mismo formato (array 2D) que usa el notebook
-statsmodels>=0.14            # modelos/regresion_logistica.ipynb: reestimacion con Logit (sm.Logit), VIF (variance_inflation_factor), errores robustos por cluster de municipio y efectos marginales (get_margeff); tambien la necesita modelos/comparacion_modelos.ipynb al ejecutar en vivo las celdas de preparacion de datos de regresion_logistica.ipynb
-openpyxl>=3.1                # modelos/segmentacion_municipios.ipynb: motor que usa pandas (pd.ExcelWriter) para guardar el libro de resultados en docs/tablas/segmentacion_municipios.xlsx (varias hojas: municipios, perfil por mediana, resumen, indices, estabilidad)
+lightgbm>=4.3               # "modelos y clusters/gradient_boosting.ipynb": tecnica Gradient Boosting (Tabla 26), via LGBMClassifier/LGBMRegressor
+scikit-learn>=1.3           # todos los notebooks de "modelos y clusters/": K-means y PCA de la segmentacion; random forest y regresion logistica; metricas y GroupKFold para validar dejando departamentos completos por fuera
+joblib>=1.3                 # gradient_boosting, random_forest y regresion_logistica guardan sus modelos entrenados (.joblib) en "modelos y clusters/resultados/"; comparacion_modelos carga los del gradient boosting
+shap>=0.44                  # gradient_boosting, random_forest y regresion_logistica: direccion del efecto de cada variable. >=0.54 exige Python 3.11+; se bajo el minimo porque se verifico que 0.44-0.49 ya devuelven el mismo formato (array 2D) que usan los notebooks
+statsmodels>=0.14            # regresion_logistica.ipynb: Logit con errores agrupados por departamento, VIF, efectos marginales y regresion Gamma; random_forest.ipynb y regresion_logistica.ipynb: correccion de Holm (multipletests)
+openpyxl>=3.1                # motor de Excel de pandas: segmentacion_municipios.ipynb guarda documento/tablas/segmentacion_municipios.xlsx y "modelos y clusters/resultados/segmentacion_municipios_clusters.xlsx"; segmentos_y_riesgo.ipynb lee el primero

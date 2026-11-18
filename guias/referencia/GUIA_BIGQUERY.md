@@ -1,11 +1,9 @@
-# Guía de BigQuery — configuración y cambios del pipeline
+# Guía de BigQuery — administración de Google Cloud
 
-Este documento es el compañero de `GUIA_CODIGO.md`, pero para la parte
-de **nube** en vez de la parte que corre en cada PC: qué se creó en
-Google Cloud, por qué, y qué cambió en el código para conectar el
-pipeline local con eso. Está escrito para que cualquier persona del
-equipo —no solo quien lo configuró— entienda qué existe, pueda usarlo,
-y pueda reproducirlo o extenderlo si hace falta.
+Documento **para el equipo**: qué se creó en Google Cloud, por qué, cómo se
+da acceso a alguien nuevo y qué está pendiente. Para reproducir el trabajo
+no hace falta leerlo: lo necesario sobre la llave de BigQuery está en
+[`2_DESCARGA_DE_DATOS.md`](../2_DESCARGA_DE_DATOS.md), sección 1.5.
 
 *(Configurado el 13-14 de septiembre de 2026. Si algo de lo descrito
 aquí cambia — un rol, un dataset nuevo, la cuenta de facturación — hay
@@ -16,7 +14,7 @@ que actualizar este documento en el mismo commit que el cambio.)*
 1. [Qué existe hoy, en una tabla](#1-qué-existe-hoy-en-una-tabla)
 2. [Por qué está organizado así](#2-por-qué-está-organizado-así)
 3. [Paso a paso: cómo se configuró (reproducible)](#3-paso-a-paso-cómo-se-configuró-reproducible)
-4. [Cambios en el código de este repositorio](#4-cambios-en-el-código-de-este-repositorio)
+4. [Qué usa esta configuración](#4-qué-usa-esta-configuración)
 5. [Cómo lo usa cada integrante del equipo](#5-cómo-lo-usa-cada-integrante-del-equipo)
 6. [Cómo agregar a alguien nuevo al equipo](#6-cómo-agregar-a-alguien-nuevo-al-equipo)
 7. [Pendientes y cosas por verificar](#7-pendientes-y-cosas-por-verificar)
@@ -30,8 +28,8 @@ que actualizar este documento en el mismo commit que el cambio.)*
 |---|---|---|
 | Proyecto de Google Cloud | `ofr-credito-deforestacion` | Contenedor de todo lo de abajo. Es un proyecto **propio del equipo**, distinto del proyecto de BigQuery del profesor/Observatorio (ver sección 7). |
 | Cuenta dueña del proyecto | `trabajodegrado139@gmail.com` | Cuenta de Gmail creada para el equipo; es la que tiene rol *Owner* y con la que se entra a la consola por navegador. |
-| Dataset de BigQuery | `staging` (ubicación `US`) | Una tabla por fuente, tal como la genera cada script del pipeline. Ver sección 2. |
-| Dataset de BigQuery | `analitica` (ubicación `US`) | Tablas ya integradas/cruzadas (por ejemplo, deforestación + crédito agropecuario), listas para el tablero o el modelo. Todavía vacío: se llenará en una fase posterior del proyecto. |
+| Dataset de BigQuery | `staging` (ubicación `US`) | Una tabla por fuente, tal como la genera cada script del pipeline. Ver sección 2. **Las tablas vencen a los 60 días** (modo Sandbox, sección 8): al 17/11/2026 el dataset está vacío, y hay que volver a subirlas con `subir-bigquery` antes de consultarlas. |
+| Dataset de BigQuery | `analitica` (ubicación `US`) | Pensado para tablas ya integradas/cruzadas (por ejemplo, deforestación + crédito agropecuario). Está vacío: el panel municipal que cruza esas fuentes se arma en local (`datos/analisis/`) y no se sube. |
 | Cuenta de servicio | `pipeline-satelital@ofr-credito-deforestacion.iam.gserviceaccount.com` | Identidad que usa el **código** (no una persona) para escribir en BigQuery. Ver sección 2 para por qué existe una cuenta aparte. |
 | Roles de esa cuenta | `BigQuery Data Editor` + `BigQuery Job User` (a nivel de proyecto) | Puede crear/reemplazar tablas en cualquier dataset del proyecto y correr los jobs de carga. No puede tocar facturación, borrar el proyecto, ni administrar permisos. |
 | Llave de la cuenta de servicio | archivo `.json`, tipo `TYPE_GOOGLE_CREDENTIALS_FILE` | Credencial que usa `subir_bigquery.py` para autenticarse como `pipeline-satelital` sin intervención humana. Cada integrante la guarda localmente en `datos/logs/bigquery-key.json` (ver sección 5). |
@@ -51,10 +49,14 @@ llegó (crudo, no tabular), va a un bucket de Cloud Storage (pendiente,
 sección 7). Dentro de BigQuery, separar **staging** (una tabla limpia
 por fuente, sin cruzar) de **analitica** (tablas ya integradas) permite
 reconstruir la capa final desde cero si cambia la metodología del
-cruce, sin tener que volver a tocar ni re-descargar las fuentes. Hoy
-`staging` tiene las cuatro tablas del panel satelital (sección 4);
-`analitica` quedará para cuando exista la tabla municipal integrada con
-crédito agropecuario y producción.
+cruce, sin tener que volver a tocar ni re-descargar las fuentes.
+`staging` recibe las cuatro tablas del panel satelital cuando se corre
+`subir-bigquery` (sección 4), y en modo Sandbox vencen a los 60 días
+(sección 8).
+`analitica` sigue vacío: el cruce con el crédito y la producción, el panel
+municipal, se terminó haciendo en local con
+`procesamiento y eda/panel_municipal_armado.ipynb`, que lee las tablas del
+Observatorio desde BigQuery y guarda el resultado en `datos/analisis/`.
 
 **Ubicación `US` (multi-región) en ambos datasets.** Es la ubicación
 por defecto más simple para el nivel gratuito de BigQuery (Sandbox) y
@@ -72,7 +74,7 @@ dar el permiso mínimo que necesita (aquí, solo escribir en BigQuery y
 correr jobs) sin exponer la cuenta completa del equipo. El detalle
 completo de este razonamiento —y por qué el archivo `.json` de la
 llave debe tratarse como una contraseña— está en `GUIA_CODIGO.md`,
-sección 5.16.
+sección 3.16.
 
 ## 3. Paso a paso: cómo se configuró (reproducible)
 
@@ -157,34 +159,31 @@ cuenta institucional) — ver sección 7. Una vez activa:
    ese bucket específico** (no a nivel de proyecto), para que el
    código pueda subir y reemplazar archivos crudos ahí.
 
-## 4. Cambios en el código de este repositorio
+## 4. Qué usa esta configuración
 
-Todo lo de esta sección ya está aplicado en el repositorio; se deja
-registrado aquí como changelog, para que quede claro qué cambió y por
-qué la próxima vez que alguien revise el historial de Git.
+La llave de la cuenta de servicio se usa para cuatro cosas:
 
-| Archivo | Cambio |
+| Qué | Para qué la usa |
 |---|---|
-| `subir_bigquery.py` | **Nuevo.** Lee los cuatro CSV de `datos/panel/` que ya existan y los sube (modo reemplazar, `WRITE_TRUNCATE`) al dataset `staging` de `ofr-credito-deforestacion`, autenticado con la cuenta de servicio `pipeline-satelital`. Ver `GUIA_CODIGO.md` sección 5.16 para el detalle completo. |
-| `main_local.py` | Nuevo subcomando `subir-bigquery` (con `--solo` y `--dataset`), agregado al docstring de uso y al despachador de subcomandos, siguiendo el mismo patrón que los demás pasos del pipeline (lanza `subir_bigquery.py` como subproceso). |
-| `requirements_local.txt` | Se agregó `google-cloud-bigquery>=3.25`, la única dependencia nueva que necesita `subir_bigquery.py`. |
-| `GUIA_CODIGO.md` | Nueva sección **5.16** (referencia de `subir_bigquery.py`, con la tabla de alias → archivo → tabla destino, y el apartado "¿Por qué una cuenta de servicio con `key.json`...?") y nuevo **Paso 11** en la sección 3 ("Orden exacto de ejecución"). |
-| `GUIA_BIGQUERY.md` | **Nuevo** (este archivo). |
+| `python main_local.py subir-bigquery` (Paso 11) | Escribir las cuatro tablas en `staging` |
+| `python main_local.py describir-fuentes` (Paso 12) | Leer las cuatro tablas de `staging` |
+| `python main_local.py describir-fuentes-profesor` (Paso 13) | Leer las cinco tablas del Observatorio en `prueba-ofr` |
+| `procesamiento y eda/panel_municipal_armado.ipynb` (Paso 14) | Descargar las cinco tablas del Observatorio y armar el panel municipal, del que dependen el análisis, la segmentación y los modelos |
 
-Ningún script existente (`descargar_*.py`, `panel_*.py`, `consolidar.py`,
-etc.) se modificó: `subir_bigquery.py` solo **lee** los CSV que esos
-scripts ya producen en `datos/panel/`, como un paso final y opcional.
+También la usan cuatro notebooks exploratorios que leen directo las tablas
+del Observatorio (ver `3_NOTEBOOKS.md`, sección 2).
+
+Sin la llave no se puede hacer nada de esto. Alguien de fuera del equipo
+que quiera reproducir el trabajo tiene que pedírsela al equipo.
 
 ## 5. Cómo lo usa cada integrante del equipo
 
-Cada persona del equipo que quiera correr `subir-bigquery` en su propia
-máquina necesita, una sola vez:
+Cada persona que vaya a usarla en su propia máquina necesita, una sola vez:
 
-1. Tener el repositorio actualizado (`git pull`) — trae `subir_bigquery.py`
-   y el `requirements_local.txt` actualizado.
-2. Instalar la dependencia nueva: `pip install -r requirements_local.txt`
-   (con el entorno virtual del proyecto activado, ver `GUIA_CODIGO.md`
-   sección 2.3-2.4).
+1. Tener el repositorio actualizado (`git pull`).
+2. Instalar las dependencias: `pip install -r requirements_local.txt`
+   (con el entorno virtual del proyecto activado, ver
+   `2_DESCARGA_DE_DATOS.md`, secciones 1.3 y 1.4).
 3. Conseguir el archivo `bigquery-key.json` (quien lo generó lo
    comparte por un canal seguro — **nunca** por chat/correo en texto
    plano ni por Git; ver sección 6 para la alternativa de generar una
@@ -206,8 +205,9 @@ consultas SQL a mano, etc.) es un permiso aparte, ver sección 6.
 
 Hay dos accesos distintos y es fácil confundirlos:
 
-**(a) Poder correr el pipeline y subir tablas** — no requiere nada en
-Google Cloud, solo el archivo `bigquery-key.json` (sección 5).
+**(a) Poder correr el pipeline, subir tablas y leer las del
+Observatorio** — no requiere nada en Google Cloud, solo el archivo
+`bigquery-key.json` (sección 5).
 
 **(b) Poder entrar a la consola de Google Cloud** (para explorar las
 tablas visualmente, correr SQL desde el navegador, revisar permisos,
@@ -238,7 +238,7 @@ llaves activas a la vez, cada una revocable por separado.
   sección 3.6 para los pasos una vez esté disponible.
 - ~~Ubicación del proyecto del profesor/Observatorio~~ — **resuelto**:
   las consultas cross-project contra `prueba-ofr` (`describir_fuentes_profesor.py`,
-  GUIA_CODIGO.md sección 5.18) corren sin error de ubicación, así que
+  GUIA_CODIGO.md sección 3.18) corren sin error de ubicación, así que
   las regiones son compatibles y no hace falta copiar datos primero.
 - ~~Acceso de la cuenta de servicio al proyecto del profesor~~ —
   **resuelto**: el profesor le dio acceso de lectura a las tres tablas
@@ -248,7 +248,7 @@ llaves activas a la vez, cada una revocable por separado.
   servicio** `pipeline-satelital`. Ya verificado y en uso:
   `describir_fuentes_profesor.py` usa esa cuenta de servicio (la misma
   de `describir_fuentes.py`), no la cuenta personal vía ADC -- ver
-  GUIA_CODIGO.md sección 5.18. El 09/10/2026 el profesor compartió dos
+  GUIA_CODIGO.md sección 3.18. El 09/10/2026 el profesor compartió dos
   tablas más, de producción agropecuaria (`Produccion.eva_full_enriquecido`
   y `Produccion.ICA_pecuario`, esta última "aún se está arreglando" según
   su propio correo), esta vez directo a la cuenta de servicio -- sin pasar
@@ -256,12 +256,17 @@ llaves activas a la vez, cada una revocable por separado.
   lectura del Observatorio. No hace falta copiar ninguna al proyecto
   propio: se consultan directamente con su `proyecto.dataset.tabla`
   completo en cualquier `JOIN`.
-- **Tablas de `analitica`**: todavía no existen. Se crearán cuando el
-  equipo defina el cruce municipal entre el índice de deforestación
-  (`staging`) y las variables financieras del Observatorio (Fase 3 del
-  proyecto). La compatibilidad de la llave municipal (`cod_dane`) ya se
+- **Tablas de `staging` vencidas**: en modo Sandbox las tablas vencen a
+  los 60 días, y al 17/11/2026 las cuatro ya habían vencido. Mientras no
+  se active facturación, hay que volver a correr `subir-bigquery` antes
+  de usar `describir-fuentes`.
+- **Tablas de `analitica`**: no existen. El cruce municipal entre la
+  deforestación y las variables financieras y de producción del
+  Observatorio se hizo en local (`panel_municipal_armado.ipynb`, que deja
+  el panel en `datos/analisis/`), sin subirlo a BigQuery. Subirlo a
+  `analitica` queda como opción. La compatibilidad de la llave municipal (`cod_dane`) ya se
   verificó por separado -- ver `catalogo_paneles.ipynb` sección 6 y
-  GUIA_CODIGO.md sección 10: 99.9% de match tratando `cod_dane` como
+  3_NOTEBOOKS.md, sección 2: 99.9% de match tratando `cod_dane` como
   texto de 5 caracteres con cero a la izquierda. La tabla `staging.*` de
   este proyecto guardaba `cod_dane` como INTEGER (perdía el cero) hasta
   que se corrigió en `subir_bigquery.py` el 17/09/2026 (forzando
@@ -284,8 +289,15 @@ entorno `GOOGLE_APPLICATION_CREDENTIALS` con la ruta completa al
 
 **Tablas con menos de 10 GB / consultas con poco volumen y sin
 facturación activa** → es normal, es el modo Sandbox de BigQuery. Con
-Sandbox las tablas nuevas expiran a los 60 días de inactividad por
-defecto; si se necesita que una tabla de `staging`/`analitica` no
-expire, hay que activar facturación (lo cual también habilita el
-bucket, sección 3.6) o volver a correr `subir-bigquery` antes de que se
-cumplan los 60 días.
+Sandbox cada tabla vence 60 días después de creada: los dos datasets
+tienen ese vencimiento por defecto (5.184.000.000 ms). Si se necesita que
+una tabla de `staging`/`analitica` no venza, hay que activar facturación
+(lo cual también habilita el bucket, sección 3.6). Si ya venció,
+`subir-bigquery` la vuelve a crear.
+
+**`describir-fuentes` falla con "Not found: Table"** → las tablas de
+`staging` vencieron (ver el punto anterior). Correr primero
+`python main_local.py subir-bigquery`, que las vuelve a crear desde
+`datos/panel/`, y después `describir-fuentes`. Las tablas del Observatorio
+(`prueba-ofr`) no vencen por esto, porque viven en el proyecto del
+profesor.

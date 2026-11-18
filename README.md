@@ -3,51 +3,47 @@
 Trabajo de grado de la Maestría en Analítica de la Pontificia Universidad
 Javeriana, con el Observatorio Financiero Rural.
 
-El repositorio hace dos cosas.
+El repositorio hace tres cosas:
 
-**1. Cuatro tablas de deforestación** sobre una misma grilla de 5 × 5 km que
-cubre Colombia, a partir de fuentes satelitales públicas:
+1. **Cuatro tablas de deforestación** sobre una misma grilla de 5 × 5 km que
+   cubre Colombia, a partir de fuentes satelitales públicas: alertas de
+   Global Forest Watch, pérdida de cobertura de Hansen, y la deforestación
+   oficial y las detecciones tempranas del IDEAM.
+2. **Un panel municipal** que cruza esa deforestación con el crédito de
+   FINAGRO, los cultivos de la EVA y el ganado del ICA, más un análisis
+   exploratorio de ese panel.
+3. **Segmentación y modelos de riesgo**:
+   - una segmentación de los municipios rurales según su perfil productivo y
+     financiero;
+   - tres modelos que responden *¿deforesta?* y, si deforesta, *¿cuánto?*;
+   - una comparación de los modelos y un cruce entre los segmentos y el
+     riesgo.
 
-| Tabla | Fuente | Qué mide | Unidad |
-|---|---|---|---|
-| `panel_deforestacion_colombia` | Global Forest Watch | Alertas de disturbio | celda × mes |
-| `panel_hansen` | Hansen GFC | Pérdida de cobertura arbórea | celda × año |
-| `panel_ideam` | IDEAM / SMByC | Deforestación oficial | celda × periodo |
-| `panel_dtd` | IDEAM / SMByC | Detecciones tempranas | celda × trimestre |
+## Cómo usar esta documentación
 
-Cada una mide un concepto distinto, así que sus cifras no se suman entre
-sí. El porqué está en [`docs/METODOLOGIA.md`](docs/METODOLOGIA.md).
+Para reproducir el trabajo se leen cuatro documentos, en este orden:
 
-**2. Un panel municipal** que cruza la deforestación del IDEAM y de GFW con
-las tablas que compartió el Observatorio (crédito de FINAGRO, cultivos de la
-EVA y ganado del ICA), y un análisis de ese panel en los municipios rurales y
-rurales dispersos:
-
-| Tabla (en `datos/analisis/`) | Unidad | Qué tiene |
+| # | Documento | Qué tiene |
 |---|---|---|
-| `municipio_anio` | municipio × año, 2020-2025 | Deforestación del IDEAM y alertas de GFW; crédito de FINAGRO, total y del eslabón de producción (total y por cadena); área cosechada de la EVA; bovinos y fincas del ICA; atributos del municipio |
-| `municipio_mes` | municipio × mes, 2020-01 a 2026-06 | Alertas de GFW y crédito |
-| `municipio_cultivo_anio` | municipio × cultivo × año, 2019-2024 | Área cosechada de cada cultivo de la EVA |
+| 1 | [`guias/1_FUENTES.md`](guias/1_FUENTES.md) | Qué es cada fuente de datos (las cuatro propias y las cinco del Observatorio), qué periodo cubre y cómo se accede |
+| 2 | [`guias/2_DESCARGA_DE_DATOS.md`](guias/2_DESCARGA_DE_DATOS.md) | Cómo preparar el entorno y las credenciales, descargar los datos, armar las tablas y el panel municipal, y comprobar que salió bien |
+| 3 | [`guias/3_NOTEBOOKS.md`](guias/3_NOTEBOOKS.md) | Cómo correr el análisis exploratorio, la segmentación y los modelos, y qué resultados esperar |
+| 4 | [`guias/4_DEMO_LANDSAT.md`](guias/4_DEMO_LANDSAT.md) | La demo que replica con imágenes Landsat el cálculo de pérdida de bosque. Es opcional |
 
-Los notebooks del panel municipal se corren en este orden:
+Y tres de referencia, que no hacen falta para correr nada:
 
-1. [`panel_municipal_armado.ipynb`](procesamiento%20y%20eda/panel_municipal_armado.ipynb):
-   descarga las tablas del Observatorio y arma las tres tablas.
-2. [`panel_municipal_analisis.ipynb`](procesamiento%20y%20eda/panel_municipal_analisis.ipynb):
-   índice de cambio, concentración (Lorenz y Pareto), cultivos y ganado de
-   los 10 municipios que más deforestan, correlaciones y mapa.
-3. [`estadisticas_descriptivas.ipynb`](procesamiento%20y%20eda/estadisticas_descriptivas.ipynb):
-   estadística descriptiva de todas las tablas, que se exporta a
-   `docs/figuras/` y `docs/tablas/`.
-4. [`segmentacion_municipios.ipynb`](modelos%20y%20clusters/segmentacion_municipios.ipynb):
-   segmenta los municipios rurales según su perfil productivo y financiero
-   (K-means) y compara la deforestación de cada segmento. Guarda el cluster
-   de cada municipio en `modelos y clusters/resultados/` y el detalle en
-   `docs/tablas/`.
+- [`guias/referencia/METODOLOGIA.md`](guias/referencia/METODOLOGIA.md): el porqué de cada decisión de diseño.
+- [`guias/referencia/GUIA_CODIGO.md`](guias/referencia/GUIA_CODIGO.md): cómo está hecho el código, para quien quiera modificarlo.
+- [`guias/referencia/GUIA_BIGQUERY.md`](guias/referencia/GUIA_BIGQUERY.md): la administración de Google Cloud, para el equipo.
 
-## Cómo empezar
+Las columnas y una muestra de cada tabla están en
+[`guias/columnas/DESCRIPCION_FUENTES.md`](guias/columnas/DESCRIPCION_FUENTES.md) y
+[`guias/columnas/DESCRIPCION_FUENTES_PROFESOR.md`](guias/columnas/DESCRIPCION_FUENTES_PROFESOR.md),
+que se generan solos.
 
-Todo se corre desde esta carpeta, con un solo punto de entrada:
+## Inicio rápido
+
+Con Python 3.10 a 3.13, desde la raíz del repositorio:
 
 ```bash
 python -m venv .venv
@@ -58,35 +54,29 @@ python main_local.py --help     # lista de subcomandos
 python main_local.py estado     # qué hay en disco y qué falta
 ```
 
-El orden completo de ejecución, paso por paso, está en
-[`docs/GUIA_CODIGO.md`](docs/GUIA_CODIGO.md), sección 3. Las cuatro tablas de
-deforestación solo necesitan una API key gratuita de Global Forest Watch
-(`python main_local.py configurar-gfw`). El panel municipal necesita además
-la llave de la cuenta de servicio de BigQuery, para leer las tablas del
-Observatorio (sección 2.5 de la guía). Las dos credenciales quedan en
-`datos/logs/` y nunca se suben al repositorio.
+Hacen falta dos credenciales (ver `guias/2_DESCARGA_DE_DATOS.md`, sección 1.5):
+
+- **Una API key de Global Forest Watch.** Es gratuita y sirve para las
+  cuatro tablas.
+- **La llave de la cuenta de servicio de BigQuery.** No es pública: hay que
+  pedírsela al equipo. Sin ella no se puede armar el panel municipal, y
+  por lo tanto tampoco correr el análisis, la segmentación ni los modelos.
+
+Aun sin la llave se pueden consultar los resultados de la corrida de
+referencia: los notebooks están guardados con sus salidas, y las tablas de
+resultados están en `modelos y clusters/resultados/` y `documento/tablas/`.
 
 ## Dónde está cada cosa
 
 | Carpeta | Qué contiene |
 |---|---|
-| `main_local.py` | El único punto de entrada: `python main_local.py <subcomando>` |
-| `pipeline/` | Todo el código. En la raíz del paquete, las piezas compartidas (configuración, reparto zonal, bosque base, mapa) |
-| `pipeline/descarga/` | Etapa 1: grilla e insumos (Hansen, GFW, límites del DANE, capas y detecciones del IDEAM) |
-| `pipeline/paneles/` | Etapa 2: las cuatro tablas |
-| `pipeline/bigquery/` | Etapa 3: subida de las tablas a BigQuery |
-| `pipeline/entendimiento/` | Descripción de las fuentes y réplica del cálculo con imágenes Landsat |
-| `procesamiento y eda/` | Notebooks del catálogo de las tablas, la exploración de las tablas del Observatorio, el panel municipal y las estadísticas descriptivas |
-| `modelos y clusters/` | Notebooks de modelos sobre el panel municipal: segmentación de los municipios (K-means) y gradient boosting. Sus salidas van en `resultados/` |
-| `docs/` | Metodología, guías y descripción de las fuentes |
-| `docs/figuras/`, `docs/tablas/` | Figuras y tablas exportadas para el documento del trabajo |
-| `datos/` | Todo lo que se descarga y se produce. No se versiona; solo se conserva la estructura de carpetas |
-| `legacy/` | Código archivado, fuera del pipeline activo |
-
-## Documentación
-
-- [`docs/METODOLOGIA.md`](docs/METODOLOGIA.md): qué mide cada fuente y por qué se tomó cada decisión. Es el documento para leer primero.
-- [`docs/GUIA_CODIGO.md`](docs/GUIA_CODIGO.md): cómo está construido el código y cómo correrlo desde cero.
-- [`docs/GUIA_DEMO_LANDSAT.md`](docs/GUIA_DEMO_LANDSAT.md): recorrido de la réplica del cálculo con Landsat.
-- [`docs/GUIA_BIGQUERY.md`](docs/GUIA_BIGQUERY.md): acceso y arquitectura de BigQuery.
-- [`docs/DESCRIPCION_FUENTES.md`](docs/DESCRIPCION_FUENTES.md) y [`docs/DESCRIPCION_FUENTES_PROFESOR.md`](docs/DESCRIPCION_FUENTES_PROFESOR.md): columnas, tipos y una muestra de las cuatro tablas propias y de las cinco del Observatorio. Se generan con `describir-fuentes` y `describir-fuentes-profesor`.
+| `main_local.py` | El único punto de entrada del pipeline: `python main_local.py <subcomando>` |
+| `pipeline/` | Todo el código del pipeline: descarga de insumos, las cuatro tablas, subida a BigQuery, descripción de las fuentes y demo de Landsat |
+| `procesamiento y eda/` | Notebooks del panel municipal y del análisis exploratorio |
+| `modelos y clusters/` | Notebooks de la segmentación, los tres modelos de riesgo y su comparación, y el cruce entre segmentos y riesgo |
+| `modelos y clusters/resultados/` | Salidas de la segmentación y de los modelos: tablas, métricas, predicciones y modelos entrenados |
+| `guias/` | Los cuatro documentos para reproducir el trabajo, numerados en orden de lectura |
+| `guias/referencia/` | Los documentos de consulta: metodología, guía del código y guía de BigQuery |
+| `guias/columnas/` | Columnas y muestra de cada tabla, generadas por los scripts |
+| `documento/` | Figuras (`figuras/`) y tablas (`tablas/`) exportadas para el documento del trabajo |
+| `datos/` | Todo lo que se descarga y se produce al armar las tablas y el panel. No se versiona; solo se conserva la estructura de carpetas |
