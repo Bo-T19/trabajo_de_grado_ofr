@@ -248,10 +248,14 @@ predicciones, importancias y lista de riesgo. Las diferencias con los archivos g
 ejemplo, en la regresión logística con departamentos por fuera, exactitud balanceada de 0,8248 frente a 0,8242;
 en el random forest, AUC de 0,92950 frente a 0,92947).
 
-Con otros años (prueba con 2024 en lugar de 2025) corrieron bien la segmentación (12) y el gradient boosting
-(13); el resto de la cadena con otros años se estaba probando al cerrar esta versión. No se pudo probar desde
-fuera lo que solo existe dentro de BigQuery Studio: la instalación de paquetes en el runtime y la
+Con otros años (prueba con 2024 en lugar de 2025, entrenando con 2021-2023) la segmentación y toda la cadena
+de modelos (12 a 17) corren de principio a fin, así que los años funcionan como parámetro. No se pudo probar
+desde fuera lo que solo existe dentro de BigQuery Studio: la instalación de paquetes en el runtime y la
 programación de corridas.
+
+Los notebooks de modelos de esta carpeta se adaptaron de las versiones de "modelos y clusters/" anteriores al
+commit `8a1f855` (20 de noviembre de 2026), que trajo versiones nuevas de esos notebooks. Esas versiones nuevas
+todavía no están pasadas a BigQuery.
 
 ---
 
