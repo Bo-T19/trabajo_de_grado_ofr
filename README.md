@@ -30,6 +30,10 @@ Para reproducir el trabajo se leen cuatro documentos, en este orden:
 | 3 | [`guias/3_NOTEBOOKS.md`](guias/3_NOTEBOOKS.md) | Cómo correr el análisis exploratorio, la segmentación y los modelos, y qué resultados esperar |
 | 4 | [`guias/4_DEMO_LANDSAT.md`](guias/4_DEMO_LANDSAT.md) | La demo que replica con imágenes Landsat el cálculo de pérdida de bosque. Es opcional |
 
+Para correr todo en BigQuery, en el proyecto del Observatorio, está
+[`notebooks_bigquery/README.md`](notebooks_bigquery/README.md): los mismos pasos convertidos en 18
+notebooks que cargan y actualizan las tablas en BigQuery y hacen el análisis y los modelos desde ahí.
+
 Y tres de referencia, que no hacen falta para correr nada:
 
 - [`guias/referencia/METODOLOGIA.md`](guias/referencia/METODOLOGIA.md): el porqué de cada decisión de diseño.
@@ -75,6 +79,7 @@ resultados están en `modelos y clusters/resultados/` y `documento/tablas/`.
 | `procesamiento y eda/` | Notebooks del panel municipal y del análisis exploratorio |
 | `modelos y clusters/` | Notebooks de la segmentación, los tres modelos de riesgo y su comparación, y el cruce entre segmentos y riesgo |
 | `modelos y clusters/resultados/` | Salidas de la segmentación y de los modelos: tablas, métricas, predicciones y modelos entrenados |
+| `notebooks_bigquery/` | Todo el trabajo en 18 notebooks para BigQuery Studio: carga y actualización de las tablas, análisis, segmentación, modelos y demo de Landsat |
 | `guias/` | Los cuatro documentos para reproducir el trabajo, numerados en orden de lectura |
 | `guias/referencia/` | Los documentos de consulta: metodología, guía del código y guía de BigQuery |
 | `guias/columnas/` | Columnas y muestra de cada tabla, generadas por los scripts |

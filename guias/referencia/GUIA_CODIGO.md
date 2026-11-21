@@ -86,6 +86,8 @@ trabajo_de_grado_ofr/
 │   ├── segmentos_y_riesgo.ipynb               cruza los segmentos con el riesgo de los modelos
 │   └── resultados/                            salidas de los notebooks oficiales (tablas, métricas, modelos .joblib)
 │
+├── notebooks_bigquery/       todo el trabajo en 18 notebooks para BigQuery Studio (ver su README.md)
+│
 ├── guias/                    la documentación
 │   ├── 1_FUENTES.md                      ← qué es cada fuente de datos
 │   ├── 2_DESCARGA_DE_DATOS.md            ← entorno, credenciales, descarga y armado de los datos

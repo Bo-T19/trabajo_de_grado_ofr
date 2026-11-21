@@ -34,7 +34,12 @@ FUENTE DE LOS LIMITES ADMINISTRATIVOS
 DANE, Marco Geoestadistico Nacional (MGN) 2023, nivel Departamento,
 servido como Feature Service publico de ArcGIS (sin autenticacion):
     https://services.arcgis.com/ioNRSZMYYlx0PUaB/arcgis/rest/services/
-    MarcoGeoestadisticoNacional2023_NivelDepartamento/FeatureServer/0
+    MGN2023_DPTO_POLITICO/FeatureServer/0
+
+En noviembre de 2026 el DANE retiro el servicio que se usaba antes
+(MarcoGeoestadisticoNacional2023_NivelDepartamento) y publico los mismos
+datos con este nombre. Se verifico que la grilla sale identica: las
+mismas 45.621 celdas, en el mismo orden y con el mismo departamento.
 
 Licencia confirmada: Creative Commons Attribution 4.0 (CC BY), uso
 comercial permitido con atribucion. El DANE especifica la atribucion asi:
@@ -68,7 +73,7 @@ SALIDA = "grilla_colombia_5km.csv"
 
 DANE_MGN_DEPARTAMENTOS = (
     "https://services.arcgis.com/ioNRSZMYYlx0PUaB/arcgis/rest/services/"
-    "MarcoGeoestadisticoNacional2023_NivelDepartamento/FeatureServer/0/query"
+    "MGN2023_DPTO_POLITICO/FeatureServer/0/query"
 )
 
 
