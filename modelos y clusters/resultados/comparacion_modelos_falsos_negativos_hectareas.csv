@@ -1,0 +1,5 @@
+,Gradient boosting,Random forest,Regresión logística
+falsos negativos,65.0,68.0,82.0
+hectáreas que dejan pasar,383.75,370.8125,896.25
+% de las hectáreas deforestadas,0.34799621624960964,0.3362640962555267,0.8127468633582088
+falsos positivos,29.0,29.0,34.0

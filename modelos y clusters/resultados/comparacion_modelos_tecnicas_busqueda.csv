@@ -1,0 +1,4 @@
+,técnica,combinaciones ¿deforesta?,combinaciones ¿cuánto?,hiperparámetros que se exploran,validación,métrica de selección
+Gradient boosting,grilla exhaustiva,54,27,"learning_rate, max_depth, min_child_samples, peso de clases (+ parada temprana, hasta 1.000 árboles)","GroupKFold(5) por departamento, 2021-2024","exactitud balanceada (umbral 0,5) / R²"
+Random forest,grilla exhaustiva,96,48,"max_depth, min_samples_leaf, max_features, peso de clases (500 árboles)","GroupKFold(5) por departamento, 2021-2024","exactitud balanceada (umbral 0,5) / R²"
+Regresión logística,grilla exhaustiva,24,6,"penalización (L1/L2), C, peso de clases; alpha en la Gamma","GroupKFold(5) por departamento, 2021-2024","exactitud balanceada (umbral 0,5) / R²"

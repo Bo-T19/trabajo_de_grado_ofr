@@ -1,0 +1,16 @@
+modelo,métrica,prueba_temporal_2025,prueba_departamentos_fuera,brecha_%
+Random forest — ¿deforesta?,exactitud balanceada,0.853754393439131,0.8167308528166095,5.489832130898122
+Random forest — ¿deforesta?,AUC,0.9295026094365748,0.905053564268699,
+Random forest — ¿deforesta?,precisión,0.921832884097035,0.875712066286898,
+Random forest — ¿deforesta?,recall / sensibilidad,0.8341463414634146,0.8375433382862804,
+Random forest — ¿deforesta?,especificidad,0.8733624454148472,0.7959183673469388,
+Random forest — ¿deforesta?,F1,0.8758002560819462,0.8562025316455696,
+Random forest — ¿deforesta?,"precisión promedio (AP, área bajo precisión-recall)",0.9619400038756528,0.9454042335811126,
+Random forest — ¿cuánto?,R²,0.06244900928248365,0.06101258200288584,83.27652624378868
+Random forest — ¿cuánto?,RMSE,4.353882047202887,2.1250801537375046,
+Random forest — ¿cuánto?,error absoluto promedio (MAE),0.5392215095131445,0.40327516279022474,
+Random forest — ¿cuánto?,error absoluto mediano (MedAE),0.11612968406300554,0.1448737695400387,
+Random forest — ¿cuánto?,R² en escala log (diagnóstico robusto),0.4095951057909535,0.17335231316260113,
+Random forest — ¿cuánto?,correlación de Spearman (diagnóstico robusto),0.7291389146177767,0.6135190737206342,
+Random forest — ¿cuánto?,"R² excluyendo a Pedraza (diagnóstico, 5.3)",0.3682709635690681,,1.379223382660782
+Random forest — ¿cuánto?,"R² una sola regresión sin separar, solo donde sí deforestó (diagnóstico, 5.2)",0.014407016369557324,,

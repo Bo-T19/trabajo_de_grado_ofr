@@ -1,0 +1,13 @@
+modelo,cuartil de bosque,municipios,deforestan,falsos positivos,falsos negativos
+Gradient boosting,Q1 (menos bosque),160,38,2,31
+Gradient boosting,Q2,160,79,8,24
+Gradient boosting,Q3,159,133,19,10
+Gradient boosting,Q4 (más bosque),160,160,0,0
+Random forest,Q1 (menos bosque),160,38,2,33
+Random forest,Q2,160,79,8,27
+Random forest,Q3,159,133,19,8
+Random forest,Q4 (más bosque),160,160,0,0
+Regresión logística,Q1 (menos bosque),160,38,0,38
+Regresión logística,Q2,160,79,10,43
+Regresión logística,Q3,159,133,24,1
+Regresión logística,Q4 (más bosque),160,160,0,0

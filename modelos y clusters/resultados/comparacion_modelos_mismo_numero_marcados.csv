@@ -1,0 +1,4 @@
+modelo,"marcados con umbral 0,5",aciertos entre los 410 de mayor probabilidad,falsos negativos (= falsos positivos),precisión = recall
+Gradient boosting,374,363,47,0.8853658536585366
+Random forest,371,363,47,0.8853658536585366
+Regresión logística,362,354,56,0.8634146341463415

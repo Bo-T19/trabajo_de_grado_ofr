@@ -1,0 +1,5 @@
+,clasificación,regresión
+penalty,l1,
+C,0.03,
+class_weight,balanced,
+alpha,,1

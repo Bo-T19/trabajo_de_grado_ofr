@@ -1,0 +1,10 @@
+modelo,tramo de riesgo,municipios,deforestan,no deforestan,odds
+Gradient boosting,30 % de mayor riesgo,192,191,1,191.0
+Gradient boosting,siguiente 30 %,191,159,32,4.96875
+Gradient boosting,40 % de menor riesgo,256,60,196,0.30612244897959184
+Random forest,30 % de mayor riesgo,192,190,2,95.0
+Random forest,siguiente 30 %,191,161,30,5.366666666666666
+Random forest,40 % de menor riesgo,256,59,197,0.29949238578680204
+Regresión logística,30 % de mayor riesgo,192,191,1,191.0
+Regresión logística,siguiente 30 %,191,147,44,3.340909090909091
+Regresión logística,40 % de menor riesgo,256,72,184,0.391304347826087

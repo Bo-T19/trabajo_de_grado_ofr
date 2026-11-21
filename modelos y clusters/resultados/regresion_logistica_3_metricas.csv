@@ -1,0 +1,16 @@
+modelo,métrica,prueba_temporal_2025,prueba_departamentos_fuera,brecha_%
+Regresión logística — ¿deforesta?,exactitud balanceada,0.8257641921397381,0.8248311954796778,0.6662801846457004
+Regresión logística — ¿deforesta?,AUC,0.9056023005644904,0.9049737527502334,
+Regresión logística — ¿deforesta?,precisión,0.9060773480662984,0.8976334617501376,
+Regresión logística — ¿deforesta?,recall / sensibilidad,0.8,0.807825656265478,
+Regresión logística — ¿deforesta?,especificidad,0.851528384279476,0.8418367346938775,
+Regresión logística — ¿deforesta?,F1,0.8497409326424871,0.8503649635036497,
+Regresión logística — ¿deforesta?,"precisión promedio (AP, área bajo precisión-recall)",0.9489868890952748,0.9456196298602365,
+Regresión logística — ¿cuánto?,R²,0.012999149435939938,0.018236502972806323,88.86442775739523
+Regresión logística — ¿cuánto?,RMSE,4.467226512879169,2.1729456769060187,
+Regresión logística — ¿cuánto?,error absoluto promedio (MAE),0.6059343785053795,0.42319958032462696,
+Regresión logística — ¿cuánto?,error absoluto mediano (MedAE),0.1649417522424344,0.18301092683824882,
+Regresión logística — ¿cuánto?,R² en escala log (diagnóstico robusto),-0.007719549301760109,-0.1677003617206616,
+Regresión logística — ¿cuánto?,correlación de Spearman (diagnóstico robusto),0.49249732191787676,0.3990660555296141,
+Regresión logística — ¿cuánto?,"R² excluyendo a Pedraza (diagnóstico, 5.3)",0.11210766154451934,,3.9642577977479476
+Regresión logística — ¿cuánto?,"R² una sola regresión sin separar, solo donde sí deforestó (diagnóstico, 5.2)",-0.006665802397728848,,
