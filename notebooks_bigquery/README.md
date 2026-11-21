@@ -235,22 +235,27 @@ trabajo de grado:
 | 04 | `panel_ideam` idéntico |
 | 05 | `panel_dtd` idéntico en los 25 trimestres del trabajo; el IDEAM ya publicó uno más, que entra solo |
 | 06 | `municipio_anio` y `municipio_mes` idénticos, también con las tablas actuales del Observatorio |
-| 08 a 11 | Corren de principio a fin sin errores |
+| 07 a 11 | Corren de principio a fin sin errores |
 | 12 | Segmentación idéntica: los 640 municipios quedan en el mismo segmento |
 | 13 | Métricas, hiperparámetros, importancias y lista de riesgo idénticos a los del trabajo |
 | 14 a 17 | Corren de principio a fin sin errores |
+| 18 | La demo corre de principio a fin, bajando de nuevo Hansen, el IDEAM, las escenas Landsat y GLAD-L |
 
 Sobre el 14 y el 15: los archivos de resultados guardados en el repositorio (`modelos y clusters/resultados/`)
-son de una corrida anterior y no coinciden del todo con lo que dan hoy los notebooks originales. Con la
-regresión logística se comprobó que el notebook 15 da exactamente lo mismo que el original corrido hoy; las
-diferencias con esos archivos están en la evaluación con departamentos por fuera (por ejemplo, exactitud
-balanceada de 0,8248 frente a 0,8242). El random forest muestra diferencias del mismo tamaño (AUC 0,9295 frente
-a 0,9295 en los tres primeros decimales).
+son de una corrida anterior y no coinciden del todo con lo que dan hoy los notebooks originales. Se corrieron
+los dos originales de nuevo y los notebooks 14 y 15 dan **exactamente lo mismo** que ellos: métricas,
+predicciones, importancias y lista de riesgo. Las diferencias con los archivos guardados son pequeñas (por
+ejemplo, en la regresión logística con departamentos por fuera, exactitud balanceada de 0,8248 frente a 0,8242;
+en el random forest, AUC de 0,92950 frente a 0,92947).
 
-Quedaron sin terminar de probar al momento de esta versión: el 07 (lee FINAGRO completo y es lento sin la
-lectura rápida), la demo de Landsat (18) y una corrida de los modelos con otros años. Tampoco se pudo probar
+Con otros años (prueba con 2024 en lugar de 2025, entrenando con 2021-2023) la segmentación y toda la cadena
+de modelos (12 a 17) corren de principio a fin, así que los años funcionan como parámetro. No se pudo probar
 desde fuera lo que solo existe dentro de BigQuery Studio: la instalación de paquetes en el runtime y la
 programación de corridas.
+
+Los notebooks de modelos de esta carpeta se adaptaron de las versiones de "modelos y clusters/" anteriores al
+commit `8a1f855` (20 de noviembre de 2026), que trajo versiones nuevas de esos notebooks. Esas versiones nuevas
+todavía no están pasadas a BigQuery.
 
 ---
 
