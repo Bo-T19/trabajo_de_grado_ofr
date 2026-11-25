@@ -8,8 +8,9 @@ Studio**, en el proyecto de Google Cloud del Observatorio. Con ellos:
 - **el análisis exploratorio, la segmentación y los modelos** leen de BigQuery, tanto las tablas del
   Observatorio como las que cargan los notebooks, y dejan sus resultados en tablas.
 
-Cada notebook trae todo su código adentro y explica en cada sección qué hace. **Lo único que hay que
-cambiar en cualquiera de ellos es la celda 1.**
+Cada notebook trae todo su código adentro y explica en cada sección qué hace. **La celda 1 de cada uno ya
+viene llena** para el proyecto del Observatorio (`prueba-ofr`), con las tablas en el dataset
+`Cambio_Climatico`. Lo único que falta poner es la API key de Global Forest Watch en el 03 y el 18.
 
 ---
 
@@ -34,8 +35,8 @@ cambiar en cualquiera de ellos es la celda 1.**
 
 | Qué | Para qué |
 |---|---|
-| Un proyecto de Google Cloud **con facturación** | Para prender la máquina de los notebooks y guardar las tablas sin que venzan |
-| Dos datasets (o uno solo para todo): uno para las tablas de deforestación y otro para los resultados | Los notebooks los crean solos si no existen; basta con decidir el nombre |
+| El proyecto del Observatorio, Prueba-OFR (id `prueba-ofr`), **con facturación** | Para prender la máquina de los notebooks y guardar las tablas sin que venzan |
+| El dataset `Cambio_Climatico` | Ahí quedan las tablas de deforestación y los resultados |
 | Permisos para quien corre los notebooks | Ver la lista de abajo |
 | Una **API key de Global Forest Watch** | Solo para los notebooks 03 y 18. Es gratuita y vence al año. El anexo del notebook 03 explica cómo sacarla |
 
@@ -58,11 +59,12 @@ Para correrlos programados, la cuenta de servicio con que se programan necesita 
 1. En BigQuery Studio, sube los archivos `.ipynb` de esta carpeta. En el panel del explorador, junto a
    "Notebooks", está la opción para subir uno desde el computador (el nombre exacto del menú puede cambiar con
    las versiones de la consola).
-2. Abre el notebook y llena la **celda 1** (sección 5 de esta guía). Reemplaza cada `<<LLENAR: ...>>` por su
-   valor, entre comillas.
+2. Abre el notebook. La **celda 1** ya está llena (sección 5 de esta guía). En el 03 y el 18, pega la API key
+   de GFW donde dice `<<LLENAR: ...>>`, entre comillas.
 3. Conéctalo a un runtime (el que viene por defecto sirve) y corre todas las celdas.
 4. La celda 2 instala lo que le falte a la máquina; la primera vez tarda uno o dos minutos.
-5. La celda 3 se conecta a BigQuery y **se detiene con un mensaje claro si quedó algo sin llenar** en la celda 1.
+5. La celda 3 se conecta a BigQuery y **se detiene con un mensaje claro si quedó algo sin llenar** en la celda 1
+   (en la práctica, la API key de GFW).
 
 Cada notebook empieza con un recuadro que dice qué lee, qué escribe, qué hay que cambiar y cuánto tarda.
 
@@ -74,15 +76,15 @@ Cada notebook empieza con un recuadro que dice qué lee, qué escribe, qué hay 
 
 | # | Notebook | Qué hace | Escribe | Cuándo volver a correrlo | Tarda |
 |---|---|---|---|---|---|
-| 01 | `01_carga_grilla_y_municipios` | La grilla de 5 km y el municipio de cada celda (DANE) | `grilla`, `municipios_limites` | Una vez | 2 min |
-| 02 | `02_carga_hansen` | Bosque base y pérdida anual de Hansen | `bosque_base`, `panel_hansen` | Una vez al año, con cada versión de Hansen | 20 min |
-| 03 | `03_carga_alertas_gfw` | Alertas de GFW por celda y mes | `panel_deforestacion_colombia` | Cada mes | 10-20 min |
-| 04 | `04_carga_ideam_cambio` | Deforestación oficial del IDEAM por celda y periodo | `panel_ideam` | Una vez al año, cuando el IDEAM publica | 10 min |
-| 05 | `05_carga_ideam_dtd` | Detecciones tempranas del IDEAM por celda y trimestre | `panel_dtd` | Cada trimestre | 5 min |
-| 06 | `06_carga_panel_municipal` | Cruza la deforestación con FINAGRO, EVA e ICA por municipio | `municipio_anio`, `municipio_mes`, `municipio_cultivo_anio` | Después de cualquier actualización | 5 min |
+| 01 | `01_carga_grilla_y_municipios` | La grilla de 5 km y el municipio de cada celda (DANE) | `GRILLA` | Una vez | 2 min |
+| 02 | `02_carga_hansen` | Bosque base y pérdida anual de Hansen | `BOSQUE_BASE`, `PANEL_HANSEN` | Una vez al año, con cada versión de Hansen | 20 min |
+| 03 | `03_carga_alertas_gfw` | Alertas de GFW por celda y mes | `PANEL_DEFORESTACION_COLOMBIA` | Cada mes | 10-20 min |
+| 04 | `04_carga_ideam_cambio` | Deforestación oficial del IDEAM por celda y periodo | `PANEL_IDEAM` | Una vez al año, cuando el IDEAM publica | 10 min |
+| 05 | `05_carga_ideam_dtd` | Detecciones tempranas del IDEAM por celda y trimestre | `PANEL_DTD` | Cada trimestre | 5 min |
+| 06 | `06_carga_panel_municipal` | Cruza la deforestación con FINAGRO, EVA e ICA por municipio | `MUNICIPIO_ANIO`, `MUNICIPIO_MES`, `MUNICIPIO_CULTIVO_ANIO` | Después de cualquier actualización | 5 min |
 
 Las tablas van al dataset `DATASET_DEFORESTACION`. Cada carga deja además una fila en la tabla
-`registro_cargas`: qué tabla, cuántas filas, de qué fuente, con qué parámetros y cuándo.
+`REGISTRO_CARGAS`: qué tabla, cuántas filas, de qué fuente, con qué parámetros y cuándo.
 
 El orden importa: el 01 va primero; el 02 antes del 03, el 04 y el 05 (les da el bosque base); y el 06 al
 final.
@@ -91,7 +93,7 @@ final.
 
 | # | Notebook | Qué hace | Escribe |
 |---|---|---|---|
-| 07 | `07_eda_estadisticas_descriptivas` | Estadísticas descriptivas de todas las tablas | `estadisticas_descriptivas` |
+| 07 | `07_eda_estadisticas_descriptivas` | Estadísticas descriptivas de todas las tablas | `ESTADISTICAS_DESCRIPTIVAS` |
 | 08 | `08_eda_catalogo_paneles` | Describe y compara los cuatro paneles, con un mapa de las fuentes | — |
 | 09 | `09_eda_panel_municipal` | Concentración, correlaciones y mapa del panel municipal | — |
 | 10 | `10_eda_sfc414` | Exploración de la tabla SFC 414 | — |
@@ -109,7 +111,7 @@ final.
 | 17 | `17_modelos_segmentos_y_riesgo` | Cruza los segmentos con el riesgo | 12 y 16 |
 
 Los resultados van al dataset `DATASET_RESULTADOS`, cada uno en una tabla con el prefijo de su notebook
-(`gradient_boosting_metricas`, `segmentacion_municipios`, …). Los modelos entrenados no se guardan, porque
+(`GRADIENT_BOOSTING_METRICAS`, `SEGMENTACION_MUNICIPIOS`, …). Los modelos entrenados no se guardan, porque
 BigQuery guarda tablas y no archivos; correr el notebook los reconstruye iguales, porque todo lo aleatorio
 parte de una semilla fija.
 
@@ -121,28 +123,26 @@ parte de una semilla fija.
 
 ---
 
-## 5. Qué llenar en la celda 1
+## 5. Lo que trae la celda 1
 
-| Variable | Qué poner | Dónde va |
+Ya viene llena con estos valores. Solo hay que cambiarlos si las tablas se pasan a otro proyecto o dataset.
+
+| Variable | Valor | Dónde va |
 |---|---|---|
-| `PROYECTO` | El id del proyecto de Google Cloud. Aparece arriba a la izquierda en la consola | Todos |
-| `DATASET_DEFORESTACION` | El dataset de las tablas de deforestación, p. ej. `"deforestacion"` | 01-09 y 12-17 |
-| `DATASET_RESULTADOS` | El dataset de los resultados, p. ej. `"deforestacion_resultados"`. Puede ser el mismo de arriba | 07 y 12-18 |
-| `TABLA_FINAGRO` | Tabla de desembolsos de FINAGRO. En el trabajo: `prueba-ofr.Inclusion_Financiera.FINAGRO_Desembolsos_EFECTIVA` | 06, 07 |
-| `TABLA_SFC414` | Tabla del formato 414. En el trabajo: `prueba-ofr.Inclusion_Financiera.SFC414_DASH` | 07, 10 |
-| `TABLA_EVA` | EVA. En el trabajo: `prueba-ofr.Produccion.eva_full_enriquecido` | 06, 07, 11 |
-| `TABLA_ICA` | Inventario pecuario del ICA. En el trabajo: `prueba-ofr.Produccion.ICA_pecuario` | 06, 07, 11 |
-| `TABLA_MUNICIPIOS` | Catálogo de municipios. En el trabajo: `prueba-ofr.Municipios.CODIGO` | 06, 08, 11 |
-| `GFW_API_KEY` | La API key de Global Forest Watch | 03, 18 |
+| `PROYECTO` | `prueba-ofr`: el id del proyecto Prueba-OFR | Todos |
+| `DATASET_DEFORESTACION` | `Cambio_Climatico`: las tablas de deforestación | 01-09 y 12-17 |
+| `DATASET_RESULTADOS` | `Cambio_Climatico`: los resultados. Para tenerlos aparte, se pone otro nombre en los notebooks 07 y 12-18, y el primero que escriba crea el dataset | 07 y 12-18 |
+| `TABLA_FINAGRO` | `prueba-ofr.Inclusion_Financiera.FINAGRO_Desembolsos_EFECTIVA` | 06, 07 |
+| `TABLA_SFC414` | `prueba-ofr.Inclusion_Financiera.SFC414_DASH` | 07, 10 |
+| `TABLA_EVA` | `prueba-ofr.Produccion.eva_full_enriquecido` | 06, 07, 11 |
+| `TABLA_ICA` | `prueba-ofr.Produccion.ICA_pecuario` | 06, 07, 11 |
+| `TABLA_MUNICIPIOS` | `prueba-ofr.Municipios.CODIGO` | 06, 08, 11 |
+| `UBICACION` | `US`: donde se crean los datasets. Tiene que ser la misma de las tablas del Observatorio | Los que escriben |
+| `RUTA_LLAVE_BIGQUERY` | Vacía. Solo se llena si el notebook se corre en un computador (sección 8) | Todos |
+| `CARPETA_DESCARGAS` | Vacía: los archivos se bajan a una carpeta temporal | 02-05, 18 |
+| `ANIO_INICIO`, `ANIO_PRUEBA` (13-17) y `ANIO_INICIO`, `ANIO_FIN` (12) | Los años de los modelos y de la segmentación (sección 6) | 12-17 |
 
-Ya vienen llenas y normalmente no se tocan:
-
-| Variable | Qué es |
-|---|---|
-| `UBICACION` | Dónde se crean los datasets. Viene en `"US"`, la de las tablas del Observatorio; tiene que ser la misma de ellas |
-| `RUTA_LLAVE_BIGQUERY` | Vacía en BigQuery. Solo se llena si el notebook se corre en un computador (sección 8) |
-| `CARPETA_DESCARGAS` | Vacía: los archivos se bajan a una carpeta temporal |
-| `ANIO_INICIO`, `ANIO_PRUEBA` (13-17) y `ANIO_INICIO`, `ANIO_FIN` (12) | Los años de los modelos y de la segmentación (sección 6) |
+La única que falta es `GFW_API_KEY`, la API key de Global Forest Watch, en el 03 y el 18.
 
 > **Sobre la llave de GFW.** Los notebooks 03 y 18 quedan guardados en BigQuery con la llave adentro. No los
 > compartas fuera del equipo. En el repositorio de GitHub, que es público, van siempre con el
@@ -184,22 +184,26 @@ En `DATASET_DEFORESTACION`:
 
 | Tabla | Una fila es | Qué trae |
 |---|---|---|
-| `grilla` | una celda de 5 km | Identificador, centro, departamento y municipio |
-| `municipios_limites` | un municipio | Su polígono (texto WKT), para los mapas |
-| `bosque_base` | una celda | Bosque al empezar el análisis, según Hansen |
-| `panel_deforestacion_colombia` | una celda en un mes | Alertas de GFW, bosque remanente, tasa, rezagos |
-| `panel_hansen` | una celda en un año | Pérdida de cobertura arbórea de Hansen |
-| `panel_ideam` | una celda en un periodo | Deforestación oficial y demás clases de cambio del IDEAM |
-| `panel_dtd` | una celda en un trimestre | Detecciones tempranas del IDEAM |
-| `municipio_anio` | un municipio en un año | Deforestación, crédito, cultivos, ganado y atributos |
-| `municipio_mes` | un municipio en un mes | Alertas de GFW y crédito |
-| `municipio_cultivo_anio` | un municipio, cultivo y año | Hectáreas cosechadas según la EVA |
-| `registro_cargas` | una carga | Qué se cargó, de dónde, con qué parámetros y cuándo |
+| `GRILLA` | una celda de 5 km | Identificador, centro, departamento y municipio |
+| `BOSQUE_BASE` | una celda | Bosque al empezar el análisis, según Hansen |
+| `PANEL_DEFORESTACION_COLOMBIA` | una celda en un mes | Alertas de GFW, bosque remanente, tasa, rezagos |
+| `PANEL_HANSEN` | una celda en un año | Pérdida de cobertura arbórea de Hansen |
+| `PANEL_IDEAM` | una celda en un periodo | Deforestación oficial y demás clases de cambio del IDEAM |
+| `PANEL_DTD` | una celda en un trimestre | Detecciones tempranas del IDEAM |
+| `MUNICIPIO_ANIO` | un municipio en un año | Deforestación, crédito, cultivos, ganado y atributos |
+| `MUNICIPIO_MES` | un municipio en un mes | Alertas de GFW y crédito |
+| `MUNICIPIO_CULTIVO_ANIO` | un municipio, cultivo y año | Hectáreas cosechadas según la EVA |
+| `REGISTRO_CARGAS` | una carga | Qué se cargó, de dónde, con qué parámetros y cuándo |
 
 En `DATASET_RESULTADOS`, las salidas de los notebooks 07 y 12 a 18, con el prefijo de cada uno.
 
-Cada tabla y cada columna tienen una descripción, que se ve en BigQuery en la pestaña de esquema. Dos cosas
-de cómo se guardan:
+Los límites de los municipios no se guardan en BigQuery, porque el Observatorio ya los tiene. El 01 los
+descarga del DANE para asignar el municipio de cada celda, y el 09 y el 12 los vuelven a descargar para sus
+mapas. Si quedó una tabla `MUNICIPIOS_LIMITES` de una versión anterior, el 01 la borra.
+
+Los nombres de las tablas van en mayúscula. En BigQuery importan las mayúsculas, así que en SQL hay que
+escribirlos igual (`PANEL_IDEAM`, no `panel_ideam`). Cada tabla y cada columna tienen una descripción, que
+se ve en BigQuery en la pestaña de esquema. Dos cosas de cómo se guardan:
 
 - **`orden_fila`.** Todas las tablas que escriben los notebooks tienen esta columna, con la posición de cada
   fila. BigQuery no guarda el orden de las filas, y algunos cálculos dependen de él (el muestreo del random
@@ -229,12 +233,12 @@ trabajo de grado:
 
 | Notebook | Resultado |
 |---|---|
-| 01 | `grilla` idéntica: las mismas 45.621 celdas, en el mismo orden, con el mismo departamento y municipio |
-| 02 | `bosque_base` y `panel_hansen` idénticos |
-| 03 | `panel_deforestacion_colombia` idéntico (3.524.664 filas), con las respuestas de la API de agosto de 2026. Una consulta nueva a la API también funcionó |
-| 04 | `panel_ideam` idéntico |
-| 05 | `panel_dtd` idéntico en los 25 trimestres del trabajo; el IDEAM ya publicó uno más, que entra solo |
-| 06 | `municipio_anio` y `municipio_mes` idénticos, también con las tablas actuales del Observatorio |
+| 01 | `GRILLA` idéntica: las mismas 45.621 celdas, en el mismo orden, con el mismo departamento y municipio |
+| 02 | `BOSQUE_BASE` y `PANEL_HANSEN` idénticos |
+| 03 | `PANEL_DEFORESTACION_COLOMBIA` idéntico (3.524.664 filas), con las respuestas de la API de agosto de 2026. Una consulta nueva a la API también funcionó |
+| 04 | `PANEL_IDEAM` idéntico |
+| 05 | `PANEL_DTD` idéntico en los 25 trimestres del trabajo; el IDEAM ya publicó uno más, que entra solo |
+| 06 | `MUNICIPIO_ANIO` y `MUNICIPIO_MES` idénticos, también con las tablas actuales del Observatorio |
 | 07 a 11 | Corren de principio a fin sin errores |
 | 12 a 17 | Los resultados de la segmentación, los tres modelos, la comparación y el cruce con riesgo salen idénticos a los de la corrida del 20 de noviembre de 2026 (los archivos de `modelos y clusters/resultados/`): métricas, predicciones, importancias, odds y la asignación de los 640 municipios a su segmento. Solo cambia la forma de algunas tablas: hiperparámetros guardados como texto, encabezados de dos niveles que quedan en uno, y la frase de reproducibilidad de la síntesis, que ya no habla de rutas ni de archivos |
 | 18 | La demo corre de principio a fin, bajando de nuevo Hansen, el IDEAM, las escenas Landsat y GLAD-L |
@@ -243,7 +247,11 @@ Los notebooks 12 a 17 están adaptados de las versiones de "modelos y clusters/"
 (20 de noviembre de 2026).
 
 Con otros años (prueba con 2024 en lugar de 2025, entrenando con 2021-2023) la segmentación y toda la cadena
-de modelos corren de principio a fin, así que los años funcionan como parámetro. No se pudo probar desde
+de modelos corren de principio a fin, así que los años funcionan como parámetro.
+
+Después de pasar los nombres de las tablas a mayúscula y de dejar de guardar los límites municipales, se
+volvieron a correr el 01, el 06 a 09, y el 12, 13, 16 y 17: `GRILLA` y las tablas municipales siguen
+idénticas, y el resto corre sin errores. No se pudo probar desde
 fuera lo que solo existe dentro de BigQuery Studio: la instalación de paquetes en el runtime y la
 programación de corridas.
 
@@ -253,7 +261,9 @@ programación de corridas.
 
 | Lo que pasa | Por qué | Qué hacer |
 |---|---|---|
-| La celda 3 dice "Falta llenar en la celda 1: …" | Quedó algún `<<LLENAR ...>>` | Llenar las variables que nombra |
+| Conectar al entorno de ejecución tarda varios minutos | Google está prendiendo la máquina: pasa la primera vez y cada vez que se apagó por estar inactiva | Esperar unos minutos. Si pasa de un cuarto de hora, revisar en Colab Enterprise → Entornos de ejecución si la máquina quedó con error, borrarla y conectar de nuevo |
+| La celda 3 dice "Falta llenar en la celda 1: GFW_API_KEY" | No se pegó la API key de GFW (03 y 18) | Pegarla en la celda 1 |
+| El 03 muestra errores 404 mientras espera un lote | La API de GFW a veces no encuentra un lote recién pedido | Nada: el notebook lo vuelve a intentar solo |
 | "Aviso: la lectura rápida de BigQuery no está disponible" | Falta el rol *BigQuery Read Session User* | Nada: el notebook sigue con la lectura normal, más lenta en tablas grandes. Para que sea más rápido, pedir ese rol |
 | El 03 dice que GFW rechazó la API key | La llave venció (duran un año) | Sacar una nueva con el anexo del notebook 03 |
 | El 03 dice que fallaron algunos lotes | La API de GFW no respondió a tiempo | Volver a correr la celda: los lotes que llegaron no se vuelven a pedir. El notebook nunca rellena con ceros un lote que falló |
