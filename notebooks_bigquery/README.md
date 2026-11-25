@@ -216,14 +216,6 @@ se ve en BigQuery en la pestaña de esquema. Dos cosas de cómo se guardan:
   fila. BigQuery no guarda el orden de las filas, y algunos cálculos dependen de él (el muestreo del random
   forest, por ejemplo). Los notebooks leen las tablas ordenadas por esa columna; en SQL, `ORDER BY orden_fila`.
 
-### Borrar las tablas que dejaron las versiones anteriores
-
-Las versiones anteriores de los notebooks guardaban sus resultados (unas 75 tablas más). El script
-[`borrar_tablas_viejas.sql`](borrar_tablas_viejas.sql) las borra: se abre una consulta nueva en la consola de BigQuery,
-se pega todo y se ejecuta, una sola vez. Solo borra tablas con esos nombres exactos y no toca ninguna otra
-tabla del dataset. Al final muestra lo que quedó. Si las tablas están en otro dataset, se cambia la primera
-línea del script.
-
 ---
 
 ## 8. Correr un notebook en un computador
@@ -264,7 +256,7 @@ Después de pasar los nombres de las tablas a mayúscula y de dejar de guardar l
 volvieron a correr el 01, el 06 a 09, y el 12, 13, 16 y 17: `GRILLA` y las tablas municipales siguen
 idénticas, y el resto corre sin errores.
 
-Al dejar en BigQuery solo las tablas de datos se volvieron a correr el 16 y el 17, que son los que borran: el 16 guardó sus dos tablas de paso y borró las 22 del 13, el 14 y el 15, y el 17 borró las tres que usó. El script `borrar_tablas_viejas.sql` se probó en el dataset de prueba.
+Al dejar en BigQuery solo las tablas de datos se volvieron a correr el 16 y el 17, que son los que borran: el 16 guardó sus dos tablas de paso y borró las 22 del 13, el 14 y el 15, y el 17 borró las tres que usó.
 
 No se pudo probar desde
 fuera lo que solo existe dentro de BigQuery Studio: la instalación de paquetes en el runtime y la
